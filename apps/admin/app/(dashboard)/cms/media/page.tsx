@@ -73,6 +73,11 @@ function MediaManagerInner() {
   const [error, setError]             = useState('');
   const [device, setDevice]           = useState<DevicePreset>('desktop');
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
+  // Track the last src we wrote ourselves. We can't introspect the iframe's
+  // actual location from the admin origin (storefront is served from a
+  // different localhost port → SecurityError on contentWindow.location.*),
+  // so we shadow it locally and compare against that.
+  const lastSrcPathRef = useRef<string | null>(null);
 
   const loadAll = useCallback(async () => {
     if (!token) return;
@@ -185,9 +190,13 @@ function MediaManagerInner() {
   }, [activePage]);
 
   // Guard iframe navigation: only replace src when the target pathname actually
-  // differs from what the iframe is currently showing. Prevents reload storms
-  // when iframeSrc re-derives but points at the same page, and avoids
-  // regressing the WebGL / iframe-swap fixes from S345/S346.
+  // differs from what we last set. Prevents reload storms when iframeSrc
+  // re-derives but points at the same page, and avoids regressing the
+  // WebGL / iframe-swap fixes from S345/S346.
+  //
+  // We can't read iframe.contentWindow.location — storefront is on a
+  // different origin, and browsers block that access with SecurityError.
+  // Instead we compare against lastSrcPathRef which we update ourselves.
   useEffect(() => {
     const iframe = iframeRef.current;
     if (!iframe) return;
@@ -197,9 +206,9 @@ function MediaManagerInner() {
     } catch {
       return;
     }
-    const currentPath = iframe.contentWindow?.location?.pathname;
-    if (currentPath !== targetPath) {
+    if (lastSrcPathRef.current !== targetPath) {
       iframe.src = iframeSrc;
+      lastSrcPathRef.current = targetPath;
     }
   }, [iframeSrc]);
 
