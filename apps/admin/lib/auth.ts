@@ -36,6 +36,7 @@ function decodeJwt(token: string): JwtPayload | null {
 }
 
 const nextAuth: NextAuthResult = NextAuth({
+  trustHost: true,
   providers: [
     Credentials({
       name: 'credentials',
@@ -92,6 +93,9 @@ const nextAuth: NextAuthResult = NextAuth({
       if (session.user) {
         session.accessToken = token.accessToken;
         session.user.role = token.role;
+        if (typeof token.sub === 'string') {
+          session.user.id = token.sub;
+        }
       }
       return session;
     },
