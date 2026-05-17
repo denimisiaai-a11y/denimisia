@@ -123,29 +123,25 @@ describe('ReviewsService', () => {
       expect(result).toEqual(mockReview);
     });
 
-    it('should create an unverified review when user has not purchased', async () => {
+    // S8 enforcement: a non-purchaser cannot review. The lenient "create
+    // unverified review" path was dropped 2026-05-17 — the previous behavior
+    // (any logged-in user could review with isVerified=false) made fake
+    // reviews trivial. Now POST /reviews returns 403 if the user has no
+    // DELIVERED OrderItem for the product.
+    it('rejects review when user has not purchased the product (S8)', async () => {
       prisma.product.findUnique.mockResolvedValue({ id: 'prod-1' });
       prisma.orderItem.findFirst.mockResolvedValue(null);
-      prisma.review.findUnique.mockResolvedValue(null);
-      prisma.review.create.mockResolvedValue({
-        ...mockReview,
-        isVerified: false,
-      });
 
-      const dto = {
-        productId: 'prod-1',
-        rating: 4,
-        body: 'Okay jeans',
-      };
-
-      const result = await service.createReview('user-1', dto as any);
-
-      expect(prisma.review.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({ isVerified: false }),
-        }),
-      );
-      expect(result.isVerified).toBe(false);
+      await expect(
+        service.createReview('user-1', {
+          productId: 'prod-1',
+          rating: 4,
+          body: 'Looks nice',
+        } as any),
+      ).rejects.toThrow(ForbiddenException);
+      // Must not even read review.findUnique — the gate trips first.
+      expect(prisma.review.findUnique).not.toHaveBeenCalled();
+      expect(prisma.review.create).not.toHaveBeenCalled();
     });
 
     it('should throw NotFoundException when product does not exist', async () => {
@@ -157,8 +153,10 @@ describe('ReviewsService', () => {
     });
 
     it('should throw ConflictException when user already reviewed', async () => {
+      // Purchase confirmed (mockResolvedValue returns the orderItem) so we
+      // can reach the "already reviewed" check.
       prisma.product.findUnique.mockResolvedValue({ id: 'prod-1' });
-      prisma.orderItem.findFirst.mockResolvedValue(null);
+      prisma.orderItem.findFirst.mockResolvedValue({ id: 'oi-1' });
       prisma.review.findUnique.mockResolvedValue(mockReview);
 
       await expect(

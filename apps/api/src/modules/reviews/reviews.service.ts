@@ -49,16 +49,27 @@ export class ReviewsService {
     });
     if (!product) throw new NotFoundException('Product not found');
 
-    // Verify the user has purchased the product.
-    // Only DELIVERED counts as verified-buyer — SHIPPED is in-transit and
-    // can still be refused/returned. TODO: recompute isVerified if the
-    // order is later RETURNED/REFUNDED.
+    // Verify the user has purchased the product. Only DELIVERED counts —
+    // SHIPPED is in-transit and can still be refused/returned. LR-001
+    // amendment S8 hard-requires this gate: no purchase, no review. The
+    // verified-buyer badge is preserved as `isVerified` for UI use, but
+    // it's now always true (any review that exists must be from a buyer).
+    //
+    // Guest-checkout orders attach to the new account via the C2 flow
+    // (verified email signup); only after that attach does the orderItem
+    // match userId here, so guests can review their own purchases as
+    // soon as they finish account creation.
     const hasPurchased = await this.prisma.orderItem.findFirst({
       where: {
         productId: dto.productId,
         order: { userId, status: 'DELIVERED' },
       },
     });
+    if (!hasPurchased) {
+      throw new ForbiddenException(
+        'Only customers who have received this product can review it.',
+      );
+    }
 
     const existing = await this.prisma.review.findUnique({
       where: { userId_productId: { userId, productId: dto.productId } },
@@ -74,7 +85,9 @@ export class ReviewsService {
         title: dto.title,
         body: dto.body,
         images: dto.images ?? [],
-        isVerified: !!hasPurchased,
+        // Always true under S8 enforcement; kept on the row so the UI
+        // can render a verified-buyer badge without a join.
+        isVerified: true,
       },
       include: {
         user: { select: { firstName: true, lastName: true } },
