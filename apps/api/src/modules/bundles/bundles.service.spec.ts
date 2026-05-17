@@ -113,9 +113,24 @@ describe('BundlesService', () => {
             { productId: 'prod-1', color: 'Black', size: 'S', deletedAt: null },
             { productId: 'prod-1', color: 'Black', size: 'M', deletedAt: null },
             { productId: 'prod-1', color: 'Black', size: 'L', deletedAt: null },
-            { productId: 'prod-2', color: 'Indigo', size: 'S', deletedAt: null },
-            { productId: 'prod-2', color: 'Indigo', size: 'M', deletedAt: null },
-            { productId: 'prod-2', color: 'Indigo', size: 'L', deletedAt: null },
+            {
+              productId: 'prod-2',
+              color: 'Indigo',
+              size: 'S',
+              deletedAt: null,
+            },
+            {
+              productId: 'prod-2',
+              color: 'Indigo',
+              size: 'M',
+              deletedAt: null,
+            },
+            {
+              productId: 'prod-2',
+              color: 'Indigo',
+              size: 'L',
+              deletedAt: null,
+            },
           ]),
         },
         select: { productId: true, color: true, size: true },
@@ -202,8 +217,18 @@ describe('BundlesService', () => {
       expect(prisma.productVariant.findMany).toHaveBeenCalledWith({
         where: {
           OR: expect.arrayContaining([
-            { productId: 'prod-1', color: 'Black', size: 'XL', deletedAt: null },
-            { productId: 'prod-2', color: 'Indigo', size: 'XL', deletedAt: null },
+            {
+              productId: 'prod-1',
+              color: 'Black',
+              size: 'XL',
+              deletedAt: null,
+            },
+            {
+              productId: 'prod-2',
+              color: 'Indigo',
+              size: 'XL',
+              deletedAt: null,
+            },
           ]),
         },
         select: { productId: true, color: true, size: true },
