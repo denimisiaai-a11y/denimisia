@@ -1,0 +1,166 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* -------------------------------------------------------------------------- */
+/* Stitch "Digital Atelier" design tokens                                     */
+/* -------------------------------------------------------------------------- */
+@theme {
+  /* Editorial reds */
+  --color-primary: #b8111d;
+  --color-primary-container: #dc3133;
+  --color-on-primary: #ffffff;
+  --color-on-primary-container: #fffbff;
+  --color-inverse-primary: #ffb3ad;
+
+  /* Surface hierarchy — tonal paper */
+  --color-surface: #fbf9f8;
+  --color-surface-bright: #fbf9f8;
+  --color-surface-dim: #dbdad9;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container-low: #f5f3f3;
+  --color-surface-container: #efeded;
+  --color-surface-container-high: #e9e8e7;
+  --color-surface-container-highest: #e4e2e2;
+  --color-surface-variant: #e4e2e2;
+
+  /* Text + on-surface */
+  --color-on-surface: #1b1c1c;
+  --color-on-surface-variant: #5b403d;
+  --color-on-background: #1b1c1c;
+  --color-background: #fbf9f8;
+
+  /* Secondary / tertiary */
+  --color-secondary: #5f5e5e;
+  --color-on-secondary: #ffffff;
+  --color-secondary-container: #e2dfde;
+  --color-on-secondary-container: #636262;
+  --color-tertiary: #5b5c5c;
+  --color-on-tertiary: #ffffff;
+
+  /* Outline (ghost borders only) */
+  --color-outline: #906f6c;
+  --color-outline-variant: #e4bdba;
+
+  /* Inverse (chips / dark selects) */
+  --color-inverse-surface: #303031;
+  --color-inverse-on-surface: #f2f0f0;
+
+  /* Error */
+  --color-error: #ba1a1a;
+  --color-on-error: #ffffff;
+  --color-error-container: #ffdad6;
+  --color-on-error-container: #93000a;
+
+  /* Ink (softer than pure black) */
+  --color-ink: #030302;
+
+  /* Backward-compat aliases for pre-Stitch pages (remove after all pages rebuilt) */
+  --color-surface-alt: #f5f3f3;
+  --color-border: #e4bdba;
+  --color-text: #1b1c1c;
+  --color-text-muted: #5f5e5e;
+  --color-success: #059669;
+  --color-warning: #d97706;
+  --color-accent: #b8111d;
+  --color-accent-light: #dc3133;
+  --color-primary-light: #dc3133;
+
+  /* Radius — sharp corners */
+  --radius: 0.125rem;
+  --radius-lg: 0.25rem;
+  --radius-xl: 0.5rem;
+  --radius-full: 0.75rem;
+
+  /* Fonts */
+  --font-headline: "Geist Sans", "Inter", sans-serif;
+  --font-body: "Inter", sans-serif;
+  --font-label: "Inter", sans-serif;
+
+  /* Cinematic easing */
+  --ease-editorial: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Dark mode — editorial ink on cream reversed                                */
+/* -------------------------------------------------------------------------- */
+@layer base {
+  .dark {
+    --color-background: #030302;
+    --color-surface: #1b1c1c;
+    --color-surface-bright: #2a2b2b;
+    --color-surface-dim: #121212;
+    --color-surface-container-lowest: #030302;
+    --color-surface-container-low: #141414;
+    --color-surface-container: #1b1c1c;
+    --color-surface-container-high: #242525;
+    --color-surface-container-highest: #2f3030;
+    --color-surface-variant: #2f3030;
+    --color-on-surface: #f5f3f3;
+    --color-on-surface-variant: #d0cbca;
+    --color-on-background: #f5f3f3;
+    --color-secondary: #c8c6c5;
+    --color-secondary-container: #323131;
+    --color-outline: #c3b0ad;
+    --color-outline-variant: #5b403d;
+    --color-inverse-surface: #efeded;
+    --color-inverse-on-surface: #303031;
+    /* Dark-mode backward-compat aliases */
+    --color-surface-alt: #141414;
+    --color-border: #2f3030;
+    --color-text: #f5f3f3;
+    --color-text-muted: #c8c6c5;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Global reset + base typography                                             */
+/* -------------------------------------------------------------------------- */
+@layer base {
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html {
+    font-family: var(--font-body);
+    color-scheme: light dark;
+  }
+
+  body {
+    background: var(--color-background);
+    color: var(--color-on-surface);
+    font-family: var(--font-body);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-headline);
+    color: var(--color-on-surface);
+  }
+
+  /* Material Symbols configuration */
+  .material-symbols-outlined {
+    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    font-size: 20px;
+    vertical-align: middle;
+  }
+
+  /* Editorial scroll bar */
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--color-surface-container-highest); border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--color-outline-variant); }
+
+  .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+  .scrollbar-hide::-webkit-scrollbar { display: none; }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Utilities                                                                  */
+/* -------------------------------------------------------------------------- */
+@layer utilities {
+  .font-headline { font-family: var(--font-headline); }
+  .font-body { font-family: var(--font-body); }
+  .ease-editorial { transition-timing-function: var(--ease-editorial); }
+  .atelier-shadow { box-shadow: 0 20px 40px rgba(27, 28, 28, 0.06); }
+  .atelier-shadow-sm { box-shadow: 0 20px 40px rgba(27, 28, 28, 0.03); }
+}
