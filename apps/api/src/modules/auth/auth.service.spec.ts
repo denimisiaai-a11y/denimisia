@@ -41,6 +41,10 @@ describe('AuthService', () => {
         create: jest.fn(),
         update: jest.fn(),
       },
+      order: {
+        updateMany: jest.fn(),
+      },
+      $transaction: jest.fn(),
     };
 
     jwt = {
@@ -468,21 +472,104 @@ describe('AuthService', () => {
   // ─── verifyEmail() ────────────────────────────────────────────────────────
 
   describe('verifyEmail', () => {
-    it('should verify email and delete token from Redis', async () => {
+    // Helper mirrors the inline transaction shape used in service.verifyEmail.
+    // The tx object exposes the same user/order surface the production path
+    // touches; the $transaction mock invokes the callback synchronously and
+    // returns whatever the callback resolves with (the attached-orders count).
+    const mockVerifyTx = (orderUpdateResult: { count: number }) => {
+      const tx = {
+        user: { update: jest.fn().mockResolvedValue({}) },
+        order: { updateMany: jest.fn().mockResolvedValue(orderUpdateResult) },
+      };
+      (prisma as any).$transaction.mockImplementation(async (cb: Function) =>
+        cb(tx),
+      );
+      return tx;
+    };
+
+    it('verifies the email and reports zero attached orders for a clean signup', async () => {
       redis.get.mockResolvedValue('user-1');
-      prisma.user.findFirst.mockResolvedValue({ id: 'user-1' });
-      prisma.user.update.mockResolvedValue({ ...mockUser, isVerified: true });
+      prisma.user.findFirst.mockResolvedValue({
+        id: 'user-1',
+        email: 'fresh@example.com',
+      });
+      const tx = mockVerifyTx({ count: 0 });
       redis.del.mockResolvedValue(1);
 
       const result = await service.verifyEmail('verify-token');
 
       expect(redis.get).toHaveBeenCalledWith('verify:verify-token');
-      expect(prisma.user.update).toHaveBeenCalledWith({
+      expect(tx.user.update).toHaveBeenCalledWith({
         where: { id: 'user-1' },
         data: { isVerified: true },
       });
+      expect(tx.order.updateMany).toHaveBeenCalledWith({
+        where: {
+          guestEmail: 'fresh@example.com',
+          userId: null,
+          deletedAt: null,
+        },
+        data: {
+          userId: 'user-1',
+          guestEmail: null,
+          guestName: null,
+          guestPhone: null,
+        },
+      });
       expect(redis.del).toHaveBeenCalledWith('verify:verify-token');
-      expect(result).toEqual({ message: 'Email verified successfully' });
+      expect(result).toEqual({
+        message: 'Email verified successfully',
+        attachedOrders: 0,
+      });
+    });
+
+    it('attaches prior guest-checkout orders to the verified account (LR-001 C2)', async () => {
+      redis.get.mockResolvedValue('user-1');
+      prisma.user.findFirst.mockResolvedValue({
+        id: 'user-1',
+        email: 'returning@example.com',
+      });
+      const tx = mockVerifyTx({ count: 3 });
+      redis.del.mockResolvedValue(1);
+
+      const result = await service.verifyEmail('verify-token');
+
+      // 3 prior guest orders for returning@example.com were attached.
+      expect(tx.order.updateMany).toHaveBeenCalledWith({
+        where: {
+          guestEmail: 'returning@example.com',
+          userId: null,
+          deletedAt: null,
+        },
+        data: expect.objectContaining({
+          userId: 'user-1',
+          guestEmail: null,
+          guestName: null,
+          guestPhone: null,
+        }),
+      });
+      expect(result.attachedOrders).toBe(3);
+    });
+
+    it('user.update + order.updateMany run in the same transaction', async () => {
+      // Security-critical: if the update succeeded but the attach failed
+      // (or vice-versa) the system would either grant orders without proof
+      // of email or leave verified users without their pre-signup history.
+      redis.get.mockResolvedValue('user-1');
+      prisma.user.findFirst.mockResolvedValue({
+        id: 'user-1',
+        email: 'tx@example.com',
+      });
+      mockVerifyTx({ count: 1 });
+      redis.del.mockResolvedValue(1);
+
+      await service.verifyEmail('verify-token');
+
+      expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+      // user.update must NOT have been called outside the transaction.
+      expect(prisma.user.update).not.toHaveBeenCalled();
+      // order.updateMany must NOT have been called outside the transaction.
+      expect(prisma.order.updateMany).not.toHaveBeenCalled();
     });
 
     it('should throw UnauthorizedException for invalid verification token', async () => {

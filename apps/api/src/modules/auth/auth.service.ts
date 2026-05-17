@@ -339,20 +339,52 @@ export class AuthService {
 
     // Confirm the account is still active before marking it verified.
     // findFirst + deletedAt:null — soft-deleted accounts must not be verified.
+    // Also pull the email so the C2 guest-order attach below can find any
+    // anonymous orders the customer placed before signing up.
     const user = await this.prisma.user.findFirst({
       where: { id: userId, deletedAt: null },
-      select: { id: true },
+      select: { id: true, email: true },
     });
     if (!user)
       throw new UnauthorizedException('Invalid or expired verification token');
 
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: { isVerified: true },
+    // LR-001 amendment C2: attach any prior guest-checkout orders to this
+    // newly-verified account. The attach happens IN THE SAME TRANSACTION
+    // as the verification flip so a customer cannot inherit orders without
+    // proving they own the inbox (which is the whole point of the
+    // verification step).
+    const attachedOrders = await this.prisma.$transaction(async (tx) => {
+      await tx.user.update({
+        where: { id: userId },
+        data: { isVerified: true },
+      });
+
+      const result = await tx.order.updateMany({
+        where: {
+          guestEmail: user.email,
+          userId: null,
+          deletedAt: null,
+        },
+        data: {
+          userId: user.id,
+          guestEmail: null,
+          guestName: null,
+          guestPhone: null,
+        },
+      });
+      return result.count;
     });
 
     await this.redis.del(`verify:${token}`);
     await this.emitAudit(userId, 'EMAIL_VERIFIED');
-    return { message: 'Email verified successfully' };
+    if (attachedOrders > 0) {
+      await this.emitAudit(userId, 'GUEST_ORDERS_ATTACHED', {
+        count: attachedOrders,
+      });
+    }
+    return {
+      message: 'Email verified successfully',
+      attachedOrders,
+    };
   }
 }
