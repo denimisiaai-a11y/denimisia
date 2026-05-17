@@ -24,10 +24,14 @@ export class CmsService {
   }
 
   async getSectionByKey(key: string) {
+    // Public endpoint — must hide deactivated sections. The unique slug
+    // lookup may still match an inactive row, so re-check after fetch.
     const section = await this.prisma.homepageSection.findUnique({
       where: { key },
     });
-    if (!section) throw new NotFoundException('Section not found');
+    if (!section || !section.isActive) {
+      throw new NotFoundException('Section not found');
+    }
     return section;
   }
 
@@ -99,18 +103,23 @@ export class CmsService {
   // ─── Blog Posts ─────────────────────────────────────────────────────────────
 
   async listPublishedPosts(page = 1, limit = 10) {
-    const skip = (page - 1) * limit;
+    // Cap pagination so a customer-supplied ?limit=10000 cannot enumerate
+    // the entire blog table in one round trip. 50 is generous for a
+    // public blog listing; admin pagination has its own endpoint.
+    const safePage = Math.max(page, 1);
+    const safeLimit = Math.min(Math.max(limit, 1), 50);
+    const skip = (safePage - 1) * safeLimit;
     const [posts, total] = await Promise.all([
       this.prisma.blogPost.findMany({
         where: { isPublished: true },
         orderBy: { publishedAt: 'desc' },
         skip,
-        take: limit,
+        take: safeLimit,
         include: { author: { select: { firstName: true, lastName: true } } },
       }),
       this.prisma.blogPost.count({ where: { isPublished: true } }),
     ]);
-    return { posts, total, page, limit };
+    return { posts, total, page: safePage, limit: safeLimit };
   }
 
   /**

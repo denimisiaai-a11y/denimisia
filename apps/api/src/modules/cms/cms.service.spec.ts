@@ -60,10 +60,11 @@ describe('CmsService', () => {
   });
 
   describe('getSectionByKey', () => {
-    it('returns the section when it exists', async () => {
+    it('returns the section when it exists and is active', async () => {
       prisma.homepageSection.findUnique.mockResolvedValue({
         id: 's-1',
         key: 'hero',
+        isActive: true,
       });
 
       const result = await service.getSectionByKey('hero');
@@ -75,6 +76,18 @@ describe('CmsService', () => {
       prisma.homepageSection.findUnique.mockResolvedValue(null);
 
       await expect(service.getSectionByKey('missing')).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('throws NotFoundException when the section is inactive (public endpoint hides drafts)', async () => {
+      prisma.homepageSection.findUnique.mockResolvedValue({
+        id: 's-1',
+        key: 'hero',
+        isActive: false,
+      });
+
+      await expect(service.getSectionByKey('hero')).rejects.toThrow(
         NotFoundException,
       );
     });
