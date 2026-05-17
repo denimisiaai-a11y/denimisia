@@ -326,21 +326,25 @@ model Order {
 }
 
 model OrderItem {
-  id        String         @id @default(cuid())
-  orderId   String
-  order     Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  productId String
-  product   Product        @relation(fields: [productId], references: [id], onDelete: Restrict)
-  variantId String
-  variant   ProductVariant @relation(fields: [variantId], references: [id], onDelete: Restrict)
-  quantity  Int
-  unitPrice Decimal
-  total     Decimal
-  snapshot  Json
-  createdAt DateTime       @default(now())
+  id         String          @id @default(cuid())
+  orderId    String
+  order      Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId  String?
+  product    Product?        @relation(fields: [productId], references: [id], onDelete: Restrict)
+  variantId  String?
+  variant    ProductVariant? @relation(fields: [variantId], references: [id], onDelete: Restrict)
+  bundleId   String?
+  bundle     ProductBundle?  @relation(fields: [bundleId], references: [id], onDelete: Restrict)
+  bundleSize String?
+  quantity   Int
+  unitPrice  Decimal
+  total      Decimal
+  snapshot   Json
+  createdAt  DateTime        @default(now())
 
   @@index([orderId])
   @@index([productId])
+  @@index([bundleId])
 }
 
 // ─── Review ───────────────────────────────────────────────────────────────────
@@ -517,8 +521,9 @@ model ProductBundle {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  items     BundleItem[]
-  cartItems CartItem[]
+  items      BundleItem[]
+  cartItems  CartItem[]
+  orderItems OrderItem[]
 }
 
 model BundleItem {

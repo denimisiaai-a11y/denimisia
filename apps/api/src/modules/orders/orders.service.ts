@@ -1,12 +1,19 @@
 import {
   Injectable,
+  Logger,
   NotFoundException,
   BadRequestException,
   ForbiddenException,
+  ConflictException,
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreateOrderDto, UpdateOrderStatusDto } from './orders.dto';
+import {
+  CreateOrderDto,
+  UpdateOrderStatusDto,
+  OrderItemDto,
+} from './orders.dto';
 import { OrderStatus } from '@prisma/client';
 import {
   OrderCreatedEvent,
@@ -14,8 +21,61 @@ import {
   OrderCancelledEvent,
 } from '../../common/events/order.events';
 
+// Snapshot Json shape written for a bundle order line. The constituent
+// variantId is captured at order time so cancel-restore + audit can walk
+// the snapshot without re-reading the bundle (which the admin may edit or
+// deactivate between purchase and refund).
+interface BundleSnapshotItem {
+  productId: string;
+  variantId: string;
+  productName: string;
+  color: string;
+  size: string;
+  image: string | null;
+}
+
+interface BundleSnapshot {
+  bundleSlug: string;
+  bundleName: string;
+  bundleImage: string | null;
+  bundleSize: string;
+  bundlePrice: number;
+  items: BundleSnapshotItem[];
+}
+
+interface VariantLineResolved {
+  productId: string;
+  variantId: string;
+  quantity: number;
+  unitPrice: number;
+  total: number;
+  variant: {
+    size: string;
+    color: string;
+    product: { id: string; name: string; images: string[]; slug: string };
+  };
+}
+
+interface BundleLineResolved {
+  bundleId: string;
+  bundleSize: string;
+  quantity: number;
+  unitPrice: number;
+  total: number;
+  bundle: { id: string; slug: string; name: string; image: string | null };
+  constituents: BundleSnapshotItem[];
+}
+
+interface StockOp {
+  variantId: string;
+  quantity: number;
+  noteSuffix: string;
+}
+
 @Injectable()
 export class OrdersService {
+  private readonly logger = new Logger(OrdersService.name);
+
   constructor(
     private prisma: PrismaService,
     private eventEmitter: EventEmitter2,
@@ -37,142 +97,57 @@ export class OrdersService {
       }
     }
 
-    // Validate all variants and check stock
-    const variantIds = dto.items.map((i) => i.variantId);
-    const variants = await this.prisma.productVariant.findMany({
-      where: { id: { in: variantIds } },
-      include: {
-        product: { select: { id: true, name: true, images: true, slug: true } },
-      },
-    });
+    this.assertLineKindPerItem(dto.items);
 
-    if (variants.length !== dto.items.length) {
-      throw new NotFoundException('One or more variants not found');
-    }
+    const variantInputs = dto.items.filter((i) => i.variantId);
+    const bundleInputs = dto.items.filter((i) => i.bundleId);
 
-    // Check stock and validate productId matches variant for each item
-    for (const item of dto.items) {
-      const variant = variants.find((v) => v.id === item.variantId);
-      if (!variant)
-        throw new NotFoundException(`Variant ${item.variantId} not found`);
-      if (variant.product.id !== item.productId) {
-        throw new BadRequestException(
-          `Product ID mismatch: variant ${item.variantId} belongs to product ${variant.product.id}, not ${item.productId}`,
-        );
-      }
-      if (variant.stock < item.quantity) {
-        throw new BadRequestException(
-          `Insufficient stock for ${variant.product.name} (${variant.size}/${variant.color})`,
-        );
-      }
-    }
+    const variantLines = await this.resolveVariantLines(variantInputs);
+    const bundleLines = await this.resolveBundleLines(bundleInputs);
 
-    // Calculate subtotal
     let subtotal = 0;
-    const orderItemsData = dto.items.map((item) => {
-      const variant = variants.find((v) => v.id === item.variantId)!;
-      const unitPrice = Number(variant.price);
-      const total = unitPrice * item.quantity;
-      subtotal += total;
-      return {
-        productId: item.productId,
-        variantId: item.variantId,
-        quantity: item.quantity,
-        unitPrice,
-        total,
-        snapshot: {
-          name: variant.product.name,
-          size: variant.size,
-          color: variant.color,
-          image: variant.product.images[0] ?? null,
-        },
-      };
-    });
+    const orderItemsData: Prisma.OrderItemUncheckedCreateWithoutOrderInput[] =
+      [];
+    for (const line of variantLines) {
+      subtotal += line.total;
+      orderItemsData.push(this.buildVariantOrderItemData(line));
+    }
+    for (const line of bundleLines) {
+      subtotal += line.total;
+      orderItemsData.push(this.buildBundleOrderItemData(line));
+    }
 
-    // Resolve discount
     let discountAmount = 0;
     let discountId: string | undefined;
     if (dto.discountCode) {
-      const discount = await this.prisma.discount.findUnique({
-        where: { code: dto.discountCode.toUpperCase() },
-      });
-      if (!discount || !discount.isActive) {
-        throw new BadRequestException('Invalid or inactive discount code');
-      }
-      const now = new Date();
-      if (discount.startDate && discount.startDate > now) {
-        throw new BadRequestException('Discount code is not yet active');
-      }
-      if (discount.endDate && discount.endDate < now) {
-        throw new BadRequestException('Discount code has expired');
-      }
-      if (discount.maxUses && discount.usedCount >= discount.maxUses) {
-        throw new BadRequestException('Discount code usage limit reached');
-      }
-      if (
-        discount.minOrderAmount &&
-        subtotal < Number(discount.minOrderAmount)
-      ) {
-        throw new BadRequestException(
-          `Minimum order amount is ${discount.minOrderAmount} for this discount`,
-        );
-      }
-      discountId = discount.id;
-      discountAmount =
-        discount.type === 'PERCENTAGE'
-          ? subtotal * (Number(discount.value) / 100)
-          : discount.type === 'FIXED_AMOUNT'
-            ? Number(discount.value)
-            : 0; // FREE_SHIPPING handled at shipping level
+      ({ discountId, discountAmount } = await this.resolveDiscount(
+        dto.discountCode,
+        subtotal,
+      ));
     }
 
-    // Calculate shipping cost — ৳80 Dhaka, ৳120 outside Dhaka, free over ৳1500
-    let shippingCost = 80; // default Dhaka rate
-    const shippingAddress = dto.shippingAddress;
-    const city = ((shippingAddress?.city as string) ?? '').toLowerCase();
-    if (city && city !== 'dhaka') {
-      shippingCost = 120;
-    }
-    if (subtotal - discountAmount >= 1500) {
-      shippingCost = 0; // free shipping over ৳1500
-    }
-    // FREE_SHIPPING discount type
-    if (dto.discountCode) {
-      const disc = await this.prisma.discount.findUnique({
-        where: { code: dto.discountCode.toUpperCase() },
-      });
-      if (disc?.type === 'FREE_SHIPPING') shippingCost = 0;
-    }
+    const shippingCost = await this.computeShipping(
+      dto.shippingAddress,
+      dto.discountCode,
+      subtotal - discountAmount,
+    );
 
     const total = Math.max(0, subtotal - discountAmount + shippingCost);
+    const stockOps = this.collectStockOps(variantLines, bundleLines);
 
-    // Create order + items + deduct stock in a transaction with row-level locking
     const order = await this.prisma.$transaction(async (tx) => {
-      // Lock variant rows to prevent overselling under concurrent orders
-      for (const item of dto.items) {
-        const [locked] = await tx.$queryRawUnsafe<{ stock: number }[]>(
-          `SELECT stock FROM "ProductVariant" WHERE id = $1 FOR UPDATE`,
-          item.variantId,
-        );
-        if (!locked || locked.stock < item.quantity) {
-          throw new BadRequestException(
-            `Insufficient stock for variant ${item.variantId} (available: ${locked?.stock ?? 0}, requested: ${item.quantity})`,
-          );
-        }
-      }
+      await this.lockAndAssertStock(tx, stockOps);
 
       const created = await tx.order.create({
         data: {
-          // Logged-in: write userId, leave guest tuple null. Anonymous:
-          // write the guest tuple, leave userId null. The DB CHECK
-          // constraint rejects "neither"; the service guard above rejects
-          // it with a friendlier 400 first.
           userId,
           guestEmail: userId ? null : dto.guestEmail,
           guestName: userId ? null : dto.guestName,
           guestPhone: userId ? null : dto.guestPhone,
-          shippingAddress: dto.shippingAddress as any,
-          billingAddress: dto.billingAddress as any,
+          shippingAddress: dto.shippingAddress as Prisma.InputJsonValue,
+          billingAddress: dto.billingAddress as
+            | Prisma.InputJsonValue
+            | undefined,
           subtotal,
           discount: discountAmount,
           shippingCost,
@@ -184,53 +159,15 @@ export class OrdersService {
         include: { items: true },
       });
 
-      // Deduct stock and log inventory
-      for (const item of dto.items) {
-        await tx.productVariant.update({
-          where: { id: item.variantId },
-          data: { stock: { decrement: item.quantity } },
-        });
-        await tx.inventoryLog.create({
-          data: {
-            variantId: item.variantId,
-            type: 'SALE',
-            quantity: -item.quantity,
-            note: `Order ${created.id}`,
-          },
-        });
-      }
+      await this.applyStockOps(tx, stockOps, created.id);
 
-      // Atomic discount-use reservation (LR-001 amendment S9, race-safe).
-      //
-      // The earlier shape (read usedCount, compare to maxUses, then update)
-      // was a TOCTOU race: two concurrent orders could both observe
-      // usedCount < maxUses and both succeed past the cap. The single
-      // updateMany below atomically increments ONLY when the row is still
-      // active AND still under the cap; if neither condition holds, count
-      // = 0 and we abort the order. This mirrors discounts.service.tryConsume
-      // but stays inside the order-creation transaction.
       if (discountId) {
-        const reserved = await tx.discount.updateMany({
-          where: {
-            id: discountId,
-            isActive: true,
-            OR: [
-              { maxUses: null },
-              { usedCount: { lt: tx.discount.fields.maxUses } },
-            ],
-          },
-          data: { usedCount: { increment: 1 } },
-        });
-        if (reserved.count === 0) {
-          throw new BadRequestException('Discount is no longer available');
-        }
+        await this.atomicReserveDiscount(tx, discountId);
       }
 
       return created;
     });
 
-    // Clear cart after successful checkout. Guests have no Cart row (cart
-    // is keyed by userId), so this only runs for authenticated customers.
     if (userId) {
       const cart = await this.prisma.cart.findUnique({ where: { userId } });
       if (cart) {
@@ -254,14 +191,7 @@ export class OrdersService {
         orderBy: { createdAt: 'desc' },
         skip,
         take: limit,
-        include: {
-          items: {
-            include: {
-              product: { select: { name: true, slug: true, images: true } },
-              variant: { select: { size: true, color: true } },
-            },
-          },
-        },
+        include: { items: { include: ORDER_ITEM_DISPLAY_INCLUDE } },
       }),
       this.prisma.order.count({ where: { userId } }),
     ]);
@@ -275,12 +205,7 @@ export class OrdersService {
         user: {
           select: { id: true, email: true, firstName: true, lastName: true },
         },
-        items: {
-          include: {
-            product: { select: { name: true, slug: true, images: true } },
-            variant: { select: { size: true, color: true } },
-          },
-        },
+        items: { include: ORDER_ITEM_DISPLAY_INCLUDE },
         discountRel: { select: { code: true, type: true, value: true } },
       },
     });
@@ -302,27 +227,14 @@ export class OrdersService {
       throw new BadRequestException('Only PENDING orders can be cancelled');
     }
 
+    const restoreOps = this.collectRestoreOps(order.items, orderId);
+
     await this.prisma.$transaction(async (tx) => {
       await tx.order.update({
         where: { id: orderId },
         data: { status: OrderStatus.CANCELLED },
       });
-
-      // Restore stock
-      for (const item of order.items) {
-        await tx.productVariant.update({
-          where: { id: item.variantId },
-          data: { stock: { increment: item.quantity } },
-        });
-        await tx.inventoryLog.create({
-          data: {
-            variantId: item.variantId,
-            type: 'RETURN',
-            quantity: item.quantity,
-            note: `Cancelled order ${orderId}`,
-          },
-        });
-      }
+      await this.applyStockRestore(tx, restoreOps);
     });
 
     this.eventEmitter.emit(
@@ -330,9 +242,9 @@ export class OrdersService {
       new OrderCancelledEvent(
         orderId,
         userId,
-        order.items.map((item) => ({
-          variantId: item.variantId,
-          quantity: item.quantity,
+        restoreOps.map((op) => ({
+          variantId: op.variantId,
+          quantity: op.quantity,
         })),
       ),
     );
@@ -377,11 +289,9 @@ export class OrdersService {
     PAYMENT_FAILED: ['PENDING', 'CANCELLED'],
   };
 
-  /**
-   * States where inventory has been RETURNED to stock. Moving the order
-   * INTO one of these restores items; moving FROM them never re-restores.
-   * Used to keep stock decrement idempotent across the full status lifecycle.
-   */
+  // States where inventory has been RETURNED to stock. Moving the order
+  // INTO one of these restores items; moving FROM them never re-restores.
+  // Used to keep stock decrement idempotent across the full lifecycle.
   private static readonly STOCK_RETURNED_STATES = new Set<OrderStatus>([
     OrderStatus.CANCELLED,
     OrderStatus.RETURNED,
@@ -415,12 +325,12 @@ export class OrdersService {
     const fromStatus = order.status;
     const newStatus = dto.status as OrderStatus;
 
-    // Stock restoration — only when crossing the boundary from "stock is
-    // deducted" to "stock is returned". Idempotent: if we were already in
-    // a RETURNED_STATE (e.g. RETURNED → REFUNDED), we do not re-restore.
     const wasReturned = OrdersService.STOCK_RETURNED_STATES.has(fromStatus);
     const nowReturned = OrdersService.STOCK_RETURNED_STATES.has(newStatus);
     const shouldRestoreStock = !wasReturned && nowReturned;
+    const restoreOps = shouldRestoreStock
+      ? this.collectRestoreOps(order.items, orderId, newStatus)
+      : [];
 
     const updated = await this.prisma.$transaction(async (tx) => {
       await tx.orderStatusHistory.create({
@@ -434,20 +344,7 @@ export class OrdersService {
       });
 
       if (shouldRestoreStock) {
-        for (const item of order.items) {
-          await tx.productVariant.update({
-            where: { id: item.variantId },
-            data: { stock: { increment: item.quantity } },
-          });
-          await tx.inventoryLog.create({
-            data: {
-              variantId: item.variantId,
-              type: 'RETURN',
-              quantity: item.quantity,
-              note: `Order ${orderId} → ${newStatus}`,
-            },
-          });
-        }
+        await this.applyStockRestore(tx, restoreOps);
       }
 
       return tx.order.update({
@@ -487,4 +384,467 @@ export class OrdersService {
       orderBy: { createdAt: 'desc' },
     });
   }
+
+  // ─── Helpers ──────────────────────────────────────────────────────────────
+
+  private assertLineKindPerItem(items: OrderItemDto[]): void {
+    for (const item of items) {
+      const isVariant = !!item.variantId;
+      const isBundle = !!item.bundleId;
+      if (isVariant === isBundle) {
+        throw new BadRequestException(
+          'Each order item must be either a variant line (productId + variantId) or a bundle line (bundleId + bundleSize), not both and not neither',
+        );
+      }
+      if (isVariant && !item.productId) {
+        throw new BadRequestException('variant line requires productId');
+      }
+      if (isBundle && !item.bundleSize) {
+        throw new BadRequestException('bundle line requires bundleSize');
+      }
+    }
+  }
+
+  private async resolveVariantLines(
+    inputs: OrderItemDto[],
+  ): Promise<VariantLineResolved[]> {
+    if (inputs.length === 0) return [];
+
+    const variantIds = inputs.map((i) => i.variantId!);
+    const variants = await this.prisma.productVariant.findMany({
+      where: { id: { in: variantIds } },
+      include: {
+        product: { select: { id: true, name: true, images: true, slug: true } },
+      },
+    });
+
+    if (variants.length !== inputs.length) {
+      throw new NotFoundException('One or more variants not found');
+    }
+
+    return inputs.map((item) => {
+      const variant = variants.find((v) => v.id === item.variantId)!;
+      if (variant.product.id !== item.productId) {
+        throw new BadRequestException(
+          `Product ID mismatch: variant ${item.variantId} belongs to product ${variant.product.id}, not ${item.productId}`,
+        );
+      }
+      if (variant.stock < item.quantity) {
+        throw new BadRequestException(
+          `Insufficient stock for ${variant.product.name} (${variant.size}/${variant.color})`,
+        );
+      }
+      const unitPrice = Number(variant.price);
+      const total = unitPrice * item.quantity;
+      return {
+        productId: item.productId,
+        variantId: item.variantId!,
+        quantity: item.quantity,
+        unitPrice,
+        total,
+        variant: {
+          size: variant.size,
+          color: variant.color,
+          product: variant.product,
+        },
+      };
+    });
+  }
+
+  private async resolveBundleLines(
+    inputs: OrderItemDto[],
+  ): Promise<BundleLineResolved[]> {
+    if (inputs.length === 0) return [];
+
+    const bundleIds = inputs.map((i) => i.bundleId!);
+    const bundles = await this.prisma.productBundle.findMany({
+      where: { id: { in: bundleIds }, isActive: true },
+      include: { items: true },
+    });
+
+    const constituentQueries = inputs.flatMap((line) => {
+      const bundle = bundles.find((b) => b.id === line.bundleId);
+      if (!bundle) {
+        throw new NotFoundException(
+          `Bundle ${line.bundleId} not found or inactive`,
+        );
+      }
+      if (!bundle.availableSizes.includes(line.bundleSize!)) {
+        throw new BadRequestException(
+          `Size ${line.bundleSize} is not offered for bundle ${bundle.slug}`,
+        );
+      }
+      return bundle.items.map((bi) => ({
+        productId: bi.productId,
+        color: bi.color,
+        size: line.bundleSize!,
+      }));
+    });
+
+    const constituentVariants =
+      constituentQueries.length > 0
+        ? await this.prisma.productVariant.findMany({
+            where: {
+              OR: constituentQueries.map((q) => ({
+                productId: q.productId,
+                color: q.color,
+                size: q.size,
+                deletedAt: null,
+              })),
+            },
+            include: {
+              product: {
+                select: { id: true, name: true, images: true, slug: true },
+              },
+            },
+          })
+        : [];
+
+    const lookupVariant = (productId: string, color: string, size: string) =>
+      constituentVariants.find(
+        (v) =>
+          v.productId === productId && v.color === color && v.size === size,
+      );
+
+    return inputs.map((line) => {
+      const bundle = bundles.find((b) => b.id === line.bundleId)!;
+      const constituents: BundleSnapshotItem[] = bundle.items.map((bi) => {
+        const variant = lookupVariant(bi.productId, bi.color, line.bundleSize!);
+        if (!variant) {
+          throw new ConflictException(
+            `Bundle ${bundle.slug} requires variant ${bi.productId} ${bi.color}/${line.bundleSize} which does not exist`,
+          );
+        }
+        if (variant.stock < line.quantity) {
+          throw new BadRequestException(
+            `Insufficient stock for ${variant.product.name} (${bi.color}/${line.bundleSize}) in bundle ${bundle.slug}`,
+          );
+        }
+        return {
+          productId: bi.productId,
+          variantId: variant.id,
+          productName: variant.product.name,
+          color: bi.color,
+          size: line.bundleSize!,
+          image: variant.product.images[0] ?? null,
+        };
+      });
+      const unitPrice = bundle.bundlePrice;
+      const total = unitPrice * line.quantity;
+      return {
+        bundleId: bundle.id,
+        bundleSize: line.bundleSize!,
+        quantity: line.quantity,
+        unitPrice,
+        total,
+        bundle: {
+          id: bundle.id,
+          slug: bundle.slug,
+          name: bundle.name,
+          image: bundle.image,
+        },
+        constituents,
+      };
+    });
+  }
+
+  private buildVariantOrderItemData(
+    line: VariantLineResolved,
+  ): Prisma.OrderItemUncheckedCreateWithoutOrderInput {
+    return {
+      productId: line.productId,
+      variantId: line.variantId,
+      quantity: line.quantity,
+      unitPrice: line.unitPrice,
+      total: line.total,
+      snapshot: {
+        name: line.variant.product.name,
+        size: line.variant.size,
+        color: line.variant.color,
+        image: line.variant.product.images[0] ?? null,
+      },
+    };
+  }
+
+  private buildBundleOrderItemData(
+    line: BundleLineResolved,
+  ): Prisma.OrderItemUncheckedCreateWithoutOrderInput {
+    const snapshot: BundleSnapshot = {
+      bundleSlug: line.bundle.slug,
+      bundleName: line.bundle.name,
+      bundleImage: line.bundle.image,
+      bundleSize: line.bundleSize,
+      bundlePrice: line.unitPrice,
+      items: line.constituents,
+    };
+    return {
+      bundleId: line.bundleId,
+      bundleSize: line.bundleSize,
+      quantity: line.quantity,
+      unitPrice: line.unitPrice,
+      total: line.total,
+      snapshot: snapshot as unknown as Prisma.InputJsonValue,
+    };
+  }
+
+  private async resolveDiscount(
+    rawCode: string,
+    subtotal: number,
+  ): Promise<{ discountId: string; discountAmount: number }> {
+    const code = rawCode.toUpperCase();
+    const discount = await this.prisma.discount.findUnique({ where: { code } });
+    if (!discount || !discount.isActive) {
+      throw new BadRequestException('Invalid or inactive discount code');
+    }
+    const now = new Date();
+    if (discount.startDate && discount.startDate > now) {
+      throw new BadRequestException('Discount code is not yet active');
+    }
+    if (discount.endDate && discount.endDate < now) {
+      throw new BadRequestException('Discount code has expired');
+    }
+    if (discount.maxUses && discount.usedCount >= discount.maxUses) {
+      throw new BadRequestException('Discount code usage limit reached');
+    }
+    if (discount.minOrderAmount && subtotal < Number(discount.minOrderAmount)) {
+      throw new BadRequestException(
+        `Minimum order amount is ${discount.minOrderAmount} for this discount`,
+      );
+    }
+    const discountAmount =
+      discount.type === 'PERCENTAGE'
+        ? subtotal * (Number(discount.value) / 100)
+        : discount.type === 'FIXED_AMOUNT'
+          ? Number(discount.value)
+          : 0;
+    return { discountId: discount.id, discountAmount };
+  }
+
+  private async computeShipping(
+    shippingAddress: Record<string, unknown>,
+    discountCode: string | undefined,
+    subtotalAfterDiscount: number,
+  ): Promise<number> {
+    let shippingCost = 80;
+    const city = ((shippingAddress?.city as string) ?? '').toLowerCase();
+    if (city && city !== 'dhaka') {
+      shippingCost = 120;
+    }
+    if (subtotalAfterDiscount >= 1500) {
+      shippingCost = 0;
+    }
+    if (discountCode) {
+      const disc = await this.prisma.discount.findUnique({
+        where: { code: discountCode.toUpperCase() },
+      });
+      if (disc?.type === 'FREE_SHIPPING') shippingCost = 0;
+    }
+    return shippingCost;
+  }
+
+  private collectStockOps(
+    variantLines: VariantLineResolved[],
+    bundleLines: BundleLineResolved[],
+  ): StockOp[] {
+    const ops: StockOp[] = [];
+    for (const line of variantLines) {
+      ops.push({
+        variantId: line.variantId,
+        quantity: line.quantity,
+        noteSuffix: '',
+      });
+    }
+    for (const line of bundleLines) {
+      for (const c of line.constituents) {
+        ops.push({
+          variantId: c.variantId,
+          quantity: line.quantity,
+          noteSuffix: ` (bundle: ${line.bundle.slug})`,
+        });
+      }
+    }
+    return ops;
+  }
+
+  // Locks the row for every referenced variantId in deterministic order
+  // (sorted ascending) to prevent deadlock under concurrent overlapping
+  // orders. Aggregates the required quantity per variant across all ops
+  // so a variant referenced from both a variant line and a bundle line
+  // (or from two bundle lines) is checked against the SUM.
+  private async lockAndAssertStock(
+    tx: Prisma.TransactionClient,
+    ops: StockOp[],
+  ): Promise<void> {
+    const requiredByVariant = new Map<string, number>();
+    for (const op of ops) {
+      requiredByVariant.set(
+        op.variantId,
+        (requiredByVariant.get(op.variantId) ?? 0) + op.quantity,
+      );
+    }
+    const sortedVariantIds = [...requiredByVariant.keys()].sort();
+    for (const variantId of sortedVariantIds) {
+      const [locked] = await tx.$queryRawUnsafe<{ stock: number }[]>(
+        `SELECT stock FROM "ProductVariant" WHERE id = $1 FOR UPDATE`,
+        variantId,
+      );
+      const required = requiredByVariant.get(variantId)!;
+      if (!locked || locked.stock < required) {
+        throw new BadRequestException(
+          `Insufficient stock for variant ${variantId} (available: ${locked?.stock ?? 0}, requested: ${required})`,
+        );
+      }
+    }
+  }
+
+  private async applyStockOps(
+    tx: Prisma.TransactionClient,
+    ops: StockOp[],
+    orderId: string,
+  ): Promise<void> {
+    for (const op of ops) {
+      await tx.productVariant.update({
+        where: { id: op.variantId },
+        data: { stock: { decrement: op.quantity } },
+      });
+      await tx.inventoryLog.create({
+        data: {
+          variantId: op.variantId,
+          type: 'SALE',
+          quantity: -op.quantity,
+          note: `Order ${orderId}${op.noteSuffix}`,
+        },
+      });
+    }
+  }
+
+  // Discount-use reservation (LR-001 amendment S9, race-safe). Single
+  // atomic updateMany increments ONLY when the row is still active AND
+  // still under the cap; if neither condition holds, count = 0 and we
+  // abort the order. Mirrors discounts.service.tryConsume but stays
+  // inside the order-creation transaction.
+  private async atomicReserveDiscount(
+    tx: Prisma.TransactionClient,
+    discountId: string,
+  ): Promise<void> {
+    const reserved = await tx.discount.updateMany({
+      where: {
+        id: discountId,
+        isActive: true,
+        OR: [
+          { maxUses: null },
+          { usedCount: { lt: tx.discount.fields.maxUses } },
+        ],
+      },
+      data: { usedCount: { increment: 1 } },
+    });
+    if (reserved.count === 0) {
+      throw new BadRequestException('Discount is no longer available');
+    }
+  }
+
+  // Walks order.items and produces a StockOp per (variantId, quantity)
+  // for cancel / status-restore paths. For variant lines, the op points
+  // at item.variantId. For bundle lines, each constituent.variantId is
+  // restored by the bundle line quantity (the snapshot was written at
+  // order time so the restore is correct even if the bundle has been
+  // edited or deactivated since).
+  private collectRestoreOps(
+    items: Array<{
+      variantId: string | null;
+      bundleId: string | null;
+      quantity: number;
+      snapshot: Prisma.JsonValue;
+    }>,
+    orderId: string,
+    targetStatus: OrderStatus = OrderStatus.CANCELLED,
+  ): Array<{ variantId: string; quantity: number; note: string }> {
+    const ops: Array<{ variantId: string; quantity: number; note: string }> =
+      [];
+    for (const item of items) {
+      if (item.variantId) {
+        ops.push({
+          variantId: item.variantId,
+          quantity: item.quantity,
+          note: `Order ${orderId} → ${targetStatus}`,
+        });
+        continue;
+      }
+      if (item.bundleId) {
+        const snapshot = item.snapshot as unknown as BundleSnapshot;
+        for (const c of snapshot.items) {
+          ops.push({
+            variantId: c.variantId,
+            quantity: item.quantity,
+            note: `Order ${orderId} → ${targetStatus} (bundle: ${snapshot.bundleSlug})`,
+          });
+        }
+      }
+    }
+    return ops;
+  }
+
+  // Restore is per-op tolerant. OrderItem.variantId has ON DELETE RESTRICT
+  // which protects variant lines from FK breakage, but a bundle line's
+  // constituent variantId lives only inside the snapshot JSON — admin
+  // hard-deleting that variant after the order was placed would otherwise
+  // P2025 the whole restore transaction and block the refund. We catch
+  // P2025 per op, log it as an audit trail, and continue. The customer
+  // gets their refund; ops can repair the inventory math out-of-band.
+  private async applyStockRestore(
+    tx: Prisma.TransactionClient,
+    ops: Array<{ variantId: string; quantity: number; note: string }>,
+  ): Promise<void> {
+    for (const op of ops) {
+      try {
+        await tx.productVariant.update({
+          where: { id: op.variantId },
+          data: { stock: { increment: op.quantity } },
+        });
+      } catch (err) {
+        if (
+          err instanceof Prisma.PrismaClientKnownRequestError &&
+          err.code === 'P2025'
+        ) {
+          this.logger.warn(
+            `applyStockRestore: variant ${op.variantId} no longer exists; skipping stock restore (qty=${op.quantity}). Inventory log still written for audit.`,
+          );
+        } else {
+          throw err;
+        }
+      }
+      await tx.inventoryLog.create({
+        data: {
+          variantId: op.variantId,
+          type: 'RETURN',
+          quantity: op.quantity,
+          note: op.note,
+        },
+      });
+    }
+  }
 }
+
+// Reusable Prisma include shape for order-item display reads (customer + admin
+// order detail). Returns variant info for variant lines and bundle info
+// with constituent products for bundle lines.
+const ORDER_ITEM_DISPLAY_INCLUDE = {
+  product: { select: { name: true, slug: true, images: true } },
+  variant: { select: { size: true, color: true } },
+  bundle: {
+    select: {
+      id: true,
+      slug: true,
+      name: true,
+      image: true,
+      bundlePrice: true,
+      items: {
+        include: {
+          product: {
+            select: { id: true, name: true, slug: true, images: true },
+          },
+        },
+      },
+    },
+  },
+} as const;

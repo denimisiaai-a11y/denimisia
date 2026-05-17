@@ -274,12 +274,19 @@ export class AnalyticsService {
       _sum: { quantity: true, total: true },
       orderBy: { _sum: { quantity: 'desc' } },
       take: limit,
-      where: range
-        ? { order: { createdAt: { gte: range.from, lte: range.to } } }
-        : undefined,
+      where: {
+        // Exclude bundle lines (productId is nullable post-LR-001 Slice 4).
+        // Bundle aggregation requires a separate report keyed by bundleId.
+        productId: { not: null },
+        ...(range
+          ? { order: { createdAt: { gte: range.from, lte: range.to } } }
+          : {}),
+      },
     });
 
-    const productIds = items.map((i) => i.productId);
+    const productIds = items
+      .map((i) => i.productId)
+      .filter((id): id is string => id !== null);
     const products = await this.prisma.product.findMany({
       where: { id: { in: productIds } },
       select: { id: true, name: true, slug: true, images: true },
@@ -323,7 +330,11 @@ export class AnalyticsService {
       }
     > = {};
     for (const item of items) {
-      const cat = item.product?.category;
+      // Bundle lines have item.product === null. Top-categories aggregation
+      // skips them; a separate bundle-categories report would belong in its
+      // own method.
+      if (!item.product) continue;
+      const cat = item.product.category;
       if (!cat) continue;
       if (!byCategory[cat.id]) {
         byCategory[cat.id] = {

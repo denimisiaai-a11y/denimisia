@@ -3,6 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
   ForbiddenException,
+  ConflictException,
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { OrdersService } from './orders.service';
@@ -80,6 +81,9 @@ describe('OrdersService', () => {
       discount: {
         findUnique: jest.fn(),
         update: jest.fn(),
+      },
+      productBundle: {
+        findMany: jest.fn(),
       },
       cart: {
         findUnique: jest.fn(),
@@ -561,6 +565,297 @@ describe('OrdersService', () => {
     });
   });
 
+  // ─── createOrder — bundle lines (LR-001 Phase 1 Slice 4) ──────────────────
+
+  describe('createOrder — bundle lines', () => {
+    const mockBundle = {
+      id: 'bun-1',
+      slug: 'heritage-bundle',
+      name: 'Heritage Bundle',
+      bundlePrice: 2500,
+      availableSizes: ['S', 'M', 'L'],
+      isActive: true,
+      image: 'hero.jpg',
+      items: [
+        { productId: 'prod-1', color: 'Black' },
+        { productId: 'prod-2', color: 'Indigo' },
+      ],
+    };
+    const constituentVariants = [
+      {
+        id: 'var-1-bl-l',
+        productId: 'prod-1',
+        color: 'Black',
+        size: 'L',
+        stock: 5,
+        product: {
+          id: 'prod-1',
+          name: 'Slim Tee',
+          images: ['t1.jpg'],
+          slug: 'slim-tee',
+        },
+      },
+      {
+        id: 'var-2-in-l',
+        productId: 'prod-2',
+        color: 'Indigo',
+        size: 'L',
+        stock: 5,
+        product: {
+          id: 'prod-2',
+          name: 'Indigo Jean',
+          images: ['j1.jpg'],
+          slug: 'indigo-jean',
+        },
+      },
+    ];
+    const baseDto = {
+      items: [{ bundleId: 'bun-1', bundleSize: 'L', quantity: 1 }],
+      shippingAddress: { city: 'Dhaka', street: '123 Main' },
+    };
+
+    function setupHappyPath(): ReturnType<typeof createMockTx> {
+      prisma.productBundle.findMany.mockResolvedValue([mockBundle]);
+      prisma.productVariant.findMany.mockResolvedValue(constituentVariants);
+      const mockTx = createMockTx();
+      mockTx.$queryRawUnsafe.mockResolvedValue([{ stock: 5 }]);
+      mockTx.order.create.mockResolvedValue({
+        id: 'order-bun-1',
+        items: [],
+      });
+      mockTx.productVariant.update.mockResolvedValue({});
+      mockTx.inventoryLog.create.mockResolvedValue({});
+      (prisma as any).$transaction.mockImplementation(async (cb: Function) =>
+        cb(mockTx),
+      );
+      prisma.cart.findUnique.mockResolvedValue(null);
+      return mockTx;
+    }
+
+    it('creates an order with a bundle line and the snapshot captures constituents', async () => {
+      const mockTx = setupHappyPath();
+
+      await service.createOrder('user-1', baseDto as any);
+
+      const createCall = mockTx.order.create.mock.calls[0][0];
+      expect(createCall.data.items.create).toHaveLength(1);
+      const orderItem = createCall.data.items.create[0];
+      expect(orderItem.bundleId).toBe('bun-1');
+      expect(orderItem.bundleSize).toBe('L');
+      expect(orderItem.unitPrice).toBe(2500);
+      expect(orderItem.total).toBe(2500);
+      expect(orderItem.snapshot).toEqual(
+        expect.objectContaining({
+          bundleSlug: 'heritage-bundle',
+          bundleName: 'Heritage Bundle',
+          bundleSize: 'L',
+          bundlePrice: 2500,
+          items: expect.arrayContaining([
+            expect.objectContaining({
+              productId: 'prod-1',
+              variantId: 'var-1-bl-l',
+              color: 'Black',
+              size: 'L',
+            }),
+            expect.objectContaining({
+              productId: 'prod-2',
+              variantId: 'var-2-in-l',
+              color: 'Indigo',
+              size: 'L',
+            }),
+          ]),
+        }),
+      );
+    });
+
+    it('locks every constituent variant before decrementing', async () => {
+      const mockTx = setupHappyPath();
+
+      await service.createOrder('user-1', baseDto as any);
+
+      // Two constituent variants, locked in deterministic (sorted) order.
+      expect(mockTx.$queryRawUnsafe).toHaveBeenCalledTimes(2);
+      expect(mockTx.$queryRawUnsafe).toHaveBeenCalledWith(
+        expect.stringMatching(/FOR UPDATE/i),
+        'var-1-bl-l',
+      );
+      expect(mockTx.$queryRawUnsafe).toHaveBeenCalledWith(
+        expect.stringMatching(/FOR UPDATE/i),
+        'var-2-in-l',
+      );
+    });
+
+    it('decrements stock for each constituent variant by the bundle line quantity', async () => {
+      const mockTx = setupHappyPath();
+      const dto = {
+        ...baseDto,
+        items: [{ bundleId: 'bun-1', bundleSize: 'L', quantity: 2 }],
+      };
+
+      await service.createOrder('user-1', dto as any);
+
+      expect(mockTx.productVariant.update).toHaveBeenCalledWith({
+        where: { id: 'var-1-bl-l' },
+        data: { stock: { decrement: 2 } },
+      });
+      expect(mockTx.productVariant.update).toHaveBeenCalledWith({
+        where: { id: 'var-2-in-l' },
+        data: { stock: { decrement: 2 } },
+      });
+    });
+
+    it('rejects when the bundle is not active', async () => {
+      prisma.productBundle.findMany.mockResolvedValue([]);
+
+      await expect(
+        service.createOrder('user-1', baseDto as any),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('rejects when the bundleSize is not in availableSizes', async () => {
+      prisma.productBundle.findMany.mockResolvedValue([mockBundle]);
+
+      await expect(
+        service.createOrder('user-1', {
+          ...baseDto,
+          items: [{ bundleId: 'bun-1', bundleSize: 'XXL', quantity: 1 }],
+        } as any),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('rejects when a constituent variant does not exist', async () => {
+      prisma.productBundle.findMany.mockResolvedValue([mockBundle]);
+      prisma.productVariant.findMany.mockResolvedValue([
+        constituentVariants[0],
+      ]);
+
+      await expect(
+        service.createOrder('user-1', baseDto as any),
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it('rejects when a constituent variant has insufficient stock', async () => {
+      prisma.productBundle.findMany.mockResolvedValue([mockBundle]);
+      prisma.productVariant.findMany.mockResolvedValue([
+        constituentVariants[0],
+        { ...constituentVariants[1], stock: 0 },
+      ]);
+
+      await expect(
+        service.createOrder('user-1', baseDto as any),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('rejects an item that has both variantId and bundleId', async () => {
+      await expect(
+        service.createOrder('user-1', {
+          ...baseDto,
+          items: [
+            {
+              productId: 'prod-1',
+              variantId: 'var-1',
+              bundleId: 'bun-1',
+              bundleSize: 'L',
+              quantity: 1,
+            },
+          ],
+        } as any),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('rejects an item that has neither variantId nor bundleId', async () => {
+      await expect(
+        service.createOrder('user-1', {
+          ...baseDto,
+          items: [{ quantity: 1 }],
+        } as any),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('aggregates stock when the same variant is referenced from a variant line AND a bundle line', async () => {
+      // Variant line wants 3 of var-1-bl-l directly, bundle line wants 1
+      // of var-1-bl-l via Heritage Bundle. Total required = 4. The lock
+      // must check 4 against the row's stock, not 3 or 1 separately.
+      prisma.productVariant.findMany
+        .mockResolvedValueOnce([
+          // First call (resolveVariantLines)
+          {
+            ...constituentVariants[0],
+            price: 2500,
+          },
+        ])
+        .mockResolvedValueOnce(constituentVariants); // Second call (resolveBundleLines)
+      prisma.productBundle.findMany.mockResolvedValue([mockBundle]);
+
+      const mockTx = createMockTx();
+      // Mock the FOR UPDATE: var-1-bl-l aggregates to 4, var-2-in-l = 1
+      // Sorted lock order = ['var-1-bl-l', 'var-2-in-l']
+      mockTx.$queryRawUnsafe
+        .mockResolvedValueOnce([{ stock: 10 }])
+        .mockResolvedValueOnce([{ stock: 10 }]);
+      mockTx.order.create.mockResolvedValue({ id: 'order-mix', items: [] });
+      mockTx.productVariant.update.mockResolvedValue({});
+      mockTx.inventoryLog.create.mockResolvedValue({});
+      (prisma as any).$transaction.mockImplementation(async (cb: Function) =>
+        cb(mockTx),
+      );
+      prisma.cart.findUnique.mockResolvedValue(null);
+
+      const dto = {
+        items: [
+          { productId: 'prod-1', variantId: 'var-1-bl-l', quantity: 3 },
+          { bundleId: 'bun-1', bundleSize: 'L', quantity: 1 },
+        ],
+        shippingAddress: { city: 'Dhaka' },
+      };
+
+      await service.createOrder('user-1', dto as any);
+
+      // The variant-line decrement is 3; the bundle constituent decrement
+      // for var-1-bl-l is 1. Both calls happen.
+      const updateCalls = mockTx.productVariant.update.mock.calls;
+      const var1Updates = updateCalls.filter(
+        (c: any) => c[0].where.id === 'var-1-bl-l',
+      );
+      expect(var1Updates).toHaveLength(2);
+      const totalDecrement = var1Updates.reduce(
+        (sum: number, c: any) => sum + c[0].data.stock.decrement,
+        0,
+      );
+      expect(totalDecrement).toBe(4);
+    });
+
+    it('throws when aggregated stock across variant + bundle lines exceeds available', async () => {
+      // Variant line wants 4, bundle line wants 1, locked stock = 3. The
+      // aggregation must reject the order without decrementing anything.
+      prisma.productVariant.findMany
+        .mockResolvedValueOnce([{ ...constituentVariants[0], price: 2500 }])
+        .mockResolvedValueOnce(constituentVariants);
+      prisma.productBundle.findMany.mockResolvedValue([mockBundle]);
+
+      const mockTx = createMockTx();
+      // var-1-bl-l comes first in sort. Required = 4 + 1 = 5. Stock = 3.
+      mockTx.$queryRawUnsafe.mockResolvedValueOnce([{ stock: 3 }]);
+      (prisma as any).$transaction.mockImplementation(async (cb: Function) =>
+        cb(mockTx),
+      );
+      prisma.cart.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.createOrder('user-1', {
+          items: [
+            { productId: 'prod-1', variantId: 'var-1-bl-l', quantity: 4 },
+            { bundleId: 'bun-1', bundleSize: 'L', quantity: 1 },
+          ],
+          shippingAddress: { city: 'Dhaka' },
+        } as any),
+      ).rejects.toThrow(BadRequestException);
+
+      expect(mockTx.order.create).not.toHaveBeenCalled();
+      expect(mockTx.productVariant.update).not.toHaveBeenCalled();
+    });
+  });
+
   // ─── getMyOrders() ────────────────────────────────────────────────────────
 
   describe('getMyOrders', () => {
@@ -669,7 +964,7 @@ describe('OrdersService', () => {
           variantId: 'var-1',
           type: 'RETURN',
           quantity: 2,
-          note: 'Cancelled order order-1',
+          note: 'Order order-1 → CANCELLED',
         }),
       });
       expect(result).toEqual({ message: 'Order cancelled successfully' });
@@ -723,6 +1018,81 @@ describe('OrdersService', () => {
       await expect(service.cancelOrder('user-1', 'order-1')).rejects.toThrow(
         BadRequestException,
       );
+    });
+
+    it('restores stock for every constituent of a bundle line using snapshot', async () => {
+      // A PENDING order with one bundle line. The snapshot captures the
+      // per-constituent variantId, so restore walks the snapshot — no need
+      // to re-read the bundle (which may have been edited or deactivated).
+      const bundleOrder = {
+        ...mockOrder,
+        status: 'PENDING',
+        items: [
+          {
+            id: 'oi-bun',
+            orderId: 'order-1',
+            productId: null,
+            variantId: null,
+            bundleId: 'bun-1',
+            bundleSize: 'L',
+            quantity: 2,
+            snapshot: {
+              bundleSlug: 'heritage-bundle',
+              bundleName: 'Heritage Bundle',
+              bundleSize: 'L',
+              bundlePrice: 2500,
+              items: [
+                {
+                  productId: 'prod-1',
+                  variantId: 'var-1-bl-l',
+                  productName: 'Slim Tee',
+                  color: 'Black',
+                  size: 'L',
+                  image: null,
+                },
+                {
+                  productId: 'prod-2',
+                  variantId: 'var-2-in-l',
+                  productName: 'Indigo Jean',
+                  color: 'Indigo',
+                  size: 'L',
+                  image: null,
+                },
+              ],
+            },
+          },
+        ],
+      };
+      prisma.order.findUnique.mockResolvedValue(bundleOrder);
+
+      const mockTx = {
+        order: { update: jest.fn() },
+        productVariant: { update: jest.fn() },
+        inventoryLog: { create: jest.fn() },
+      };
+      (prisma as any).$transaction.mockImplementation(async (cb: Function) =>
+        cb(mockTx),
+      );
+
+      await service.cancelOrder('user-1', 'order-1');
+
+      // Each constituent variant restores stock = bundle line quantity (2).
+      expect(mockTx.productVariant.update).toHaveBeenCalledWith({
+        where: { id: 'var-1-bl-l' },
+        data: { stock: { increment: 2 } },
+      });
+      expect(mockTx.productVariant.update).toHaveBeenCalledWith({
+        where: { id: 'var-2-in-l' },
+        data: { stock: { increment: 2 } },
+      });
+      expect(mockTx.inventoryLog.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          variantId: 'var-1-bl-l',
+          type: 'RETURN',
+          quantity: 2,
+          note: expect.stringContaining('bundle: heritage-bundle'),
+        }),
+      });
     });
   });
 

@@ -12,26 +12,42 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
+// An OrderItemDto represents EITHER a variant line (productId + variantId
+// set, bundleId + bundleSize null) OR a bundle line (bundleId + bundleSize
+// set, productId + variantId null). The service-level guard rejects rows
+// that satisfy neither shape; the DB-level CHECK OrderItem_line_kind_check
+// is the last line of defense.
 export class OrderItemDto {
   @IsString()
-  productId: string;
+  @IsOptional()
+  productId?: string;
 
   @IsString()
-  variantId: string;
+  @IsOptional()
+  variantId?: string;
+
+  @IsString()
+  @IsOptional()
+  bundleId?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(16)
+  bundleSize?: string;
 
   @IsInt()
   @IsPositive()
-  quantity: number;
+  quantity!: number;
 }
 
 export class CreateOrderDto {
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => OrderItemDto)
-  items: OrderItemDto[];
+  items!: OrderItemDto[];
 
   @IsObject()
-  shippingAddress: Record<string, unknown>;
+  shippingAddress!: Record<string, unknown>;
 
   @IsObject()
   @IsOptional()
@@ -70,7 +86,7 @@ export class CreateOrderDto {
 
 export class UpdateOrderStatusDto {
   @IsString()
-  status: string;
+  status!: string;
 
   @IsString()
   @IsOptional()
