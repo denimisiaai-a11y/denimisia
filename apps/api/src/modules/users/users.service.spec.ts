@@ -233,7 +233,7 @@ describe('UsersService', () => {
   // ─── Admin ────────────────────────────────────────────────────────────────
 
   describe('getAllUsers', () => {
-    it('paginates and returns user list with total', async () => {
+    it('paginates and returns user list with total, excluding soft-deleted', async () => {
       prisma.user.findMany.mockResolvedValue([mockUser]);
       prisma.user.count.mockResolvedValue(1);
 
@@ -244,6 +244,12 @@ describe('UsersService', () => {
         total: 1,
         page: 1,
         limit: 10,
+      });
+      expect(prisma.user.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { deletedAt: null } }),
+      );
+      expect(prisma.user.count).toHaveBeenCalledWith({
+        where: { deletedAt: null },
       });
     });
   });

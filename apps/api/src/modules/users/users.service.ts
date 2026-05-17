@@ -143,8 +143,14 @@ export class UsersService {
 
   async getAllUsers(page: number, limit: number) {
     const skip = (page - 1) * limit;
+    // Filter soft-deleted users so the list view matches getUserById's
+    // behaviour. Without this, the admin could see + click into a row
+    // that 404s on detail — a UX trap. A future admin "show deleted"
+    // toggle would be its own endpoint.
+    const where = { deletedAt: null };
     const [users, total] = await Promise.all([
       this.prisma.user.findMany({
+        where,
         skip,
         take: limit,
         select: {
@@ -159,7 +165,7 @@ export class UsersService {
         },
         orderBy: { createdAt: 'desc' },
       }),
-      this.prisma.user.count(),
+      this.prisma.user.count({ where }),
     ]);
     return { users, total, page, limit };
   }
