@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+} from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import {
@@ -277,6 +281,7 @@ export class ProductsService {
 
   async addVariant(productId: string, dto: CreateVariantDto) {
     await this.findById(productId);
+    await this.assertVariantImagesMatchColor(productId, dto.color, dto.images);
     return this.prisma.productVariant.create({
       data: { ...dto, productId },
     });
@@ -287,11 +292,62 @@ export class ProductsService {
     variantId: string,
     dto: UpdateVariantDto,
   ) {
-    await this.findVariant(productId, variantId);
+    const existing = await this.findVariant(productId, variantId);
+    // If color OR images changed, re-validate against siblings of the
+    // resulting color. Pull from `existing` for any field the dto omits.
+    const nextColor = dto.color ?? existing.color;
+    const nextImages = dto.images ?? existing.images;
+    if (dto.color !== undefined || dto.images !== undefined) {
+      await this.assertVariantImagesMatchColor(
+        productId,
+        nextColor,
+        nextImages,
+        variantId,
+      );
+    }
     return this.prisma.productVariant.update({
       where: { id: variantId },
       data: dto,
     });
+  }
+
+  /**
+   * Enforce LR-001 D1: every ProductVariant of the same (productId, color)
+   * shares the same `images` array. The admin UI presents image input PER
+   * color, but admins editing variants via the API directly could break
+   * this invariant without the gate. Rejects with ConflictException (409)
+   * when the proposed images differ from any sibling.
+   *
+   * `excludeVariantId` is the variant being updated (skip self-compare).
+   */
+  private async assertVariantImagesMatchColor(
+    productId: string,
+    color: string,
+    images: string[] | undefined,
+    excludeVariantId?: string,
+  ) {
+    if (!images) return; // no image change attempted
+    const siblings = await this.prisma.productVariant.findMany({
+      where: {
+        productId,
+        color,
+        deletedAt: null,
+        ...(excludeVariantId ? { id: { not: excludeVariantId } } : {}),
+      },
+      select: { id: true, images: true },
+    });
+    if (siblings.length === 0) return; // first variant of this color sets the canon
+
+    const canon = siblings[0].images;
+    const sameAsCanon =
+      images.length === canon.length &&
+      images.every((url, i) => url === canon[i]);
+    if (!sameAsCanon) {
+      throw new ConflictException(
+        `Variant images must match all other variants of color "${color}" on this product. ` +
+          `Edit images for the color as a group via the admin UI.`,
+      );
+    }
   }
 
   async deleteVariant(productId: string, variantId: string) {

@@ -54,6 +54,7 @@ describe('ProductsService', () => {
       },
       productVariant: {
         findFirst: jest.fn(),
+        findMany: jest.fn(),
         create: jest.fn(),
         update: jest.fn(),
         delete: jest.fn(),
@@ -447,6 +448,7 @@ describe('ProductsService', () => {
   describe('addVariant', () => {
     it('should add variant to existing product', async () => {
       prisma.product.findUnique.mockResolvedValue(mockProduct);
+      prisma.productVariant.findMany.mockResolvedValue([]); // no siblings yet
       const variantDto = {
         sku: 'SFD-34-RED',
         size: '34',
@@ -478,6 +480,93 @@ describe('ProductsService', () => {
       await expect(
         service.addVariant('non-existent', {} as any),
       ).rejects.toThrow(NotFoundException);
+    });
+
+    // ─── Per-color image invariant (LR-001 D1) ─────────────────────────────
+    // The admin product-create UI collects images per color, then duplicates
+    // the same array across every variant of that color on save. This API
+    // gate prevents direct writes from breaking the convention.
+
+    it('accepts a new variant whose images match siblings of the same color', async () => {
+      prisma.product.findUnique.mockResolvedValue(mockProduct);
+      // One existing variant of color "Blue" with image set [a, b]
+      prisma.productVariant.findMany.mockResolvedValue([
+        { id: 'var-existing', images: ['a.jpg', 'b.jpg'] },
+      ]);
+      const variantDto = {
+        sku: 'NEW-BLUE-M',
+        size: 'M',
+        color: 'Blue',
+        price: 2500,
+        stock: 10,
+        images: ['a.jpg', 'b.jpg'], // matches sibling exactly
+      };
+      prisma.productVariant.create.mockResolvedValue({ id: 'var-new', ...variantDto });
+
+      await expect(
+        service.addVariant('prod-1', variantDto as any),
+      ).resolves.toBeDefined();
+    });
+
+    it('rejects a new variant whose images differ from siblings of same color (409)', async () => {
+      const { ConflictException } = require('@nestjs/common');
+      prisma.product.findUnique.mockResolvedValue(mockProduct);
+      prisma.productVariant.findMany.mockResolvedValue([
+        { id: 'var-existing', images: ['a.jpg', 'b.jpg'] },
+      ]);
+      const variantDto = {
+        sku: 'NEW-BLUE-L',
+        size: 'L',
+        color: 'Blue',
+        price: 2500,
+        stock: 5,
+        images: ['c.jpg'], // does NOT match
+      };
+
+      await expect(
+        service.addVariant('prod-1', variantDto as any),
+      ).rejects.toThrow(ConflictException);
+      expect(prisma.productVariant.create).not.toHaveBeenCalled();
+    });
+
+    it('rejects when image order differs even though contents are the same', async () => {
+      // Order matters: image[0] is the primary thumbnail per the product
+      // model's contract. Swapping the order would silently re-thumbnail
+      // every variant of the same color.
+      const { ConflictException } = require('@nestjs/common');
+      prisma.product.findUnique.mockResolvedValue(mockProduct);
+      prisma.productVariant.findMany.mockResolvedValue([
+        { id: 'var-existing', images: ['a.jpg', 'b.jpg', 'c.jpg'] },
+      ]);
+      await expect(
+        service.addVariant('prod-1', {
+          sku: 'NEW',
+          size: 'L',
+          color: 'Blue',
+          price: 100,
+          stock: 1,
+          images: ['c.jpg', 'a.jpg', 'b.jpg'],
+        } as any),
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it('first variant of a new color sets the canonical image set', async () => {
+      // No siblings yet -> the variant being added establishes the canon.
+      // No exception even if `images` is arbitrary.
+      prisma.product.findUnique.mockResolvedValue(mockProduct);
+      prisma.productVariant.findMany.mockResolvedValue([]);
+      prisma.productVariant.create.mockResolvedValue({ id: 'var-new' });
+
+      await expect(
+        service.addVariant('prod-1', {
+          sku: 'FIRST-GREEN-S',
+          size: 'S',
+          color: 'Green',
+          price: 100,
+          stock: 1,
+          images: ['anything.jpg'],
+        } as any),
+      ).resolves.toBeDefined();
     });
   });
 
