@@ -41,3 +41,9 @@ yarn-error.log*
 
 # Claude Code workspace config (per-developer, stays local)
 .claude/
+
+# Work-log scratch documents. These contain raw notes (including
+# credentials referenced in historical incident logs) and should
+# never travel with the repo.
+ClaudeXDenim.md
+Arena.md
