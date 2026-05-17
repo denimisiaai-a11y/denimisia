@@ -39,6 +39,13 @@ export class AnalyticsService {
     const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
 
+    // Shared filters: soft-deleted rows skew the dashboard.
+    const orderActive = {
+      status: { not: OrderStatus.CANCELLED },
+      deletedAt: null,
+    };
+    const customerActive = { role: 'CUSTOMER' as const, deletedAt: null };
+
     const [
       totalOrders,
       monthOrders,
@@ -50,37 +57,37 @@ export class AnalyticsService {
       totalProducts,
       lowStockCount,
     ] = await Promise.all([
-      this.prisma.order.count({ where: { status: { not: 'CANCELLED' } } }),
+      this.prisma.order.count({ where: orderActive }),
       this.prisma.order.count({
-        where: {
-          createdAt: { gte: startOfMonth },
-          status: { not: 'CANCELLED' },
-        },
+        where: { ...orderActive, createdAt: { gte: startOfMonth } },
       }),
       this.prisma.order.count({
         where: {
+          ...orderActive,
           createdAt: { gte: startOfLastMonth, lte: endOfLastMonth },
-          status: { not: 'CANCELLED' },
         },
       }),
       this.prisma.order.aggregate({
         _sum: { total: true },
-        where: { status: { not: 'CANCELLED' } },
+        where: orderActive,
       }),
       this.prisma.order.aggregate({
         _sum: { total: true },
-        where: {
-          createdAt: { gte: startOfMonth },
-          status: { not: 'CANCELLED' },
-        },
+        where: { ...orderActive, createdAt: { gte: startOfMonth } },
       }),
-      this.prisma.user.count({ where: { role: 'CUSTOMER' } }),
+      this.prisma.user.count({ where: customerActive }),
       this.prisma.user.count({
-        where: { role: 'CUSTOMER', createdAt: { gte: startOfMonth } },
+        where: { ...customerActive, createdAt: { gte: startOfMonth } },
       }),
-      this.prisma.product.count({ where: { isActive: true } }),
+      this.prisma.product.count({
+        where: { isActive: true, deletedAt: null },
+      }),
       this.prisma.productVariant.count({
-        where: { stock: { lte: 5 }, product: { isActive: true } },
+        where: {
+          stock: { lte: 5 },
+          deletedAt: null,
+          product: { isActive: true, deletedAt: null },
+        },
       }),
     ]);
 
@@ -116,6 +123,7 @@ export class AnalyticsService {
     const range = resolveRange(from, to);
     const whereRange: Prisma.OrderWhereInput = {
       createdAt: { gte: range.from, lte: range.to },
+      deletedAt: null,
     };
 
     const [
@@ -160,7 +168,9 @@ export class AnalyticsService {
         _count: { id: true },
         where: { ...whereRange, status: { in: ACTIVE_STATUSES } },
       }),
-      this.prisma.user.count({ where: { role: 'CUSTOMER' } }),
+      this.prisma.user.count({
+        where: { role: 'CUSTOMER', deletedAt: null },
+      }),
     ]);
 
     const totalSales = Number(salesAgg._sum.total ?? 0);
