@@ -1,5 +1,12 @@
 # LR-001 Phase 0 — Plumbing — Implementation Plan
 
+> **STATUS: SHIPPED 2026-05-17.** See `ClaudeXDenim.md` section
+> `Phase 0 — Plumbing — SHIPPED 2026-05-17` for the canonical record
+> (14 atomic commits, all exit criteria met). This plan file can be
+> deleted at the start of Phase 1 since the status entry is the
+> durable record.
+
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Take Denimisia from "code mostly exists, ~50 files dirty in working tree, schema migration unapplied" to "every app boots clean, migration applied, plumbing in place" so Phase 1 (API hardening) can start against a known-good baseline.
