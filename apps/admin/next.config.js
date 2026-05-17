@@ -8,6 +8,10 @@ const nextConfig = {
       { protocol: 'https', hostname: 'storola-client-space.sgp1.cdn.digitaloceanspaces.com' },
       { protocol: 'https', hostname: '*.r2.dev' },
       { protocol: 'https', hostname: 'images.unsplash.com' },
+      // Supabase storage covers legacy media that pre-dates the R2 migration.
+      // Admin previews of those assets render through here until they are
+      // copied over via scripts/migrate-supabase-to-r2.ts.
+      { protocol: 'https', hostname: '*.supabase.co' },
     ],
   },
 
