@@ -21,9 +21,21 @@ describe('UploadsController', () => {
   });
 
   it('should get presigned url', async () => {
-    uploadsService.getPresignedUrl.mockResolvedValue({ uploadUrl: 'url', key: 'k', publicUrl: 'pub' });
-    const result = await controller.getPresignedUrl({ folder: 'products', contentType: 'image/jpeg', fileSizeBytes: 1024 } as any);
-    expect(uploadsService.getPresignedUrl).toHaveBeenCalledWith('products', 'image/jpeg', 1024);
+    uploadsService.getPresignedUrl.mockResolvedValue({
+      uploadUrl: 'url',
+      key: 'k',
+      publicUrl: 'pub',
+    });
+    const result = await controller.getPresignedUrl({
+      folder: 'products',
+      contentType: 'image/jpeg',
+      expectedSize: 1024,
+    } as any);
+    expect(uploadsService.getPresignedUrl).toHaveBeenCalledWith(
+      'products',
+      'image/jpeg',
+      1024,
+    );
   });
 
   it('should delete file', async () => {

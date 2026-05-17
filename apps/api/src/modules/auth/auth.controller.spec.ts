@@ -1,6 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
+import { EmailThrottlerGuard } from '../../common/throttler/email-throttler.guard';
+import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { AuthGuard } from '@nestjs/passport';
 
 describe('AuthController', () => {
   let controller: AuthController;
@@ -28,30 +31,64 @@ describe('AuthController', () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AuthController],
       providers: [{ provide: AuthService, useValue: authService }],
-    }).compile();
+    })
+      // Bypass throttler / auth guards — they require runtime config we don't
+      // need in a unit test of the controller wiring itself.
+      .overrideGuard(EmailThrottlerGuard)
+      .useValue({ canActivate: () => true })
+      .overrideGuard(JwtAuthGuard)
+      .useValue({ canActivate: () => true })
+      .overrideGuard(AuthGuard('jwt-refresh'))
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = module.get(AuthController);
   });
 
   it('should register and set refresh cookie', async () => {
-    authService.register.mockResolvedValue({ accessToken: 'at', refreshToken: 'rt' });
+    authService.register.mockResolvedValue({
+      accessToken: 'at',
+      refreshToken: 'rt',
+    });
     const res = mockRes();
 
-    const result = await controller.register({ email: 'a@b.com', password: '123', firstName: 'A', lastName: 'B' } as any, res);
+    const result = await controller.register(
+      {
+        email: 'a@b.com',
+        password: '123',
+        firstName: 'A',
+        lastName: 'B',
+      } as any,
+      res,
+    );
 
     expect(authService.register).toHaveBeenCalled();
-    expect(res.cookie).toHaveBeenCalledWith('refresh_token', 'rt', expect.any(Object));
+    expect(res.cookie).toHaveBeenCalledWith(
+      'refresh_token',
+      'rt',
+      expect.any(Object),
+    );
     expect(result).toEqual({ accessToken: 'at' });
   });
 
   it('should login and set refresh cookie', async () => {
-    authService.login.mockResolvedValue({ accessToken: 'at', refreshToken: 'rt' });
+    authService.login.mockResolvedValue({
+      accessToken: 'at',
+      refreshToken: 'rt',
+    });
     const res = mockRes();
 
-    const result = await controller.login({ email: 'a@b.com', password: '123' } as any, res);
+    const result = await controller.login(
+      { email: 'a@b.com', password: '123' } as any,
+      res,
+    );
 
     expect(authService.login).toHaveBeenCalled();
-    expect(res.cookie).toHaveBeenCalledWith('refresh_token', 'rt', expect.any(Object));
+    expect(res.cookie).toHaveBeenCalledWith(
+      'refresh_token',
+      'rt',
+      expect.any(Object),
+    );
     expect(result).toEqual({ accessToken: 'at' });
   });
 
@@ -62,17 +99,30 @@ describe('AuthController', () => {
     const result = await controller.logout({ id: 'user-1' }, res);
 
     expect(authService.logout).toHaveBeenCalledWith('user-1');
-    expect(res.clearCookie).toHaveBeenCalledWith('refresh_token');
+    expect(res.clearCookie).toHaveBeenCalledWith('refresh_token', {
+      path: '/api/v1/auth',
+    });
     expect(result).toEqual({ message: 'Logged out successfully' });
   });
 
   it('should refresh tokens', async () => {
-    authService.refreshTokens.mockResolvedValue({ accessToken: 'at2', refreshToken: 'rt2' });
+    authService.refreshTokens.mockResolvedValue({
+      accessToken: 'at2',
+      refreshToken: 'rt2',
+    });
     const res = mockRes();
 
-    const result = await controller.refresh({ id: 'user-1', email: 'a@b.com', role: 'CUSTOMER', refreshToken: 'rt' }, res);
+    const result = await controller.refresh(
+      { id: 'user-1', email: 'a@b.com', role: 'CUSTOMER', refreshToken: 'rt' },
+      res,
+    );
 
-    expect(authService.refreshTokens).toHaveBeenCalledWith('user-1', 'a@b.com', 'CUSTOMER', 'rt');
+    expect(authService.refreshTokens).toHaveBeenCalledWith(
+      'user-1',
+      'a@b.com',
+      'CUSTOMER',
+      'rt',
+    );
     expect(result).toEqual({ accessToken: 'at2' });
   });
 
@@ -85,7 +135,10 @@ describe('AuthController', () => {
 
   it('should resetPassword', async () => {
     authService.resetPassword.mockResolvedValue({ message: 'Password reset' });
-    const result = await controller.resetPassword({ token: 't', newPassword: 'p' } as any);
+    const result = await controller.resetPassword({
+      token: 't',
+      newPassword: 'p',
+    } as any);
     expect(authService.resetPassword).toHaveBeenCalledWith('t', 'p');
   });
 

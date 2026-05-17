@@ -31,7 +31,11 @@ export class CartController {
 
   @Post('items')
   @UseGuards(OptionalJwtAuthGuard)
-  addItem(@Body() dto: AddToCartDto, @Req() req: Request, @CurrentUser() user?: any) {
+  addItem(
+    @Body() dto: AddToCartDto,
+    @Req() req: Request,
+    @CurrentUser() user?: any,
+  ) {
     const sessionId = req.cookies?.session_id;
     return this.cartService.addItem(dto, user?.id, sessionId);
   }

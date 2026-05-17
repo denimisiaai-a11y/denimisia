@@ -21,8 +21,8 @@ export class HealthController {
   @Get('health')
   health(): { status: 'ok'; uptime: number; timestamp: string } {
     return {
-      status:    'ok',
-      uptime:    Math.round(process.uptime()),
+      status: 'ok',
+      uptime: Math.round(process.uptime()),
       timestamp: new Date().toISOString(),
     };
   }
@@ -34,10 +34,20 @@ export class HealthController {
     timestamp: string;
   }> {
     const [db, redis] = await Promise.all([
-      this.prisma.$queryRawUnsafe('SELECT 1').then(() => 'ok' as const).catch(() => 'fail' as const),
-      this.redis.ping().then(() => 'ok' as const).catch(() => 'fail' as const),
+      this.prisma
+        .$queryRawUnsafe('SELECT 1')
+        .then(() => 'ok' as const)
+        .catch(() => 'fail' as const),
+      this.redis
+        .ping()
+        .then(() => 'ok' as const)
+        .catch(() => 'fail' as const),
     ]);
     const status = db === 'ok' && redis === 'ok' ? 'ok' : 'degraded';
-    return { status, checks: { db, redis }, timestamp: new Date().toISOString() };
+    return {
+      status,
+      checks: { db, redis },
+      timestamp: new Date().toISOString(),
+    };
   }
 }

@@ -107,10 +107,12 @@ describe('CartService', () => {
           items: expect.any(Object),
         }),
       });
-      expect(result).toEqual(expect.objectContaining({
-        id: 'cart-1',
-        total: 5000, // 2500 * 2
-      }));
+      expect(result).toEqual(
+        expect.objectContaining({
+          id: 'cart-1',
+          total: 5000, // 2500 * 2
+        }),
+      );
     });
 
     it('should return empty cart when user has no cart', async () => {
@@ -159,9 +161,12 @@ describe('CartService', () => {
 
     it('should add new item to user cart', async () => {
       prisma.productVariant.findUnique
-        .mockResolvedValueOnce(mockVariant)  // stock check in addItem
-        .mockResolvedValueOnce({ productId: 'prod-1' });  // productId lookup in addToUserCart
-      prisma.cart.findUnique.mockResolvedValue({ id: 'cart-1', userId: 'user-1' });
+        .mockResolvedValueOnce(mockVariant) // stock check in addItem
+        .mockResolvedValueOnce({ productId: 'prod-1' }); // productId lookup in addToUserCart
+      prisma.cart.findUnique.mockResolvedValue({
+        id: 'cart-1',
+        userId: 'user-1',
+      });
       prisma.cartItem.findFirst.mockResolvedValue(null);
       const created = { id: 'ci-new', ...addDto, cartId: 'cart-1' };
       prisma.cartItem.create.mockResolvedValue(created);
@@ -185,7 +190,10 @@ describe('CartService', () => {
 
     it('should increment quantity when item already exists in cart', async () => {
       prisma.productVariant.findUnique.mockResolvedValue(mockVariant);
-      prisma.cart.findUnique.mockResolvedValue({ id: 'cart-1', userId: 'user-1' });
+      prisma.cart.findUnique.mockResolvedValue({
+        id: 'cart-1',
+        userId: 'user-1',
+      });
       prisma.cartItem.findFirst.mockResolvedValue(mockCartItem);
       const updated = { ...mockCartItem, quantity: 3 };
       prisma.cartItem.update.mockResolvedValue(updated);
@@ -204,7 +212,10 @@ describe('CartService', () => {
         .mockResolvedValueOnce(mockVariant)
         .mockResolvedValueOnce({ productId: 'prod-1' });
       prisma.cart.findUnique.mockResolvedValue(null);
-      prisma.cart.create.mockResolvedValue({ id: 'cart-new', userId: 'user-1' });
+      prisma.cart.create.mockResolvedValue({
+        id: 'cart-new',
+        userId: 'user-1',
+      });
       prisma.cartItem.findFirst.mockResolvedValue(null);
       prisma.cartItem.create.mockResolvedValue({ id: 'ci-new' });
 
@@ -218,18 +229,18 @@ describe('CartService', () => {
     it('should throw NotFoundException when variant not found', async () => {
       prisma.productVariant.findUnique.mockResolvedValue(null);
 
-      await expect(
-        service.addItem(addDto, 'user-1'),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.addItem(addDto, 'user-1')).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('should throw BadRequestException when insufficient stock', async () => {
       const lowStock = { ...mockVariant, stock: 0 };
       prisma.productVariant.findUnique.mockResolvedValue(lowStock);
 
-      await expect(
-        service.addItem(addDto, 'user-1'),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.addItem(addDto, 'user-1')).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('should add item to guest cart via Redis when sessionId provided', async () => {
@@ -249,7 +260,9 @@ describe('CartService', () => {
 
     it('should increment guest cart item quantity when already exists', async () => {
       prisma.productVariant.findUnique.mockResolvedValue(mockVariant);
-      const existingItems = [{ variantId: 'var-1', quantity: 2, productId: 'prod-1' }];
+      const existingItems = [
+        { variantId: 'var-1', quantity: 2, productId: 'prod-1' },
+      ];
       redis.get.mockResolvedValue(JSON.stringify(existingItems));
       redis.setex.mockResolvedValue('OK');
 
@@ -263,9 +276,9 @@ describe('CartService', () => {
     it('should throw BadRequestException when no session or user', async () => {
       prisma.productVariant.findUnique.mockResolvedValue(mockVariant);
 
-      await expect(
-        service.addItem(addDto),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.addItem(addDto)).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 
@@ -277,7 +290,11 @@ describe('CartService', () => {
       const updated = { ...mockCartItem, quantity: 5 };
       prisma.cartItem.update.mockResolvedValue(updated);
 
-      const result = await service.updateItem('ci-1', { quantity: 5 }, 'user-1');
+      const result = await service.updateItem(
+        'ci-1',
+        { quantity: 5 },
+        'user-1',
+      );
 
       expect(prisma.cartItem.findFirst).toHaveBeenCalledWith({
         where: { id: 'ci-1', cart: { userId: 'user-1' } },
@@ -342,7 +359,10 @@ describe('CartService', () => {
 
   describe('clearCart', () => {
     it('should clear user cart items', async () => {
-      prisma.cart.findUnique.mockResolvedValue({ id: 'cart-1', userId: 'user-1' });
+      prisma.cart.findUnique.mockResolvedValue({
+        id: 'cart-1',
+        userId: 'user-1',
+      });
       prisma.cartItem.deleteMany.mockResolvedValue({ count: 3 });
 
       await service.clearCart('user-1');
@@ -383,9 +403,14 @@ describe('CartService', () => {
       redis.del.mockResolvedValue(1);
 
       // addToUserCart mock chain
-      prisma.cart.findUnique.mockResolvedValue({ id: 'cart-1', userId: 'user-1' });
+      prisma.cart.findUnique.mockResolvedValue({
+        id: 'cart-1',
+        userId: 'user-1',
+      });
       prisma.cartItem.findFirst.mockResolvedValue(null);
-      prisma.productVariant.findUnique.mockResolvedValue({ productId: 'prod-1' });
+      prisma.productVariant.findUnique.mockResolvedValue({
+        productId: 'prod-1',
+      });
       prisma.cartItem.create.mockResolvedValue({ id: 'ci-new' });
 
       await service.mergeGuestCart('user-1', 'session-123');

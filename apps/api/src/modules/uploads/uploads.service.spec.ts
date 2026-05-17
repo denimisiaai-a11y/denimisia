@@ -47,7 +47,7 @@ describe('UploadsService', () => {
         R2_ACCOUNT_ID: 'account-id',
         R2_ACCESS_KEY_ID: 'access-key',
         R2_SECRET_ACCESS_KEY: 'secret-key',
-        R2_BUCKET: 'my-bucket',
+        R2_BUCKET_NAME: 'my-bucket',
         R2_PUBLIC_URL: 'https://cdn.example.com',
       });
     });
@@ -56,13 +56,22 @@ describe('UploadsService', () => {
       it('should return upload url and public url for valid image', async () => {
         mockGetSignedUrl.mockResolvedValue('https://signed-url.example.com');
 
-        const result = await service.getPresignedUrl('products', 'image/jpeg', 1024);
+        const result = await service.getPresignedUrl(
+          'products',
+          'image/jpeg',
+          1024,
+        );
 
-        expect(result).toHaveProperty('uploadUrl', 'https://signed-url.example.com');
+        expect(result).toHaveProperty(
+          'uploadUrl',
+          'https://signed-url.example.com',
+        );
         expect(result).toHaveProperty('key');
         expect(result).toHaveProperty('publicUrl');
-        expect(result.key).toMatch(/^products\/[\w-]+\.jpeg$/);
-        expect(result.publicUrl).toMatch(/^https:\/\/cdn\.example\.com\/products\/[\w-]+\.jpeg$/);
+        expect(result.key).toMatch(/^products\/[\w-]+\.jpg$/);
+        expect(result.publicUrl).toMatch(
+          /^https:\/\/cdn\.example\.com\/products\/[\w-]+\.jpg$/,
+        );
       });
 
       it('should throw BadRequestException for disallowed file type', async () => {
@@ -80,10 +89,18 @@ describe('UploadsService', () => {
       it('should allow webp and gif types', async () => {
         mockGetSignedUrl.mockResolvedValue('https://signed-url.example.com');
 
-        const webp = await service.getPresignedUrl('products', 'image/webp', 1024);
+        const webp = await service.getPresignedUrl(
+          'products',
+          'image/webp',
+          1024,
+        );
         expect(webp.key).toMatch(/\.webp$/);
 
-        const gif = await service.getPresignedUrl('products', 'image/gif', 1024);
+        const gif = await service.getPresignedUrl(
+          'products',
+          'image/gif',
+          1024,
+        );
         expect(gif.key).toMatch(/\.gif$/);
       });
     });
@@ -92,33 +109,32 @@ describe('UploadsService', () => {
       it('should delete file without error', async () => {
         mockSend.mockResolvedValue({});
 
-        await expect(service.deleteFile('products/image.jpg')).resolves.toBeUndefined();
+        await expect(
+          service.deleteFile('products/image.jpg'),
+        ).resolves.toBeUndefined();
         expect(mockSend).toHaveBeenCalled();
       });
     });
   });
 
-  describe('without R2 credentials', () => {
-    beforeEach(async () => {
-      service = await createModule({});
-    });
-
-    it('should throw BadRequestException on getPresignedUrl', async () => {
-      await expect(
-        service.getPresignedUrl('products', 'image/jpeg', 1024),
-      ).rejects.toThrow(BadRequestException);
-    });
-
-    it('should throw BadRequestException on deleteFile', async () => {
-      await expect(service.deleteFile('products/image.jpg')).rejects.toThrow(
-        BadRequestException,
+  // Note: the service requires R2_BUCKET_NAME at construction. Without it,
+  // the constructor throws — by design, to fail fast at boot rather than
+  // silently writing to a phantom bucket. The previous "without R2
+  // credentials" describe block tested service-method failure modes that
+  // no longer exist; replaced with a single test that asserts the boot-time
+  // contract.
+  describe('without R2_BUCKET_NAME', () => {
+    it('refuses to construct', async () => {
+      await expect(createModule({})).rejects.toThrow(
+        'R2_BUCKET_NAME is required',
       );
     });
   });
 
-  describe('with partial R2 credentials', () => {
+  describe('with partial R2 credentials (bucket but no account/keys)', () => {
     beforeEach(async () => {
       service = await createModule({
+        R2_BUCKET_NAME: 'my-bucket',
         R2_ACCOUNT_ID: 'account-id',
         R2_ACCESS_KEY_ID: 'access-key',
       });

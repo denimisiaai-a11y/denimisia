@@ -18,25 +18,34 @@ export const pinoConfig: Params = {
       // Never trust a client-supplied x-request-id — always generate a fresh UUID.
       const id = randomUUID();
       const rawHint = req.headers['x-request-id'];
-      const hint = typeof rawHint === 'string' ? rawHint : Array.isArray(rawHint) ? rawHint[0] ?? '' : '';
-      const clientRequestId = hint.replace(/[^a-zA-Z0-9\-_]/g, '').slice(0, 48) || undefined;
+      const hint =
+        typeof rawHint === 'string'
+          ? rawHint
+          : Array.isArray(rawHint)
+            ? (rawHint[0] ?? '')
+            : '';
+      const clientRequestId =
+        hint.replace(/[^a-zA-Z0-9\-_]/g, '').slice(0, 48) || undefined;
       res.setHeader('x-request-id', id);
       // Attach the sanitized client hint to the request object for later log enrichment.
       if (clientRequestId) {
-        (req as unknown as { clientRequestId?: string }).clientRequestId = clientRequestId;
+        (req as unknown as { clientRequestId?: string }).clientRequestId =
+          clientRequestId;
       }
       return id;
     },
-    transport: isProd() ? undefined : {
-      target: 'pino-pretty',
-      options: {
-        singleLine: true,
-        colorize: true,
-        translateTime: 'SYS:HH:MM:ss.l',
-        ignore: 'pid,hostname,req,res',
-        messageFormat: '{context} [{reqId}] {msg}',
-      },
-    },
+    transport: isProd()
+      ? undefined
+      : {
+          target: 'pino-pretty',
+          options: {
+            singleLine: true,
+            colorize: true,
+            translateTime: 'SYS:HH:MM:ss.l',
+            ignore: 'pid,hostname,req,res',
+            messageFormat: '{context} [{reqId}] {msg}',
+          },
+        },
     redact: {
       paths: [
         'req.headers.authorization',
@@ -56,11 +65,13 @@ export const pinoConfig: Params = {
     },
     serializers: {
       req: (req) => {
-        const clientRequestId = (req.raw as unknown as { clientRequestId?: string } | undefined)?.clientRequestId;
+        const clientRequestId = (
+          req.raw as unknown as { clientRequestId?: string } | undefined
+        )?.clientRequestId;
         return {
-          id:     req.id,
+          id: req.id,
           method: req.method,
-          url:    req.url,
+          url: req.url,
           ...(clientRequestId ? { clientRequestId } : {}),
           // Don't log every query param — can be noisy and leak tokens.
         };

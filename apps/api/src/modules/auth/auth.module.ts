@@ -9,11 +9,7 @@ import { EmailThrottlerGuard } from '../../common/throttler/email-throttler.guar
 import { AuditLogModule } from '../audit-log/audit-log.module';
 
 @Module({
-  imports: [
-    PassportModule,
-    JwtModule.register({}),
-    AuditLogModule,
-  ],
+  imports: [PassportModule, JwtModule.register({}), AuditLogModule],
   controllers: [AuthController],
   providers: [
     AuthService,

@@ -28,7 +28,9 @@ describe('AuditLogService', () => {
 
   it('should create log', async () => {
     prisma.auditLog.create.mockResolvedValue({ id: 'log-1' });
-    const result = await service.log('user-1', 'CREATE', 'Product', 'prod-1', { name: 'Jeans' } as any);
+    const result = await service.log('user-1', 'CREATE', 'Product', 'prod-1', {
+      name: 'Jeans',
+    } as any);
     expect(prisma.auditLog.create).toHaveBeenCalledWith({
       data: {
         userId: 'user-1',
@@ -44,7 +46,9 @@ describe('AuditLogService', () => {
     prisma.auditLog.create.mockResolvedValue({ id: 'log-1' });
     await service.log('user-1', 'DELETE', 'Product', 'prod-1');
     expect(prisma.auditLog.create).toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ details: Prisma.DbNull }) }),
+      expect.objectContaining({
+        data: expect.objectContaining({ details: Prisma.DbNull }),
+      }),
     );
   });
 
@@ -52,13 +56,24 @@ describe('AuditLogService', () => {
     prisma.auditLog.findMany.mockResolvedValue([{ id: 'log-1' }]);
     prisma.auditLog.count.mockResolvedValue(1);
     const result = await service.findAll({ page: 1, limit: 20 });
-    expect(result).toEqual({ logs: [{ id: 'log-1' }], total: 1, page: 1, limit: 20 });
+    expect(result).toEqual({
+      logs: [{ id: 'log-1' }],
+      total: 1,
+      page: 1,
+      limit: 20,
+    });
   });
 
   it('should apply filters', async () => {
     prisma.auditLog.findMany.mockResolvedValue([]);
     prisma.auditLog.count.mockResolvedValue(0);
-    await service.findAll({ page: 2, limit: 10, entity: 'Product', entityId: 'prod-1', userId: 'user-1' });
+    await service.findAll({
+      page: 2,
+      limit: 10,
+      entity: 'Product',
+      entityId: 'prod-1',
+      userId: 'user-1',
+    });
     expect(prisma.auditLog.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { entity: 'Product', entityId: 'prod-1', userId: 'user-1' },

@@ -32,12 +32,15 @@ import { CmsModule } from './modules/cms/cms.module';
 import { MediaModule } from './modules/media/media.module';
 import { CurationModule } from './modules/curation/curation.module';
 import { HealthModule } from './common/health/health.module';
+import { BulkModule } from './common/bulk/bulk.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     EventEmitterModule.forRoot(),
-    ThrottlerModule.forRoot([{ ttl: env.THROTTLE_TTL_MS, limit: env.THROTTLE_LIMIT }]),
+    ThrottlerModule.forRoot([
+      { ttl: env.THROTTLE_TTL_MS, limit: env.THROTTLE_LIMIT },
+    ]),
     LoggerModule.forRoot(pinoConfig),
     PrismaModule,
     RedisModule,
@@ -64,10 +67,9 @@ import { HealthModule } from './common/health/health.module';
     MediaModule,
     CurationModule,
     HealthModule,
+    BulkModule,
   ],
-  providers: [
-    { provide: APP_GUARD, useClass: ThrottlerGuard },
-  ],
+  providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer): void {

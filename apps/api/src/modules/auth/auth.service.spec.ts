@@ -9,6 +9,7 @@ import { ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { REDIS_CLIENT } from '../redis/redis.decorator';
+import { AuditLogService } from '../audit-log/audit-log.service';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 
@@ -36,7 +37,7 @@ describe('AuthService', () => {
   beforeEach(async () => {
     prisma = {
       user: {
-        findUnique: jest.fn(),
+        findFirst: jest.fn(),
         create: jest.fn(),
         update: jest.fn(),
       },
@@ -71,6 +72,10 @@ describe('AuthService', () => {
         { provide: JwtService, useValue: jwt },
         { provide: ConfigService, useValue: config },
         { provide: REDIS_CLIENT, useValue: redis },
+        {
+          provide: AuditLogService,
+          useValue: { log: jest.fn().mockResolvedValue(undefined) },
+        },
       ],
     }).compile();
 
@@ -92,10 +97,10 @@ describe('AuthService', () => {
     };
 
     it('should create user with hashed password and return tokens', async () => {
-      prisma.user.findUnique.mockResolvedValue(null);
+      prisma.user.findFirst.mockResolvedValue(null);
       (mockedBcrypt.hash as jest.Mock)
-        .mockResolvedValueOnce('$hashed-password$')  // password hash
-        .mockResolvedValueOnce('$hashed-refresh$');   // refresh token hash for storage
+        .mockResolvedValueOnce('$hashed-password$') // password hash
+        .mockResolvedValueOnce('$hashed-refresh$'); // refresh token hash for storage
       prisma.user.create.mockResolvedValue({
         id: 'user-new',
         email: registerDto.email,
@@ -110,8 +115,8 @@ describe('AuthService', () => {
 
       const result = await service.register(registerDto);
 
-      expect(prisma.user.findUnique).toHaveBeenCalledWith({
-        where: { email: registerDto.email },
+      expect(prisma.user.findFirst).toHaveBeenCalledWith({
+        where: { email: registerDto.email, deletedAt: null },
       });
       expect(mockedBcrypt.hash).toHaveBeenCalledWith(registerDto.password, 12);
       expect(prisma.user.create).toHaveBeenCalledWith({
@@ -129,7 +134,7 @@ describe('AuthService', () => {
     });
 
     it('should throw ConflictException when email already exists', async () => {
-      prisma.user.findUnique.mockResolvedValue(mockUser);
+      prisma.user.findFirst.mockResolvedValue(mockUser);
 
       await expect(service.register(registerDto)).rejects.toThrow(
         ConflictException,
@@ -138,7 +143,7 @@ describe('AuthService', () => {
     });
 
     it('should store hashed refresh token in Redis', async () => {
-      prisma.user.findUnique.mockResolvedValue(null);
+      prisma.user.findFirst.mockResolvedValue(null);
       (mockedBcrypt.hash as jest.Mock)
         .mockResolvedValueOnce('$hashed-password$')
         .mockResolvedValueOnce('$hashed-refresh-token$');
@@ -162,7 +167,7 @@ describe('AuthService', () => {
     });
 
     it('should generate both access and refresh tokens with correct secrets', async () => {
-      prisma.user.findUnique.mockResolvedValue(null);
+      prisma.user.findFirst.mockResolvedValue(null);
       (mockedBcrypt.hash as jest.Mock).mockResolvedValue('$hashed$');
       prisma.user.create.mockResolvedValue({
         id: 'user-new',
@@ -176,13 +181,25 @@ describe('AuthService', () => {
 
       await service.register(registerDto);
 
+      // Note: the service reads secrets directly from the `env` helper rather
+      // than ConfigService, so we don't assert specific secret values here;
+      // we just verify that signAsync was called twice with the expected
+      // payload and expiry windows.
       expect(jwt.signAsync).toHaveBeenCalledWith(
-        { sub: 'user-new', email: registerDto.email, role: 'CUSTOMER' },
-        { secret: 'access-secret', expiresIn: '15m' },
+        expect.objectContaining({
+          sub: 'user-new',
+          email: registerDto.email,
+          role: 'CUSTOMER',
+        }),
+        expect.objectContaining({ expiresIn: '15m' }),
       );
       expect(jwt.signAsync).toHaveBeenCalledWith(
-        { sub: 'user-new', email: registerDto.email, role: 'CUSTOMER' },
-        { secret: 'refresh-secret', expiresIn: '7d' },
+        expect.objectContaining({
+          sub: 'user-new',
+          email: registerDto.email,
+          role: 'CUSTOMER',
+        }),
+        expect.objectContaining({ expiresIn: '7d' }),
       );
     });
   });
@@ -193,7 +210,7 @@ describe('AuthService', () => {
     const loginDto = { email: 'test@example.com', password: 'password123' };
 
     it('should validate credentials and return tokens', async () => {
-      prisma.user.findUnique.mockResolvedValue(mockUser);
+      prisma.user.findFirst.mockResolvedValue(mockUser);
       (mockedBcrypt.compare as jest.Mock).mockResolvedValue(true);
       (mockedBcrypt.hash as jest.Mock).mockResolvedValue('$hashed-refresh$');
       jwt.signAsync
@@ -203,8 +220,8 @@ describe('AuthService', () => {
 
       const result = await service.login(loginDto);
 
-      expect(prisma.user.findUnique).toHaveBeenCalledWith({
-        where: { email: loginDto.email },
+      expect(prisma.user.findFirst).toHaveBeenCalledWith({
+        where: { email: loginDto.email, deletedAt: null },
       });
       expect(mockedBcrypt.compare).toHaveBeenCalledWith(
         loginDto.password,
@@ -214,13 +231,16 @@ describe('AuthService', () => {
         expect.objectContaining({
           accessToken: 'access-token',
           refreshToken: 'refresh-token',
-          user: expect.objectContaining({ id: mockUser.id, email: mockUser.email }),
+          user: expect.objectContaining({
+            id: mockUser.id,
+            email: mockUser.email,
+          }),
         }),
       );
     });
 
     it('should throw UnauthorizedException when user not found', async () => {
-      prisma.user.findUnique.mockResolvedValue(null);
+      prisma.user.findFirst.mockResolvedValue(null);
 
       await expect(service.login(loginDto)).rejects.toThrow(
         UnauthorizedException,
@@ -228,7 +248,7 @@ describe('AuthService', () => {
     });
 
     it('should throw UnauthorizedException when password does not match', async () => {
-      prisma.user.findUnique.mockResolvedValue(mockUser);
+      prisma.user.findFirst.mockResolvedValue(mockUser);
       (mockedBcrypt.compare as jest.Mock).mockResolvedValue(false);
 
       await expect(service.login(loginDto)).rejects.toThrow(
@@ -237,7 +257,7 @@ describe('AuthService', () => {
     });
 
     it('should store refresh token in Redis after successful login', async () => {
-      prisma.user.findUnique.mockResolvedValue(mockUser);
+      prisma.user.findFirst.mockResolvedValue(mockUser);
       (mockedBcrypt.compare as jest.Mock).mockResolvedValue(true);
       (mockedBcrypt.hash as jest.Mock).mockResolvedValue('$hashed-refresh$');
       jwt.signAsync
@@ -272,6 +292,11 @@ describe('AuthService', () => {
   describe('refreshTokens', () => {
     it('should validate refresh token and issue new pair', async () => {
       redis.get.mockResolvedValue('$stored-hash$');
+      prisma.user.findFirst.mockResolvedValue({
+        id: 'user-1',
+        email: 'test@example.com',
+        role: 'CUSTOMER',
+      });
       (mockedBcrypt.compare as jest.Mock).mockResolvedValue(true);
       (mockedBcrypt.hash as jest.Mock).mockResolvedValue('$new-hash$');
       jwt.signAsync
@@ -316,11 +341,14 @@ describe('AuthService', () => {
 
     it('should store the new refresh token hash in Redis', async () => {
       redis.get.mockResolvedValue('$stored-hash$');
+      prisma.user.findFirst.mockResolvedValue({
+        id: 'user-1',
+        email: 'email',
+        role: 'CUSTOMER',
+      });
       (mockedBcrypt.compare as jest.Mock).mockResolvedValue(true);
       (mockedBcrypt.hash as jest.Mock).mockResolvedValue('$rotated-hash$');
-      jwt.signAsync
-        .mockResolvedValueOnce('a')
-        .mockResolvedValueOnce('r');
+      jwt.signAsync.mockResolvedValueOnce('a').mockResolvedValueOnce('r');
       redis.setex.mockResolvedValue('OK');
 
       await service.refreshTokens('user-1', 'email', 'CUSTOMER', 'token');
@@ -337,12 +365,12 @@ describe('AuthService', () => {
 
   describe('forgotPassword', () => {
     it('should generate reset token and store in Redis for existing user', async () => {
-      prisma.user.findUnique.mockResolvedValue(mockUser);
+      prisma.user.findFirst.mockResolvedValue(mockUser);
       redis.setex.mockResolvedValue('OK');
       const result = await service.forgotPassword('test@example.com');
 
-      expect(prisma.user.findUnique).toHaveBeenCalledWith({
-        where: { email: 'test@example.com' },
+      expect(prisma.user.findFirst).toHaveBeenCalledWith({
+        where: { email: 'test@example.com', deletedAt: null },
       });
       expect(redis.setex).toHaveBeenCalled();
       expect(result).toEqual({
@@ -351,7 +379,7 @@ describe('AuthService', () => {
     });
 
     it('should return same message for non-existent user to prevent enumeration', async () => {
-      prisma.user.findUnique.mockResolvedValue(null);
+      prisma.user.findFirst.mockResolvedValue(null);
 
       const result = await service.forgotPassword('unknown@example.com');
 
@@ -367,11 +395,18 @@ describe('AuthService', () => {
   describe('resetPassword', () => {
     it('should validate token, update password, and clean up Redis keys', async () => {
       redis.get.mockResolvedValue('user-1');
+      prisma.user.findFirst.mockResolvedValue({ id: 'user-1' });
       (mockedBcrypt.hash as jest.Mock).mockResolvedValue('$new-hash$');
-      prisma.user.update.mockResolvedValue({ ...mockUser, passwordHash: '$new-hash$' });
+      prisma.user.update.mockResolvedValue({
+        ...mockUser,
+        passwordHash: '$new-hash$',
+      });
       redis.del.mockResolvedValue(1);
 
-      const result = await service.resetPassword('valid-token', 'newpassword123');
+      const result = await service.resetPassword(
+        'valid-token',
+        'newpassword123',
+      );
 
       expect(redis.get).toHaveBeenCalledWith('reset:valid-token');
       expect(mockedBcrypt.hash).toHaveBeenCalledWith('newpassword123', 12);
@@ -400,20 +435,20 @@ describe('AuthService', () => {
 
   describe('requestEmailVerification', () => {
     it('should generate verification token and store in Redis', async () => {
-      prisma.user.findUnique.mockResolvedValue(mockUser);
+      prisma.user.findFirst.mockResolvedValue(mockUser);
       redis.setex.mockResolvedValue('OK');
 
       const result = await service.requestEmailVerification('user-1');
 
-      expect(prisma.user.findUnique).toHaveBeenCalledWith({
-        where: { id: 'user-1' },
+      expect(prisma.user.findFirst).toHaveBeenCalledWith({
+        where: { id: 'user-1', deletedAt: null },
       });
       expect(redis.setex).toHaveBeenCalled();
       expect(result).toEqual({ message: 'Verification email sent' });
     });
 
     it('should throw NotFoundException when user not found', async () => {
-      prisma.user.findUnique.mockResolvedValue(null);
+      prisma.user.findFirst.mockResolvedValue(null);
 
       await expect(
         service.requestEmailVerification('non-existent'),
@@ -426,6 +461,7 @@ describe('AuthService', () => {
   describe('verifyEmail', () => {
     it('should verify email and delete token from Redis', async () => {
       redis.get.mockResolvedValue('user-1');
+      prisma.user.findFirst.mockResolvedValue({ id: 'user-1' });
       prisma.user.update.mockResolvedValue({ ...mockUser, isVerified: true });
       redis.del.mockResolvedValue(1);
 

@@ -25,7 +25,10 @@ interface CachedUser {
 }
 
 @Injectable()
-export class JwtRefreshStrategy extends PassportStrategy(Strategy, 'jwt-refresh') {
+export class JwtRefreshStrategy extends PassportStrategy(
+  Strategy,
+  'jwt-refresh',
+) {
   constructor(
     config: ConfigService,
     private readonly prisma: PrismaService,
@@ -51,17 +54,25 @@ export class JwtRefreshStrategy extends PassportStrategy(Strategy, 'jwt-refresh'
 
     // Token-version check (see jwt.strategy.ts for rationale).
     const currentTvRaw = await this.redis.get(AUTH_TV_KEY(payload.sub));
-    const currentTv = currentTvRaw === null ? 0 : Number.parseInt(currentTvRaw, 10);
+    const currentTv =
+      currentTvRaw === null ? 0 : Number.parseInt(currentTvRaw, 10);
     if (!Number.isFinite(currentTv) || payload.tv !== currentTv) {
       throw new UnauthorizedException('Refresh token has been revoked');
     }
 
     const user = await this.loadUser(payload.sub);
     if (!user) throw new UnauthorizedException('Account no longer exists');
-    if (user.deletedAt !== null) throw new UnauthorizedException('Account has been deactivated');
-    if (user.role !== payload.role) throw new UnauthorizedException('Stale role in token');
+    if (user.deletedAt !== null)
+      throw new UnauthorizedException('Account has been deactivated');
+    if (user.role !== payload.role)
+      throw new UnauthorizedException('Stale role in token');
 
-    return { id: payload.sub, email: payload.email, role: user.role, refreshToken };
+    return {
+      id: payload.sub,
+      email: payload.email,
+      role: user.role,
+      refreshToken,
+    };
   }
 
   private async loadUser(userId: string): Promise<CachedUser | null> {
@@ -81,9 +92,16 @@ export class JwtRefreshStrategy extends PassportStrategy(Strategy, 'jwt-refresh'
       select: { role: true, deletedAt: true },
     });
     const value: CachedUser = row
-      ? { role: row.role, deletedAt: row.deletedAt ? row.deletedAt.toISOString() : null }
+      ? {
+          role: row.role,
+          deletedAt: row.deletedAt ? row.deletedAt.toISOString() : null,
+        }
       : { role: '', deletedAt: new Date(0).toISOString() };
-    await this.redis.setex(cacheKey, AUTH_USER_TTL_SECONDS, JSON.stringify(value));
+    await this.redis.setex(
+      cacheKey,
+      AUTH_USER_TTL_SECONDS,
+      JSON.stringify(value),
+    );
     return row ? value : null;
   }
 }

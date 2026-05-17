@@ -173,6 +173,9 @@ model Product {
   tags           String[]
   isActive       Boolean            @default(true)
   isFeatured     Boolean            @default(false)
+  isTrending     Boolean            @default(false)
+  isNewArrival   Boolean            @default(false)
+  showStarBadge  Boolean            @default(false)
   categoryId     String
   category       Category           @relation(fields: [categoryId], references: [id])
   collections    CollectionProduct[]
@@ -190,6 +193,8 @@ model Product {
   @@index([deletedAt])
   @@index([categoryId, isActive])
   @@index([isFeatured, isActive])
+  @@index([isActive, isTrending])
+  @@index([isActive, isNewArrival])
   @@index([createdAt])
 }
 
@@ -488,8 +493,11 @@ model ProductBundle {
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
 
   items BundleItem[]
+
+  @@index([deletedAt])
 }
 
 model BundleItem {
@@ -709,4 +717,36 @@ model PageSlotHistory {
 
   @@index([slotId])
   @@index([replacedAt])
+}
+
+// ─── Bulk Operation Outbox ────────────────────────────────────────────────────
+//
+// Records every bulk admin write that has reversible side effects. Powers:
+//   - 30-second undo window for soft-delete + status-archive flows
+//   - Forward-replay of long-running ops after partial failure
+//   - Audit trail for who-did-what-when (paired with AuditLog rows)
+//
+// `state` lifecycle: PENDING → APPLIED → (UNDONE | EXPIRED).
+// `expiresAt` is set to createdAt + 30s for reversible ops; non-reversible ops
+// keep expiresAt = createdAt and are immediately ineligible for undo.
+model BulkOperationOutbox {
+  id          String                    @id @default(cuid())
+  adminUserId String
+  endpoint    String
+  action      String
+  payload     Json
+  undoToken   String                    @unique
+  state       BulkOperationOutboxState  @default(PENDING)
+  expiresAt   DateTime
+  createdAt   DateTime                  @default(now())
+
+  @@index([state, expiresAt])
+  @@index([adminUserId, createdAt])
+}
+
+enum BulkOperationOutboxState {
+  PENDING
+  APPLIED
+  UNDONE
+  EXPIRED
 }

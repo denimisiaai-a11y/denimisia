@@ -95,11 +95,15 @@ export class CartService {
         select: { id: true, stock: true },
       });
       if (!variant) {
-        this.logger.warn(`mergeGuestCart: skipping missing variant ${item.variantId}`);
+        this.logger.warn(
+          `mergeGuestCart: skipping missing variant ${item.variantId}`,
+        );
         continue;
       }
       if (variant.stock <= 0) {
-        this.logger.warn(`mergeGuestCart: skipping out-of-stock variant ${item.variantId}`);
+        this.logger.warn(
+          `mergeGuestCart: skipping out-of-stock variant ${item.variantId}`,
+        );
         continue;
       }
       const cappedQty = Math.min(
@@ -127,7 +131,15 @@ export class CartService {
           include: {
             variant: {
               include: {
-                product: { select: { id: true, name: true, slug: true, images: true, price: true } },
+                product: {
+                  select: {
+                    id: true,
+                    name: true,
+                    slug: true,
+                    images: true,
+                    price: true,
+                  },
+                },
               },
             },
           },
@@ -136,7 +148,9 @@ export class CartService {
     });
     if (!cart) return { items: [], total: 0 };
     const total = cart.items.reduce((sum, item) => {
-      const price = Number(item.variant.price ?? item.variant.product.price ?? 0);
+      const price = Number(
+        item.variant.price ?? item.variant.product.price ?? 0,
+      );
       return sum + price * item.quantity;
     }, 0);
     return { ...cart, total };
@@ -167,7 +181,12 @@ export class CartService {
     if (!variant) throw new NotFoundException('Variant not found');
 
     return this.prisma.cartItem.create({
-      data: { cartId: cart.id, productId: variant.productId, variantId: dto.variantId, quantity: dto.quantity },
+      data: {
+        cartId: cart.id,
+        productId: variant.productId,
+        variantId: dto.variantId,
+        quantity: dto.quantity,
+      },
     });
   }
 
@@ -178,7 +197,11 @@ export class CartService {
     return { items: data ? JSON.parse(data) : [], total: 0 };
   }
 
-  private async addToGuestCart(sessionId: string, dto: AddToCartDto, variant: any) {
+  private async addToGuestCart(
+    sessionId: string,
+    dto: AddToCartDto,
+    variant: any,
+  ) {
     const data = await this.redis.get(`cart:${sessionId}`);
     const items = data ? JSON.parse(data) : [];
 

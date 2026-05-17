@@ -61,7 +61,9 @@ export class AuthService {
       await this.auditLog.log(userId, action, 'User', userId, details);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      this.logger.warn(`emitAudit failed (action=${action}, userId=${userId}): ${message}`);
+      this.logger.warn(
+        `emitAudit failed (action=${action}, userId=${userId}): ${message}`,
+      );
     }
   }
 
@@ -85,12 +87,26 @@ export class AuthService {
     });
 
     const tv = await this.getOrInitTokenVersion(user.id);
-    const tokens = await this.generateTokens(user.id, user.email, user.role, tv);
+    const tokens = await this.generateTokens(
+      user.id,
+      user.email,
+      user.role,
+      tv,
+    );
     await this.storeRefreshToken(user.id, tokens.refreshToken);
-    await this.emitAudit(user.id, 'USER_REGISTER', { email: user.email, role: user.role });
+    await this.emitAudit(user.id, 'USER_REGISTER', {
+      email: user.email,
+      role: user.role,
+    });
     return {
       ...tokens,
-      user: { id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName, role: user.role },
+      user: {
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        role: user.role,
+      },
     };
   }
 
@@ -105,12 +121,23 @@ export class AuthService {
     if (!passwordMatch) throw new UnauthorizedException('Invalid credentials');
 
     const tv = await this.getOrInitTokenVersion(user.id);
-    const tokens = await this.generateTokens(user.id, user.email, user.role, tv);
+    const tokens = await this.generateTokens(
+      user.id,
+      user.email,
+      user.role,
+      tv,
+    );
     await this.storeRefreshToken(user.id, tokens.refreshToken);
     await this.emitAudit(user.id, 'USER_LOGIN', { email: user.email });
     return {
       ...tokens,
-      user: { id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName, role: user.role },
+      user: {
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        role: user.role,
+      },
     };
   }
 
@@ -119,7 +146,12 @@ export class AuthService {
     await this.emitAudit(userId, 'USER_LOGOUT');
   }
 
-  async refreshTokens(userId: string, email: string, role: string, refreshToken: string) {
+  async refreshTokens(
+    userId: string,
+    email: string,
+    role: string,
+    refreshToken: string,
+  ) {
     const stored = await this.redis.get(`refresh:${userId}`);
     if (!stored) throw new UnauthorizedException('Session expired');
 
@@ -135,7 +167,12 @@ export class AuthService {
     if (!user) throw new UnauthorizedException('Account no longer exists');
 
     const tv = await this.getOrInitTokenVersion(userId);
-    const tokens = await this.generateTokens(user.id, user.email, user.role, tv);
+    const tokens = await this.generateTokens(
+      user.id,
+      user.email,
+      user.role,
+      tv,
+    );
     await this.storeRefreshToken(userId, tokens.refreshToken);
     return tokens;
   }
@@ -160,7 +197,12 @@ export class AuthService {
     return tv;
   }
 
-  private async generateTokens(userId: string, email: string, role: string, tv: number) {
+  private async generateTokens(
+    userId: string,
+    email: string,
+    role: string,
+    tv: number,
+  ) {
     const payload: JwtPayload = { sub: userId, email, role, tv };
     // Cast through unknown: jsonwebtoken types use the ms-lib `StringValue`
     // template literal for `expiresIn`, which our env strings satisfy at runtime.
@@ -202,7 +244,8 @@ export class AuthService {
       where: { email, deletedAt: null },
     });
     // Always return success to prevent email enumeration
-    if (!user) return { message: 'If an account exists, a reset link has been sent' };
+    if (!user)
+      return { message: 'If an account exists, a reset link has been sent' };
 
     // 256-bit opaque token — raw UUIDs only have ~122 bits of entropy.
     const token = randomBytes(32).toString('hex');
@@ -210,7 +253,9 @@ export class AuthService {
 
     // TODO: Send email with reset link (blocked on email provider decision)
     if (!isProd()) {
-      this.logger.debug(`Password reset token generated (email=${email}, tokenLen=${token.length})`);
+      this.logger.debug(
+        `Password reset token generated (email=${email}, tokenLen=${token.length})`,
+      );
     }
 
     return { message: 'If an account exists, a reset link has been sent' };
@@ -218,7 +263,8 @@ export class AuthService {
 
   async resetPassword(token: string, newPassword: string) {
     const userId = await this.redis.get(`reset:${token}`);
-    if (!userId) throw new UnauthorizedException('Invalid or expired reset token');
+    if (!userId)
+      throw new UnauthorizedException('Invalid or expired reset token');
 
     // Confirm the account is still active. findFirst + deletedAt:null prevents
     // password resets on soft-deleted accounts.
@@ -226,7 +272,8 @@ export class AuthService {
       where: { id: userId, deletedAt: null },
       select: { id: true },
     });
-    if (!user) throw new UnauthorizedException('Invalid or expired reset token');
+    if (!user)
+      throw new UnauthorizedException('Invalid or expired reset token');
 
     const passwordHash = await bcrypt.hash(newPassword, 12);
     await this.prisma.user.update({
@@ -277,7 +324,9 @@ export class AuthService {
     await this.redis.setex(`verify:${token}`, 86400, userId);
 
     if (!isProd()) {
-      this.logger.debug(`Email verification token generated (email=${user.email}, tokenLen=${token.length})`);
+      this.logger.debug(
+        `Email verification token generated (email=${user.email}, tokenLen=${token.length})`,
+      );
     }
 
     return { message: 'Verification email sent' };
@@ -285,7 +334,8 @@ export class AuthService {
 
   async verifyEmail(token: string) {
     const userId = await this.redis.get(`verify:${token}`);
-    if (!userId) throw new UnauthorizedException('Invalid or expired verification token');
+    if (!userId)
+      throw new UnauthorizedException('Invalid or expired verification token');
 
     // Confirm the account is still active before marking it verified.
     // findFirst + deletedAt:null — soft-deleted accounts must not be verified.
@@ -293,7 +343,8 @@ export class AuthService {
       where: { id: userId, deletedAt: null },
       select: { id: true },
     });
-    if (!user) throw new UnauthorizedException('Invalid or expired verification token');
+    if (!user)
+      throw new UnauthorizedException('Invalid or expired verification token');
 
     await this.prisma.user.update({
       where: { id: userId },

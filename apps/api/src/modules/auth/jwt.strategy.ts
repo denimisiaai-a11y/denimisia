@@ -48,7 +48,8 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
 
     // 1) Token-version check — cheap Redis GET, rejects invalidated tokens.
     const currentTvRaw = await this.redis.get(AUTH_TV_KEY(payload.sub));
-    const currentTv = currentTvRaw === null ? 0 : Number.parseInt(currentTvRaw, 10);
+    const currentTv =
+      currentTvRaw === null ? 0 : Number.parseInt(currentTvRaw, 10);
     if (!Number.isFinite(currentTv) || payload.tv !== currentTv) {
       throw new UnauthorizedException('Token has been revoked');
     }
@@ -56,9 +57,11 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     // 2) Short-circuit user lookup, cached for 60s.
     const user = await this.loadUser(payload.sub);
     if (!user) throw new UnauthorizedException('Account no longer exists');
-    if (user.deletedAt !== null) throw new UnauthorizedException('Account has been deactivated');
+    if (user.deletedAt !== null)
+      throw new UnauthorizedException('Account has been deactivated');
     if (!user.isActive) throw new UnauthorizedException('Account is inactive');
-    if (user.role !== payload.role) throw new UnauthorizedException('Stale role in token');
+    if (user.role !== payload.role)
+      throw new UnauthorizedException('Stale role in token');
 
     return { id: payload.sub, email: payload.email, role: user.role };
   }
@@ -86,7 +89,11 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
           isActive: row.isActive,
         }
       : { role: '', deletedAt: new Date(0).toISOString(), isActive: false };
-    await this.redis.setex(cacheKey, AUTH_USER_TTL_SECONDS, JSON.stringify(value));
+    await this.redis.setex(
+      cacheKey,
+      AUTH_USER_TTL_SECONDS,
+      JSON.stringify(value),
+    );
     return row ? value : null;
   }
 }

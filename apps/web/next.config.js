@@ -1,3 +1,4 @@
+/* global process */
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // Catch errors at build time, not runtime
@@ -68,7 +69,7 @@ const nextConfig = {
           { key: 'Content-Security-Policy', value: csp },
           { key: 'X-XSS-Protection', value: '0' },
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
-          { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(), interest-cohort=()' },
+          { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
         ],
       },
     ];

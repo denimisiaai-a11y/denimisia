@@ -1,22 +1,30 @@
 import { UnauthorizedException } from '@nestjs/common';
-import { JwtRefreshStrategy, type RefreshPayload } from './jwt-refresh.strategy';
+import {
+  JwtRefreshStrategy,
+  type RefreshPayload,
+} from './jwt-refresh.strategy';
 
 jest.mock('passport-jwt', () => ({
   Strategy: jest.fn(),
 }));
 
-function makeDeps(opts: {
-  secret?: string;
-  tv?: string | null;
-  dbUser?: { role: string; deletedAt: Date | null } | null;
-} = {}): { config: any; prisma: any; redis: any } {
-  const config = { get: () => opts.secret ?? 'test-secret-32chars-minimum-12345' };
+function makeDeps(
+  opts: {
+    secret?: string;
+    tv?: string | null;
+    dbUser?: { role: string; deletedAt: Date | null } | null;
+  } = {},
+): { config: any; prisma: any; redis: any } {
+  const config = {
+    get: () => opts.secret ?? 'test-secret-32chars-minimum-12345',
+  };
   const redis = {
     get: jest.fn((key: string) => {
       if (key.startsWith('auth:tv:')) return Promise.resolve(opts.tv ?? '0');
       return Promise.resolve(null);
     }),
     set: jest.fn(() => Promise.resolve('OK')),
+    setex: jest.fn(() => Promise.resolve('OK')),
   };
   const prisma = {
     user: {
@@ -42,7 +50,12 @@ describe('JwtRefreshStrategy', () => {
     });
     const strategy = new JwtRefreshStrategy(config, prisma, redis);
     const req = { cookies: { refresh_token: 'rt-123' } } as any;
-    const payload: RefreshPayload = { sub: 'user-1', email: 'a@b.com', role: 'CUSTOMER', tv: 4 };
+    const payload: RefreshPayload = {
+      sub: 'user-1',
+      email: 'a@b.com',
+      role: 'CUSTOMER',
+      tv: 4,
+    };
     const result = await strategy.validate(req, payload);
     expect(result).toEqual({
       id: 'user-1',
@@ -56,7 +69,14 @@ describe('JwtRefreshStrategy', () => {
     const { config, prisma, redis } = makeDeps();
     const strategy = new JwtRefreshStrategy(config, prisma, redis);
     const req = { cookies: { refresh_token: 'rt-123' } } as any;
-    const payload = { sub: '', email: 'a@b.com', role: 'CUSTOMER', tv: 0 } as RefreshPayload;
-    await expect(strategy.validate(req, payload)).rejects.toThrow(UnauthorizedException);
+    const payload = {
+      sub: '',
+      email: 'a@b.com',
+      role: 'CUSTOMER',
+      tv: 0,
+    } as RefreshPayload;
+    await expect(strategy.validate(req, payload)).rejects.toThrow(
+      UnauthorizedException,
+    );
   });
 });

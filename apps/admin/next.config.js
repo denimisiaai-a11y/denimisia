@@ -26,7 +26,12 @@ const nextConfig = {
           { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(), interest-cohort=()' },
           {
             key: 'Content-Security-Policy',
-            value: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' fonts.googleapis.com; font-src 'self' fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' http://localhost:3001 https://*.denimisia.com; frame-src 'self' http://localhost:3000 https://*.denimisia.com; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'",
+            // connect-src must allow direct-browser-to-R2 uploads. The S3 API
+            // endpoint is `*.r2.cloudflarestorage.com` (per-bucket subdomain
+            // prefix). The public CDN is `*.r2.dev`. Listing the full hosts
+            // here would tie the CSP to one bucket; the wildcards stay
+            // future-proof across bucket rotations.
+            value: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' fonts.googleapis.com; font-src 'self' fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' http://localhost:3001 https://*.denimisia.com https://*.r2.cloudflarestorage.com https://*.r2.dev; frame-src 'self' http://localhost:3000 https://*.denimisia.com; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'",
           },
         ],
       },

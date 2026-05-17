@@ -30,7 +30,9 @@ export class CreateDiscountDto {
   @IsPositive()
   @ValidateIf((dto: CreateDiscountDto) => dto.type === DiscountType.PERCENTAGE)
   @Max(100, { message: 'PERCENTAGE discount cannot exceed 100' })
-  @ValidateIf((dto: CreateDiscountDto) => dto.type === DiscountType.FIXED_AMOUNT)
+  @ValidateIf(
+    (dto: CreateDiscountDto) => dto.type === DiscountType.FIXED_AMOUNT,
+  )
   @Max(10_000_000, { message: 'FIXED_AMOUNT discount is unreasonably large' })
   value: number;
 

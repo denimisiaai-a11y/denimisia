@@ -1,8 +1,24 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  Logger,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import {
+  S3Client,
+  PutObjectCommand,
+  DeleteObjectCommand,
+  GetObjectCommand,
+} from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { randomUUID } from 'crypto';
+import sharp from 'sharp';
+import {
+  IMAGE_VARIANTS,
+  IMAGE_VARIANT_NAMES,
+  type ImageVariantName,
+} from '@repo/types';
 
 /**
  * Image-only presigned uploads (direct-browser → R2).
@@ -23,14 +39,22 @@ const ALLOWED_IMAGE_MIMES = new Set<string>([
 
 const MIME_TO_EXT: Record<string, string> = {
   'image/jpeg': 'jpg',
-  'image/png':  'png',
+  'image/png': 'png',
   'image/webp': 'webp',
-  'image/gif':  'gif',
+  'image/gif': 'gif',
   'image/avif': 'avif',
 };
 
 const MIN_SIZE_BYTES = 1;
-const MAX_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
+const MAX_SIZE_BYTES = 10 * 1024 * 1024; // 10MB — presigned PUT cap.
+// Hard cap on bytes processImage() will Sharp-decode. Mirrors MAX_SIZE_BYTES
+// today since admins can't upload larger than that, but kept as a separate
+// knob so server-side processing can be tightened independently if needed.
+const MAX_PROCESS_BYTES = MAX_SIZE_BYTES;
+// Per-variant wall-clock cap. A healthy variant generates in <2s; anything
+// longer is a stuck I/O or pathological image. Failing the variant lets the
+// other variants still succeed.
+const SHARP_TIMEOUT_MS = 15_000;
 
 /**
  * Allowed top-level folder prefixes for object keys. Used to constrain both
@@ -46,24 +70,32 @@ const ALLOWED_KEY_PREFIXES: ReadonlyArray<string> = [
   'sections/',
 ];
 
+// Variant config (names + widths) is sourced from @repo/types so the
+// storefront's getImageVariant() helper picks up rename/add/remove changes
+// at build time. Widths are an API-internal concern; clients only need the
+// names.
+type VariantName = ImageVariantName;
+const VARIANT_NAMES = IMAGE_VARIANT_NAMES;
+
 @Injectable()
 export class UploadsService {
+  private readonly logger = new Logger(UploadsService.name);
   private s3: S3Client | null;
   private readonly bucket: string;
   private readonly publicUrl: string;
 
   constructor(private config: ConfigService) {
-    const accountId       = this.config.get<string>('R2_ACCOUNT_ID');
-    const accessKeyId     = this.config.get<string>('R2_ACCESS_KEY_ID');
+    const accountId = this.config.get<string>('R2_ACCOUNT_ID');
+    const accessKeyId = this.config.get<string>('R2_ACCESS_KEY_ID');
     const secretAccessKey = this.config.get<string>('R2_SECRET_ACCESS_KEY');
-    const bucket          = this.config.get<string>('R2_BUCKET_NAME');
+    const bucket = this.config.get<string>('R2_BUCKET_NAME');
 
     if (!bucket) {
       // No silent 'denimisia' fallback — drift with R2StorageService was a
       // real bug; fail fast at boot instead of writing to a phantom bucket.
       throw new Error('R2_BUCKET_NAME is required for UploadsService');
     }
-    this.bucket    = bucket;
+    this.bucket = bucket;
     this.publicUrl = this.config.get<string>('R2_PUBLIC_URL') ?? '';
 
     if (!accountId || !accessKeyId || !secretAccessKey) {
@@ -75,6 +107,12 @@ export class UploadsService {
       region: 'auto',
       endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
       credentials: { accessKeyId, secretAccessKey },
+      // R2 is S3-compatible but doesn't accept the CRC32 checksum query params
+      // that AWS SDK v3 adds by default since 3.730+. Without this, presigned
+      // PUTs fail with SignatureDoesNotMatch because the client can't recreate
+      // the signed `x-amz-checksum-crc32` value at request time.
+      requestChecksumCalculation: 'WHEN_REQUIRED',
+      responseChecksumValidation: 'WHEN_REQUIRED',
     });
   }
 
@@ -122,9 +160,9 @@ export class UploadsService {
     // reject a PUT whose headers don't match. We also set a range so the
     // client can't upload a zero-byte or oversized file even if it lies.
     const command = new PutObjectCommand({
-      Bucket:        this.bucket,
-      Key:           key,
-      ContentType:   contentType,
+      Bucket: this.bucket,
+      Key: key,
+      ContentType: contentType,
       ContentLength: expectedSize,
     });
 
@@ -138,11 +176,162 @@ export class UploadsService {
     if (!this.s3) {
       throw new BadRequestException('Image uploads are not configured.');
     }
-
     this.assertSafeKey(key);
 
-    const command = new DeleteObjectCommand({ Bucket: this.bucket, Key: key });
-    await this.s3.send(command);
+    // Best-effort cascade: delete the original AND every variant. Variant
+    // failures don't block the original deletion (they may not exist yet if
+    // processing never ran). Errors are logged for ops triage.
+    const variantKeys = VARIANT_NAMES.map((name) => buildVariantKey(key, name));
+    const deletions = [key, ...variantKeys].map((k) =>
+      this.s3!.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: k })),
+    );
+    const results = await Promise.allSettled(deletions);
+    const failed = results
+      .map((r, i) =>
+        r.status === 'rejected'
+          ? `${[key, ...variantKeys][i]}: ${String(r.reason)}`
+          : null,
+      )
+      .filter(Boolean);
+    if (failed.length > 0) {
+      this.logger.warn(
+        `deleteFile(${key}) variant cleanup had ${failed.length} failures: ${failed.join('; ')}`,
+      );
+    }
+  }
+
+  /**
+   * Generate resized WebP variants for an uploaded image and push them back
+   * to R2 under sibling keys. Called by the admin after the direct-browser-
+   * to-R2 PUT completes. The original stays in place; variants land at
+   * `{key-without-ext}-{variantName}.webp`.
+   *
+   * Reprocessing: safe to call multiple times for the same key. Variants
+   * overwrite. Use this when processing partially failed or when variant
+   * config changed and you want to regenerate.
+   *
+   * Memory: Sharp decodes the full image in RAM. An 18MB JPEG can spike to
+   * ~80MB resident. Variants run SEQUENTIALLY now to avoid 3x parallel peaks
+   * that would OOM small instances. Total wall-clock cost is ~2x sequential
+   * vs parallel, traded for predictable memory.
+   */
+  async processImage(
+    key: string,
+  ): Promise<{ variants: Record<VariantName, string>; failures: string[] }> {
+    if (!this.s3) {
+      throw new BadRequestException('Image uploads are not configured.');
+    }
+    this.assertSafeKey(key);
+
+    const startTs = Date.now();
+
+    let originalBuffer: Buffer;
+    try {
+      const response = await this.s3.send(
+        new GetObjectCommand({ Bucket: this.bucket, Key: key }),
+      );
+      if (!response.Body) {
+        throw new InternalServerErrorException('R2 returned empty body');
+      }
+      const bytes = await response.Body.transformToByteArray();
+      originalBuffer = Buffer.from(bytes);
+    } catch (err: unknown) {
+      this.logger.error(`Failed to read original ${key} from R2`, err);
+      throw new BadRequestException(
+        'Original image not found in storage; upload may have failed.',
+      );
+    }
+
+    if (originalBuffer.length > MAX_PROCESS_BYTES) {
+      throw new BadRequestException(
+        `Original is ${(originalBuffer.length / 1024 / 1024).toFixed(1)}MB; processing capped at ${MAX_PROCESS_BYTES / 1024 / 1024}MB.`,
+      );
+    }
+
+    // Validate the bytes are actually a decodable image before spending CPU.
+    let metadata: sharp.Metadata;
+    try {
+      metadata = await sharp(originalBuffer).metadata();
+    } catch (err: unknown) {
+      this.logger.error(`Sharp failed to decode ${key}`, err);
+      throw new BadRequestException('File is not a valid image.');
+    }
+    if (!metadata.width || !metadata.height) {
+      throw new BadRequestException('Image has no detectable dimensions.');
+    }
+
+    const variants = {} as Record<VariantName, string>;
+    const failures: string[] = [];
+    const sizes: Record<string, number> = {};
+
+    // Sequential to bound memory; see method docstring.
+    for (const name of VARIANT_NAMES) {
+      try {
+        const { url, bytes } = await withTimeout(
+          this.makeAndUploadVariant(key, originalBuffer, name),
+          SHARP_TIMEOUT_MS,
+          `Variant ${name} timed out after ${SHARP_TIMEOUT_MS}ms`,
+        );
+        variants[name] = url;
+        sizes[name] = bytes;
+      } catch (err: unknown) {
+        failures.push(
+          `${name}: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
+    }
+
+    const durationMs = Date.now() - startTs;
+    if (failures.length === VARIANT_NAMES.length) {
+      this.logger.error(
+        `processImage(${key}) all variants failed in ${durationMs}ms: ${failures.join('; ')}`,
+      );
+      throw new InternalServerErrorException(
+        `All variant generations failed: ${failures.join('; ')}`,
+      );
+    }
+    if (failures.length > 0) {
+      this.logger.warn(
+        `processImage(${key}) partial: durationMs=${durationMs} failures=${failures.join('; ')} sizes=${JSON.stringify(sizes)}`,
+      );
+    } else {
+      this.logger.log(
+        `processImage(${key}) ok: durationMs=${durationMs} originalKB=${Math.round(originalBuffer.length / 1024)} sizes=${JSON.stringify(sizes)}`,
+      );
+    }
+
+    return { variants, failures };
+  }
+
+  private async makeAndUploadVariant(
+    originalKey: string,
+    originalBuffer: Buffer,
+    variantName: VariantName,
+  ): Promise<{ url: string; bytes: number }> {
+    const opts = IMAGE_VARIANTS[variantName];
+    const resized = await sharp(originalBuffer, {
+      // Hard cap on Sharp's pixel/density limits; defends against decompression
+      // bombs (e.g. a 100×100 PNG that decodes to a 50000×50000 canvas).
+      limitInputPixels: 50_000_000,
+    })
+      .rotate() // honor EXIF orientation before resize so portrait phone shots aren't sideways
+      .resize({ width: opts.width, withoutEnlargement: true })
+      .webp({ quality: opts.quality, effort: 4 })
+      .toBuffer();
+
+    const variantKey = buildVariantKey(originalKey, variantName);
+
+    await this.s3!.send(
+      new PutObjectCommand({
+        Bucket: this.bucket,
+        Key: variantKey,
+        Body: resized,
+        ContentType: 'image/webp',
+        CacheControl: 'public, max-age=31536000, immutable',
+      }),
+    );
+
+    return { url: `${this.publicUrl}/${variantKey}`, bytes: resized.length };
   }
 
   /**
@@ -168,4 +357,44 @@ export class UploadsService {
       );
     }
   }
+}
+
+/**
+ * Variant-key naming convention. Storefront helper `getImageVariant()` MUST
+ * produce the same shape — both consume IMAGE_VARIANT_NAMES from @repo/types,
+ * but the path arithmetic is duplicated here intentionally (no module-graph
+ * coupling from frontend → backend internals).
+ *
+ *   products/abc.jpg → products/abc-card.webp
+ *   reviews/xyz.png  → reviews/xyz-thumb.webp
+ */
+export function buildVariantKey(
+  originalKey: string,
+  variant: VariantName,
+): string {
+  const lastSlash = originalKey.lastIndexOf('/');
+  const folder = originalKey.slice(0, lastSlash);
+  const filename = originalKey.slice(lastSlash + 1);
+  const lastDot = filename.lastIndexOf('.');
+  const baseName = lastDot === -1 ? filename : filename.slice(0, lastDot);
+  return `${folder}/${baseName}-${variant}.webp`;
+}
+
+/**
+ * Run a promise with a wall-clock deadline. Rejects with the supplied message
+ * if `ms` passes before the promise settles. Used to bound Sharp operations
+ * that could in theory hang on a corrupt input.
+ */
+function withTimeout<T>(
+  promise: Promise<T>,
+  ms: number,
+  message: string,
+): Promise<T> {
+  let timer: NodeJS.Timeout | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(message)), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => {
+    if (timer) clearTimeout(timer);
+  }) as Promise<T>;
 }

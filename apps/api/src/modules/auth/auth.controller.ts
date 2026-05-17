@@ -9,7 +9,13 @@ import {
 } from '@nestjs/common';
 import type { Response } from 'express';
 import { AuthService } from './auth.service';
-import { RegisterDto, LoginDto, ForgotPasswordDto, ResetPasswordDto, VerifyEmailDto } from './auth.dto';
+import {
+  RegisterDto,
+  LoginDto,
+  ForgotPasswordDto,
+  ResetPasswordDto,
+  VerifyEmailDto,
+} from './auth.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AuthGuard } from '@nestjs/passport';
@@ -35,7 +41,10 @@ export class AuthController {
   // Register: 3 / hour / IP — prevents mass account signup abuse.
   @Post('register')
   @Throttle({ default: { limit: 3, ttl: 3600000 } })
-  async register(@Body() dto: RegisterDto, @Res({ passthrough: true }) res: Response) {
+  async register(
+    @Body() dto: RegisterDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
     const result = await this.authService.register(dto);
     this.setRefreshCookie(res, result.refreshToken);
     return { accessToken: result.accessToken, user: result.user };
@@ -48,7 +57,10 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @UseGuards(EmailThrottlerGuard)
   @Throttle({ default: { limit: 5, ttl: 900_000 } })
-  async login(@Body() dto: LoginDto, @Res({ passthrough: true }) res: Response) {
+  async login(
+    @Body() dto: LoginDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
     const result = await this.authService.login(dto);
     this.setRefreshCookie(res, result.refreshToken);
     return { accessToken: result.accessToken, user: result.user };
@@ -57,7 +69,10 @@ export class AuthController {
   @Post('logout')
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
-  async logout(@CurrentUser() user: AuthUserId, @Res({ passthrough: true }) res: Response) {
+  async logout(
+    @CurrentUser() user: AuthUserId,
+    @Res({ passthrough: true }) res: Response,
+  ) {
     await this.authService.logout(user.id);
     res.clearCookie('refresh_token', { path: '/api/v1/auth' });
     return { message: 'Logged out successfully' };
@@ -66,7 +81,10 @@ export class AuthController {
   @Post('refresh')
   @UseGuards(AuthGuard('jwt-refresh'))
   @HttpCode(HttpStatus.OK)
-  async refresh(@CurrentUser() user: RefreshUser, @Res({ passthrough: true }) res: Response) {
+  async refresh(
+    @CurrentUser() user: RefreshUser,
+    @Res({ passthrough: true }) res: Response,
+  ) {
     const tokens = await this.authService.refreshTokens(
       user.id,
       user.email,

@@ -31,13 +31,7 @@ class PresignedUrlDto {
 
   @IsString()
   @IsNotEmpty()
-  @IsIn([
-    'image/jpeg',
-    'image/png',
-    'image/webp',
-    'image/gif',
-    'image/avif',
-  ])
+  @IsIn(['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif'])
   contentType!: string;
 
   @IsInt()
@@ -48,6 +42,12 @@ class PresignedUrlDto {
 }
 
 class DeleteFileDto {
+  @IsString()
+  @IsNotEmpty()
+  key!: string;
+}
+
+class ProcessImageDto {
   @IsString()
   @IsNotEmpty()
   key!: string;
@@ -68,6 +68,14 @@ export class UploadsController {
       dto.contentType,
       dto.expectedSize,
     );
+  }
+
+  @Post('process')
+  @UseGuards(RolesGuard)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @Throttle({ default: { limit: 30, ttl: 60000 } })
+  processImage(@Body() dto: ProcessImageDto) {
+    return this.uploadsService.processImage(dto.key);
   }
 
   @Delete('file')

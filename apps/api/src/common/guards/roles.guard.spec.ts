@@ -50,20 +50,14 @@ describe('RolesGuard', () => {
   });
 
   it('should allow access when user has one of multiple required roles', () => {
-    reflector.getAllAndOverride.mockReturnValue([
-      Role.ADMIN,
-      Role.MANAGER,
-    ]);
+    reflector.getAllAndOverride.mockReturnValue([Role.ADMIN, Role.MANAGER]);
     const context = mockExecutionContext({ role: Role.MANAGER });
 
     expect(guard.canActivate(context)).toBe(true);
   });
 
   it('should deny access when user role does not match any required role', () => {
-    reflector.getAllAndOverride.mockReturnValue([
-      Role.ADMIN,
-      Role.SUPER_ADMIN,
-    ]);
+    reflector.getAllAndOverride.mockReturnValue([Role.ADMIN, Role.SUPER_ADMIN]);
     const context = mockExecutionContext({ role: Role.CUSTOMER });
 
     expect(guard.canActivate(context)).toBe(false);

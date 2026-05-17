@@ -146,14 +146,20 @@ describe('DiscountsService', () => {
         isActive: false,
       });
 
-      const result = await service.validate({ code: 'SAVE10', orderAmount: 1000 });
+      const result = await service.validate({
+        code: 'SAVE10',
+        orderAmount: 1000,
+      });
       expect(result).toEqual({ valid: false, reason: 'INVALID' });
     });
 
     it('should return opaque failure for non-existent code', async () => {
       prisma.discount.findUnique.mockResolvedValue(null);
 
-      const result = await service.validate({ code: 'INVALID', orderAmount: 1000 });
+      const result = await service.validate({
+        code: 'INVALID',
+        orderAmount: 1000,
+      });
       expect(result).toEqual({ valid: false, reason: 'INVALID' });
     });
 
@@ -164,7 +170,10 @@ describe('DiscountsService', () => {
       };
       prisma.discount.findUnique.mockResolvedValue(futureDiscount);
 
-      const result = await service.validate({ code: 'SAVE10', orderAmount: 1000 });
+      const result = await service.validate({
+        code: 'SAVE10',
+        orderAmount: 1000,
+      });
       expect(result).toEqual({ valid: false, reason: 'INVALID' });
     });
 
@@ -175,7 +184,10 @@ describe('DiscountsService', () => {
       };
       prisma.discount.findUnique.mockResolvedValue(expiredDiscount);
 
-      const result = await service.validate({ code: 'SAVE10', orderAmount: 1000 });
+      const result = await service.validate({
+        code: 'SAVE10',
+        orderAmount: 1000,
+      });
       expect(result).toEqual({ valid: false, reason: 'INVALID' });
     });
 
@@ -187,7 +199,10 @@ describe('DiscountsService', () => {
       };
       prisma.discount.findUnique.mockResolvedValue(maxedDiscount);
 
-      const result = await service.validate({ code: 'SAVE10', orderAmount: 1000 });
+      const result = await service.validate({
+        code: 'SAVE10',
+        orderAmount: 1000,
+      });
       expect(result).toEqual({ valid: false, reason: 'INVALID' });
     });
 
@@ -198,7 +213,10 @@ describe('DiscountsService', () => {
       };
       prisma.discount.findUnique.mockResolvedValue(minOrderDiscount);
 
-      const result = await service.validate({ code: 'SAVE10', orderAmount: 500 });
+      const result = await service.validate({
+        code: 'SAVE10',
+        orderAmount: 500,
+      });
       expect(result).toEqual({ valid: false, reason: 'INVALID' });
     });
 
@@ -324,7 +342,11 @@ describe('DiscountsService', () => {
       prisma.discount.findUnique.mockResolvedValue(mockDiscount);
 
       await expect(
-        service.create({ code: 'SAVE10', type: 'PERCENTAGE', value: 10 } as any),
+        service.create({
+          code: 'SAVE10',
+          type: 'PERCENTAGE',
+          value: 10,
+        } as any),
       ).rejects.toThrow(ConflictException);
     });
 

@@ -6,9 +6,10 @@ describe('CartController', () => {
   let controller: CartController;
   let cartService: Record<string, jest.Mock>;
 
-  const mockReq = (sessionId?: string) => ({
-    cookies: { session_id: sessionId },
-  }) as any;
+  const mockReq = (sessionId?: string) =>
+    ({
+      cookies: { session_id: sessionId },
+    }) as any;
 
   beforeEach(async () => {
     cartService = {
@@ -44,14 +45,24 @@ describe('CartController', () => {
   it('should add item', async () => {
     cartService.addItem.mockResolvedValue({ items: [] });
     const dto = { variantId: 'var-1', quantity: 1 } as any;
-    const result = await controller.addItem(dto, mockReq('sid-1'), { id: 'user-1' });
+    const result = await controller.addItem(dto, mockReq('sid-1'), {
+      id: 'user-1',
+    });
     expect(cartService.addItem).toHaveBeenCalledWith(dto, 'user-1', 'sid-1');
   });
 
   it('should update item', async () => {
     cartService.updateItem.mockResolvedValue({ items: [] });
-    const result = await controller.updateItem('item-1', { quantity: 2 } as any, { id: 'user-1' });
-    expect(cartService.updateItem).toHaveBeenCalledWith('item-1', { quantity: 2 }, 'user-1');
+    const result = await controller.updateItem(
+      'item-1',
+      { quantity: 2 } as any,
+      { id: 'user-1' },
+    );
+    expect(cartService.updateItem).toHaveBeenCalledWith(
+      'item-1',
+      { quantity: 2 },
+      'user-1',
+    );
   });
 
   it('should remove item', async () => {
@@ -68,13 +79,19 @@ describe('CartController', () => {
 
   it('should merge cart using session_id from cookies', async () => {
     cartService.mergeGuestCart.mockResolvedValue({ items: [] });
-    const result = await controller.mergeCart({ id: 'user-1' }, mockReq('sid-1'));
+    const result = await controller.mergeCart(
+      { id: 'user-1' },
+      mockReq('sid-1'),
+    );
     expect(cartService.mergeGuestCart).toHaveBeenCalledWith('user-1', 'sid-1');
     expect(result).toEqual({ merged: true });
   });
 
   it('should return merged:false when no session cookie present', async () => {
-    const result = await controller.mergeCart({ id: 'user-1' }, mockReq(undefined));
+    const result = await controller.mergeCart(
+      { id: 'user-1' },
+      mockReq(undefined),
+    );
     expect(cartService.mergeGuestCart).not.toHaveBeenCalled();
     expect(result).toEqual({ merged: false });
   });

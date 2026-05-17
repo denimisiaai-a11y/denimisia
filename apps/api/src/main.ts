@@ -35,7 +35,9 @@ async function bootstrap(): Promise<void> {
   // Trust proxy headers in production (behind a load balancer).
   // Required for accurate client IPs used by the throttler.
   if (isProd()) {
-    const http = app.getHttpAdapter().getInstance() as { set?: (k: string, v: unknown) => void };
+    const http = app.getHttpAdapter().getInstance() as {
+      set?: (k: string, v: unknown) => void;
+    };
     http.set?.('trust proxy', 1);
   }
 
@@ -78,11 +80,12 @@ async function bootstrap(): Promise<void> {
   app.enableShutdownHooks();
 
   await app.listen(env.PORT);
-  logger.log(`API listening on :${env.PORT} · env=${env.NODE_ENV} · cors=${corsOrigins().join(',')}`);
+  logger.log(
+    `API listening on :${env.PORT} · env=${env.NODE_ENV} · cors=${corsOrigins().join(',')}`,
+  );
 }
 
 bootstrap().catch((err: unknown) => {
-  // eslint-disable-next-line no-console
   console.error('Bootstrap failed:', err instanceof Error ? err.message : err);
   process.exit(1);
 });

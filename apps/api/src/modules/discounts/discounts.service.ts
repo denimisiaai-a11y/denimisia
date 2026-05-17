@@ -62,10 +62,17 @@ export class DiscountsService {
     if (discount.endDate && discount.endDate < now) {
       return OPAQUE_FAILURE;
     }
-    if (discount.maxUses !== null && discount.maxUses !== undefined && discount.usedCount >= discount.maxUses) {
+    if (
+      discount.maxUses !== null &&
+      discount.maxUses !== undefined &&
+      discount.usedCount >= discount.maxUses
+    ) {
       return OPAQUE_FAILURE;
     }
-    if (discount.minOrderAmount && dto.orderAmount < Number(discount.minOrderAmount)) {
+    if (
+      discount.minOrderAmount &&
+      dto.orderAmount < Number(discount.minOrderAmount)
+    ) {
       return OPAQUE_FAILURE;
     }
 
@@ -83,7 +90,9 @@ export class DiscountsService {
         cartProductIds.some((id) => discount.applicableProductIds.includes(id));
       const categoryMatch =
         hasCategoryScope &&
-        cartCategoryIds.some((id) => discount.applicableCategoryIds.includes(id));
+        cartCategoryIds.some((id) =>
+          discount.applicableCategoryIds.includes(id),
+        );
       if (!productMatch && !categoryMatch) {
         return OPAQUE_FAILURE;
       }
@@ -190,7 +199,9 @@ export class DiscountsService {
         ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}),
         ...(dto.value !== undefined ? { value: dto.value } : {}),
         ...(dto.maxUses !== undefined ? { maxUses: dto.maxUses } : {}),
-        ...(dto.endDate !== undefined ? { endDate: new Date(dto.endDate) } : {}),
+        ...(dto.endDate !== undefined
+          ? { endDate: new Date(dto.endDate) }
+          : {}),
       },
     });
   }
@@ -212,7 +223,9 @@ export class DiscountsService {
       throw new BadRequestException('PERCENTAGE discount cannot exceed 100');
     }
     if (type === 'FIXED_AMOUNT' && value > 10_000_000) {
-      throw new BadRequestException('FIXED_AMOUNT discount is unreasonably large');
+      throw new BadRequestException(
+        'FIXED_AMOUNT discount is unreasonably large',
+      );
     }
   }
 }
