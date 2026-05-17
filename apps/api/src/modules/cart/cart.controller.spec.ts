@@ -15,6 +15,7 @@ describe('CartController', () => {
     cartService = {
       getCart: jest.fn(),
       addItem: jest.fn(),
+      addBundleItem: jest.fn(),
       updateItem: jest.fn(),
       removeItem: jest.fn(),
       clearCart: jest.fn(),
@@ -49,6 +50,21 @@ describe('CartController', () => {
       id: 'user-1',
     });
     expect(cartService.addItem).toHaveBeenCalledWith(dto, 'user-1', 'sid-1');
+  });
+
+  it('POST /bundles dispatches to addBundleItem', async () => {
+    cartService.addBundleItem.mockResolvedValue({ items: [] });
+    const dto = {
+      bundleSlug: 'heritage-bundle',
+      size: 'L',
+      quantity: 1,
+    } as any;
+    await controller.addBundle(dto, mockReq('sid-1'), { id: 'user-1' });
+    expect(cartService.addBundleItem).toHaveBeenCalledWith(
+      dto,
+      'user-1',
+      'sid-1',
+    );
   });
 
   it('should update item', async () => {

@@ -3,11 +3,18 @@ import {
   Logger,
   NotFoundException,
   BadRequestException,
+  ConflictException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { InjectRedis } from '../redis/redis.decorator';
 import Redis from 'ioredis';
-import { AddToCartDto, UpdateCartItemDto } from './cart.dto';
+import {
+  AddToCartDto,
+  UpdateCartItemDto,
+  AddBundleToCartDto,
+} from './cart.dto';
+
+const GUEST_CART_TTL_SECONDS = 7 * 24 * 60 * 60;
 
 @Injectable()
 export class CartService {
@@ -44,6 +51,45 @@ export class CartService {
     }
     if (sessionId) {
       return this.addToGuestCart(sessionId, dto, variant);
+    }
+    throw new BadRequestException('No session or user provided');
+  }
+
+  async addBundleItem(
+    dto: AddBundleToCartDto,
+    userId?: string,
+    sessionId?: string,
+  ) {
+    const bundle = await this.prisma.productBundle.findUnique({
+      where: { slug: dto.bundleSlug },
+      include: { items: true },
+    });
+    if (!bundle) throw new NotFoundException('Bundle not found');
+    if (!bundle.isActive) {
+      throw new BadRequestException('Bundle is not currently available');
+    }
+    if (!bundle.availableSizes.includes(dto.size)) {
+      throw new BadRequestException(
+        `Size ${dto.size} is not offered for this bundle`,
+      );
+    }
+    await this.assertBundleStock(bundle.items, dto.size, dto.quantity);
+
+    if (userId) {
+      return this.addBundleToUserCart(
+        userId,
+        bundle.id,
+        dto.size,
+        dto.quantity,
+      );
+    }
+    if (sessionId) {
+      return this.addBundleToGuestCart(
+        sessionId,
+        bundle,
+        dto.size,
+        dto.quantity,
+      );
     }
     throw new BadRequestException('No session or user provided');
   }
@@ -87,8 +133,32 @@ export class CartService {
     const guestCartData = await this.redis.get(`cart:${sessionId}`);
     if (!guestCartData) return;
 
-    const guestItems: AddToCartDto[] = JSON.parse(guestCartData);
+    const guestItems: GuestCartItem[] = JSON.parse(guestCartData);
     for (const item of guestItems) {
+      if (item.bundleId && item.bundleSlug && item.bundleSize) {
+        try {
+          await this.addBundleItem(
+            {
+              bundleSlug: item.bundleSlug,
+              size: item.bundleSize,
+              quantity: item.quantity,
+            },
+            userId,
+            undefined,
+          );
+        } catch (err) {
+          this.logger.warn(
+            `mergeGuestCart: skipping bundle ${item.bundleSlug} size ${item.bundleSize}: ${(err as Error).message}`,
+          );
+        }
+        continue;
+      }
+      if (!item.variantId) {
+        this.logger.warn(
+          'mergeGuestCart: skipping malformed item (no variantId, no bundle)',
+        );
+        continue;
+      }
       // Re-validate stock at merge time — guest cart may be days old.
       const variant = await this.prisma.productVariant.findUnique({
         where: { id: item.variantId },
@@ -116,7 +186,11 @@ export class CartService {
           `mergeGuestCart: capped variant ${item.variantId} from ${item.quantity} to ${cappedQty}`,
         );
       }
-      await this.addToUserCart(userId, { ...item, quantity: cappedQty });
+      await this.addToUserCart(userId, {
+        productId: item.productId ?? '',
+        variantId: item.variantId,
+        quantity: cappedQty,
+      });
     }
     await this.redis.del(`cart:${sessionId}`);
   }
@@ -142,16 +216,39 @@ export class CartService {
                 },
               },
             },
+            bundle: {
+              include: {
+                items: {
+                  include: {
+                    product: {
+                      select: {
+                        id: true,
+                        name: true,
+                        slug: true,
+                        images: true,
+                        price: true,
+                      },
+                    },
+                  },
+                },
+              },
+            },
           },
         },
       },
     });
     if (!cart) return { items: [], total: 0 };
     const total = cart.items.reduce((sum, item) => {
-      const price = Number(
-        item.variant.price ?? item.variant.product.price ?? 0,
-      );
-      return sum + price * item.quantity;
+      if (item.bundleId && item.bundle) {
+        return sum + item.bundle.bundlePrice * item.quantity;
+      }
+      if (item.variant) {
+        const price = Number(
+          item.variant.price ?? item.variant.product.price ?? 0,
+        );
+        return sum + price * item.quantity;
+      }
+      return sum;
     }, 0);
     return { ...cart, total };
   }
@@ -173,7 +270,7 @@ export class CartService {
       });
     }
 
-    // Derive productId from variant — never trust client-supplied productId
+    // Derive productId from variant — never trust client-supplied productId.
     const variant = await this.prisma.productVariant.findUnique({
       where: { id: dto.variantId },
       select: { productId: true },
@@ -190,30 +287,170 @@ export class CartService {
     });
   }
 
+  private async addBundleToUserCart(
+    userId: string,
+    bundleId: string,
+    bundleSize: string,
+    quantity: number,
+  ) {
+    let cart = await this.prisma.cart.findUnique({ where: { userId } });
+    if (!cart) {
+      cart = await this.prisma.cart.create({ data: { userId } });
+    }
+
+    const existing = await this.prisma.cartItem.findFirst({
+      where: { cartId: cart.id, bundleId, bundleSize },
+    });
+    if (existing) {
+      return this.prisma.cartItem.update({
+        where: { id: existing.id },
+        data: { quantity: existing.quantity + quantity },
+      });
+    }
+
+    return this.prisma.cartItem.create({
+      data: {
+        cartId: cart.id,
+        bundleId,
+        bundleSize,
+        quantity,
+      },
+    });
+  }
+
   // ─── Guest Cart ───────────────────────────────────────────────────────────
 
   private async getGuestCart(sessionId: string) {
     const data = await this.redis.get(`cart:${sessionId}`);
-    return { items: data ? JSON.parse(data) : [], total: 0 };
+    return {
+      items: data ? (JSON.parse(data) as GuestCartItem[]) : [],
+      total: 0,
+    };
   }
 
   private async addToGuestCart(
     sessionId: string,
     dto: AddToCartDto,
-    variant: any,
+    variant: { size: string; color: string },
   ) {
     const data = await this.redis.get(`cart:${sessionId}`);
-    const items = data ? JSON.parse(data) : [];
+    const items: GuestCartItem[] = data ? JSON.parse(data) : [];
 
-    const existing = items.find((i: any) => i.variantId === dto.variantId);
+    const existing = items.find(
+      (i) => !i.bundleId && i.variantId === dto.variantId,
+    );
     if (existing) {
       existing.quantity += dto.quantity;
     } else {
-      items.push({ ...dto, variantName: `${variant.size} / ${variant.color}` });
+      items.push({
+        productId: dto.productId,
+        variantId: dto.variantId,
+        variantName: `${variant.size} / ${variant.color}`,
+        quantity: dto.quantity,
+      });
     }
 
-    const ttl = 7 * 24 * 60 * 60;
-    await this.redis.setex(`cart:${sessionId}`, ttl, JSON.stringify(items));
+    await this.redis.setex(
+      `cart:${sessionId}`,
+      GUEST_CART_TTL_SECONDS,
+      JSON.stringify(items),
+    );
     return { items };
   }
+
+  private async addBundleToGuestCart(
+    sessionId: string,
+    bundle: {
+      id: string;
+      slug: string;
+      name: string;
+      bundlePrice: number;
+      image: string | null;
+    },
+    bundleSize: string,
+    quantity: number,
+  ) {
+    const data = await this.redis.get(`cart:${sessionId}`);
+    const items: GuestCartItem[] = data ? JSON.parse(data) : [];
+
+    const existing = items.find(
+      (i) => i.bundleId === bundle.id && i.bundleSize === bundleSize,
+    );
+    if (existing) {
+      existing.quantity += quantity;
+    } else {
+      items.push({
+        bundleId: bundle.id,
+        bundleSlug: bundle.slug,
+        bundleName: bundle.name,
+        bundleSize,
+        bundlePrice: bundle.bundlePrice,
+        bundleImage: bundle.image ?? null,
+        quantity,
+      });
+    }
+
+    await this.redis.setex(
+      `cart:${sessionId}`,
+      GUEST_CART_TTL_SECONDS,
+      JSON.stringify(items),
+    );
+    return { items };
+  }
+
+  // ─── Bundle stock validation ──────────────────────────────────────────────
+
+  private async assertBundleStock(
+    items: { productId: string; color: string }[],
+    size: string,
+    quantity: number,
+  ): Promise<void> {
+    // OR of exact (productId, color, size) tuples — fetches only the
+    // constituent variants we care about, not the cross-product of
+    // productIds x colors. Matches the bundle's own unique key shape
+    // (BundleItem (bundleId, productId, color)).
+    const variants = await this.prisma.productVariant.findMany({
+      where: {
+        OR: items.map((item) => ({
+          productId: item.productId,
+          color: item.color,
+          size,
+          deletedAt: null,
+        })),
+      },
+      select: { productId: true, color: true, stock: true },
+    });
+    const stockMap = new Map<string, number>(
+      variants.map((v) => [`${v.productId}:${v.color}`, v.stock]),
+    );
+    for (const item of items) {
+      const stock = stockMap.get(`${item.productId}:${item.color}`);
+      if (stock === undefined) {
+        throw new ConflictException(
+          `Bundle item ${item.productId} ${item.color}/${size} has no matching variant`,
+        );
+      }
+      if (stock < quantity) {
+        throw new ConflictException(
+          `Bundle item ${item.productId} ${item.color}/${size} has insufficient stock (have ${stock}, need ${quantity})`,
+        );
+      }
+    }
+  }
+}
+
+export interface GuestCartItem {
+  // Variant-line fields.
+  productId?: string;
+  variantId?: string;
+  variantName?: string;
+  // Bundle-line fields.
+  bundleId?: string;
+  bundleSlug?: string;
+  bundleName?: string;
+  bundleSize?: string;
+  bundlePrice?: number;
+  bundleImage?: string | null;
+  // Common.
+  quantity: number;
 }

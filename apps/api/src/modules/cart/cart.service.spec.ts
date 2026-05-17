@@ -1,5 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  NotFoundException,
+  BadRequestException,
+  ConflictException,
+} from '@nestjs/common';
 import { CartService } from './cart.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { REDIS_CLIENT } from '../redis/redis.decorator';
@@ -61,6 +65,10 @@ describe('CartService', () => {
   beforeEach(async () => {
     prisma = {
       productVariant: {
+        findUnique: jest.fn(),
+        findMany: jest.fn(),
+      },
+      productBundle: {
         findUnique: jest.fn(),
       },
       cart: {
@@ -426,6 +434,239 @@ describe('CartService', () => {
 
       expect(prisma.cart.findUnique).not.toHaveBeenCalled();
       expect(redis.del).not.toHaveBeenCalled();
+    });
+
+    it('re-validates bundle lines via addBundleItem during merge', async () => {
+      redis.get.mockResolvedValue(
+        JSON.stringify([
+          {
+            bundleId: 'bun-1',
+            bundleSlug: 'heritage-bundle',
+            bundleSize: 'L',
+            quantity: 1,
+          },
+        ]),
+      );
+      prisma.productBundle.findUnique.mockResolvedValue({
+        id: 'bun-1',
+        slug: 'heritage-bundle',
+        name: 'Heritage Bundle',
+        bundlePrice: 250000,
+        availableSizes: ['L'],
+        isActive: true,
+        image: null,
+        items: [{ productId: 'prod-1', color: 'Black' }],
+      });
+      prisma.productVariant.findMany.mockResolvedValue([
+        { productId: 'prod-1', color: 'Black', stock: 5 },
+      ]);
+      prisma.cart.findUnique.mockResolvedValue({
+        id: 'cart-1',
+        userId: 'user-1',
+      });
+      prisma.cartItem.findFirst.mockResolvedValue(null);
+      prisma.cartItem.create.mockResolvedValue({ id: 'ci-bundle' });
+      redis.del.mockResolvedValue(1);
+
+      await service.mergeGuestCart('user-1', 'session-123');
+
+      expect(prisma.cartItem.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          bundleId: 'bun-1',
+          bundleSize: 'L',
+          quantity: 1,
+        }),
+      });
+      expect(redis.del).toHaveBeenCalledWith('cart:session-123');
+    });
+  });
+
+  // ─── addBundleItem() ──────────────────────────────────────────────────────
+
+  describe('addBundleItem', () => {
+    const mockBundle = {
+      id: 'bun-1',
+      slug: 'heritage-bundle',
+      name: 'Heritage Bundle',
+      bundlePrice: 250000,
+      availableSizes: ['S', 'M', 'L'],
+      isActive: true,
+      image: null,
+      items: [
+        { productId: 'prod-1', color: 'Black' },
+        { productId: 'prod-2', color: 'Indigo' },
+      ],
+    };
+    const dto = { bundleSlug: 'heritage-bundle', size: 'L', quantity: 1 };
+    const fullStock = [
+      { productId: 'prod-1', color: 'Black', stock: 5 },
+      { productId: 'prod-2', color: 'Indigo', stock: 5 },
+    ];
+
+    it('creates a bundle line in the user cart on the happy path', async () => {
+      prisma.productBundle.findUnique.mockResolvedValue(mockBundle);
+      prisma.productVariant.findMany.mockResolvedValue(fullStock);
+      prisma.cart.findUnique.mockResolvedValue({
+        id: 'cart-1',
+        userId: 'user-1',
+      });
+      prisma.cartItem.findFirst.mockResolvedValue(null);
+      prisma.cartItem.create.mockResolvedValue({ id: 'ci-new' });
+
+      await service.addBundleItem(dto, 'user-1');
+
+      expect(prisma.cartItem.create).toHaveBeenCalledWith({
+        data: {
+          cartId: 'cart-1',
+          bundleId: 'bun-1',
+          bundleSize: 'L',
+          quantity: 1,
+        },
+      });
+    });
+
+    it('increments quantity when the same (bundleId, bundleSize) already exists', async () => {
+      prisma.productBundle.findUnique.mockResolvedValue(mockBundle);
+      prisma.productVariant.findMany.mockResolvedValue(fullStock);
+      prisma.cart.findUnique.mockResolvedValue({
+        id: 'cart-1',
+        userId: 'user-1',
+      });
+      prisma.cartItem.findFirst.mockResolvedValue({
+        id: 'ci-existing',
+        quantity: 2,
+      });
+      prisma.cartItem.update.mockResolvedValue({
+        id: 'ci-existing',
+        quantity: 3,
+      });
+
+      await service.addBundleItem(dto, 'user-1');
+
+      expect(prisma.cartItem.update).toHaveBeenCalledWith({
+        where: { id: 'ci-existing' },
+        data: { quantity: 3 },
+      });
+      expect(prisma.cartItem.create).not.toHaveBeenCalled();
+    });
+
+    it('throws NotFound when the bundle slug does not resolve', async () => {
+      prisma.productBundle.findUnique.mockResolvedValue(null);
+      await expect(service.addBundleItem(dto, 'user-1')).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('throws BadRequest when the bundle is inactive', async () => {
+      prisma.productBundle.findUnique.mockResolvedValue({
+        ...mockBundle,
+        isActive: false,
+      });
+      await expect(service.addBundleItem(dto, 'user-1')).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('throws BadRequest when the size is not in availableSizes', async () => {
+      prisma.productBundle.findUnique.mockResolvedValue(mockBundle);
+      await expect(
+        service.addBundleItem({ ...dto, size: 'XXL' }, 'user-1'),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('throws Conflict when a constituent variant is missing for the chosen size', async () => {
+      prisma.productBundle.findUnique.mockResolvedValue(mockBundle);
+      prisma.productVariant.findMany.mockResolvedValue([fullStock[0]]);
+      await expect(service.addBundleItem(dto, 'user-1')).rejects.toThrow(
+        ConflictException,
+      );
+    });
+
+    it('throws Conflict when a constituent variant has insufficient stock', async () => {
+      prisma.productBundle.findUnique.mockResolvedValue(mockBundle);
+      prisma.productVariant.findMany.mockResolvedValue([
+        { productId: 'prod-1', color: 'Black', stock: 5 },
+        { productId: 'prod-2', color: 'Indigo', stock: 0 },
+      ]);
+      await expect(service.addBundleItem(dto, 'user-1')).rejects.toThrow(
+        ConflictException,
+      );
+    });
+
+    it('writes a bundle line to the guest Redis cart with full display fields', async () => {
+      prisma.productBundle.findUnique.mockResolvedValue(mockBundle);
+      prisma.productVariant.findMany.mockResolvedValue(fullStock);
+      redis.get.mockResolvedValue(null);
+      redis.setex.mockResolvedValue('OK');
+
+      await service.addBundleItem(dto, undefined, 'session-123');
+
+      const saved = JSON.parse(redis.setex.mock.calls[0][2]);
+      expect(saved[0]).toMatchObject({
+        bundleId: 'bun-1',
+        bundleSlug: 'heritage-bundle',
+        bundleName: 'Heritage Bundle',
+        bundleSize: 'L',
+        bundlePrice: 250000,
+        quantity: 1,
+      });
+    });
+
+    it('throws BadRequest when neither session nor user is provided', async () => {
+      prisma.productBundle.findUnique.mockResolvedValue(mockBundle);
+      prisma.productVariant.findMany.mockResolvedValue(fullStock);
+      await expect(service.addBundleItem(dto)).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+  });
+
+  // ─── getUserCart with mixed lines ─────────────────────────────────────────
+
+  describe('getCart with bundle lines', () => {
+    it('computes total across variant and bundle lines', async () => {
+      prisma.cart.findUnique.mockResolvedValue({
+        id: 'cart-1',
+        userId: 'user-1',
+        items: [
+          {
+            id: 'ci-var',
+            cartId: 'cart-1',
+            productId: 'prod-1',
+            variantId: 'var-1',
+            bundleId: null,
+            bundleSize: null,
+            quantity: 2,
+            variant: {
+              price: 2500,
+              product: {
+                id: 'prod-1',
+                name: 'Slim Fit',
+                slug: 'slim-fit',
+                images: ['img.jpg'],
+                price: 2500,
+              },
+            },
+            bundle: null,
+          },
+          {
+            id: 'ci-bun',
+            cartId: 'cart-1',
+            productId: null,
+            variantId: null,
+            bundleId: 'bun-1',
+            bundleSize: 'L',
+            quantity: 1,
+            variant: null,
+            bundle: { bundlePrice: 250000, items: [] },
+          },
+        ],
+      });
+
+      const result = await service.getCart('user-1');
+
+      // variant: 2500 * 2 = 5000. bundle: 250000 * 1 = 250000. total = 255000.
+      expect(result).toEqual(expect.objectContaining({ total: 255000 }));
     });
   });
 });
