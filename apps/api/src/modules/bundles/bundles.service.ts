@@ -160,14 +160,26 @@ export class BundlesService {
       }
       pairs.add(key);
     }
-    const productIds = [...new Set(items.map((i) => i.productId))];
-    const colors = [...new Set(items.map((i) => i.color))];
+    // OR of exact (productId, color, size) tuples — fetches only the
+    // (item × size) variants we care about, not the cross-product of
+    // (productIds × colors × sizes). Matches the cart-side pattern in
+    // CartService.assertBundleStock and keeps the SQL aligned with the
+    // semantic intent.
+    const variantQueries = items.flatMap((item) =>
+      availableSizes.map((size) => ({
+        productId: item.productId,
+        color: item.color,
+        size,
+      })),
+    );
     const variants = await this.prisma.productVariant.findMany({
       where: {
-        productId: { in: productIds },
-        color: { in: colors },
-        size: { in: availableSizes },
-        deletedAt: null,
+        OR: variantQueries.map((q) => ({
+          productId: q.productId,
+          color: q.color,
+          size: q.size,
+          deletedAt: null,
+        })),
       },
       select: { productId: true, color: true, size: true },
     });
