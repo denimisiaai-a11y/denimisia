@@ -40,14 +40,18 @@ describe('InventoryService', () => {
     service = module.get(InventoryService);
   });
 
-  it('should get low stock variants', async () => {
+  it('should get low stock variants, excluding soft-deleted variants and products', async () => {
     prisma.productVariant.findMany.mockResolvedValue([
       { id: 'var-1', stock: 2 },
     ]);
-    const result = await service.getLowStockVariants(5);
+    await service.getLowStockVariants(5);
     expect(prisma.productVariant.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { stock: { lte: 5 }, product: { isActive: true } },
+        where: {
+          stock: { lte: 5 },
+          deletedAt: null,
+          product: { isActive: true, deletedAt: null },
+        },
       }),
     );
   });
@@ -157,12 +161,18 @@ describe('InventoryService', () => {
     ).rejects.toThrow(NotFoundException);
   });
 
-  it('should get inventory summary', async () => {
+  it('should get inventory summary, filtering soft-deleted everywhere', async () => {
     prisma.productVariant.count
       .mockResolvedValueOnce(100)
       .mockResolvedValueOnce(10)
       .mockResolvedValueOnce(3);
     const result = await service.getInventorySummary();
     expect(result).toEqual({ totalVariants: 100, lowStock: 10, outOfStock: 3 });
+    // Every call's where must include deletedAt: null at both levels.
+    for (const call of prisma.productVariant.count.mock.calls) {
+      expect(call[0].where.deletedAt).toBe(null);
+      expect(call[0].where.product.isActive).toBe(true);
+      expect(call[0].where.product.deletedAt).toBe(null);
+    }
   });
 });

@@ -16,26 +16,33 @@ import {
   IsNotEmpty,
   IsOptional,
   IsNumber,
+  IsEnum,
+  Matches,
+  MaxLength,
   Min,
   Max,
 } from 'class-validator';
+import { InventoryType } from '@prisma/client';
+
+const CUID_PATTERN = /^c[a-z0-9]{24}$/;
 
 class AdjustStockBody {
   @IsString()
   @IsNotEmpty()
-  variantId: string;
+  @Matches(CUID_PATTERN, { message: 'variantId must be a valid cuid' })
+  variantId!: string;
 
   @IsNumber()
   @Min(-10000)
   @Max(10000)
-  quantity: number;
+  quantity!: number;
 
-  @IsString()
-  @IsNotEmpty()
-  type: string;
+  @IsEnum(InventoryType)
+  type!: InventoryType;
 
   @IsString()
   @IsOptional()
+  @MaxLength(500)
   note?: string;
 }
 

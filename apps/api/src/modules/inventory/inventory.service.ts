@@ -20,7 +20,11 @@ export class InventoryService {
 
   async getLowStockVariants(threshold = 5) {
     return this.prisma.productVariant.findMany({
-      where: { stock: { lte: threshold }, product: { isActive: true } },
+      where: {
+        stock: { lte: threshold },
+        deletedAt: null,
+        product: { isActive: true, deletedAt: null },
+      },
       include: {
         product: { select: { id: true, name: true, slug: true } },
       },
@@ -103,15 +107,19 @@ export class InventoryService {
   }
 
   async getInventorySummary() {
+    // Soft-deleted variants/products are excluded so the dashboard
+    // numbers match what the admin can actually act on.
+    const activeWhere = {
+      deletedAt: null,
+      product: { isActive: true, deletedAt: null },
+    };
     const [totalVariants, lowStock, outOfStock] = await Promise.all([
+      this.prisma.productVariant.count({ where: activeWhere }),
       this.prisma.productVariant.count({
-        where: { product: { isActive: true } },
+        where: { ...activeWhere, stock: { gt: 0, lte: 5 } },
       }),
       this.prisma.productVariant.count({
-        where: { stock: { gt: 0, lte: 5 }, product: { isActive: true } },
-      }),
-      this.prisma.productVariant.count({
-        where: { stock: 0, product: { isActive: true } },
+        where: { ...activeWhere, stock: 0 },
       }),
     ]);
     return { totalVariants, lowStock, outOfStock };
