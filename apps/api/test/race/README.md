@@ -26,6 +26,12 @@ pnpm --filter api test:race-e2e
 docker compose --profile test down
 ```
 
+## Schema sync strategy
+
+`globalSetup` runs `prisma db push` rather than `prisma migrate deploy`. The repo's `schema.prisma` is ahead of the migration history (for example `User.isActive` and `User.tokenVersion` are not in any migration file as of this commit). Running migration-by-migration would produce a test DB the API code cannot query against. `db push` materializes the current `schema.prisma` directly, matching what live Supabase actually looks like.
+
+This is intentional for the race suite. The drift between `schema.prisma` and the migration history is its own LR-001 follow-up.
+
 ## Configuration
 
 The test DB URL defaults to `postgresql://denimisia:secret@localhost:5433/denimisia_test`. Override with `TEST_DATABASE_URL` if needed:
