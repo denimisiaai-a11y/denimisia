@@ -20,6 +20,7 @@ export class SearchService {
 
     const where = {
       isActive: true,
+      deletedAt: null,
       OR: [
         { name: { contains: q, mode: 'insensitive' as const } },
         { description: { contains: q, mode: 'insensitive' as const } },
@@ -70,6 +71,7 @@ export class SearchService {
     const products = await this.prisma.product.findMany({
       where: {
         isActive: true,
+        deletedAt: null,
         name: { contains: q, mode: 'insensitive' },
       },
       select: { id: true, name: true, slug: true, images: true },

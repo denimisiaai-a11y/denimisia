@@ -135,6 +135,7 @@ describe('SearchService', () => {
       expect(prisma.product.findMany).toHaveBeenCalledWith({
         where: {
           isActive: true,
+          deletedAt: null,
           name: { contains: 'slim', mode: 'insensitive' },
         },
         select: { id: true, name: true, slug: true, images: true },
@@ -142,6 +143,23 @@ describe('SearchService', () => {
         orderBy: { name: 'asc' },
       });
       expect(result).toEqual(suggestions);
+    });
+
+    it('excludes soft-deleted products from suggestions', async () => {
+      prisma.product.findMany.mockResolvedValue([]);
+      await service.getSuggestions('slim');
+      const call = prisma.product.findMany.mock.calls[0][0];
+      expect(call.where.deletedAt).toBe(null);
+    });
+  });
+
+  describe('searchProducts soft-delete filter', () => {
+    it('includes deletedAt: null in the search WHERE', async () => {
+      prisma.product.findMany.mockResolvedValue([]);
+      prisma.product.count.mockResolvedValue(0);
+      await service.searchProducts('denim', 1, 20);
+      const call = prisma.product.findMany.mock.calls[0][0];
+      expect(call.where.deletedAt).toBe(null);
     });
   });
 });
