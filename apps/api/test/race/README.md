@@ -28,9 +28,7 @@ docker compose --profile test down
 
 ## Schema sync strategy
 
-`globalSetup` runs `prisma db push` rather than `prisma migrate deploy`. The repo's `schema.prisma` is ahead of the migration history (for example `User.isActive` and `User.tokenVersion` are not in any migration file as of this commit). Running migration-by-migration would produce a test DB the API code cannot query against. `db push` materializes the current `schema.prisma` directly, matching what live Supabase actually looks like.
-
-This is intentional for the race suite. The drift between `schema.prisma` and the migration history is its own LR-001 follow-up.
+`globalSetup` runs `prisma migrate deploy` against the test container. Migration `20260518000000_baseline_reset_capture_drift` captures the auth columns (`User.isActive`, `User.tokenVersion`), the five CMS tables (`SectionCuration`, `SectionProduct`, `MediaAsset`, `PageSlot`, `PageSlotHistory`), and the `updatedAt` default-cleanup ALTERs that had previously drifted into the live DB through unrecorded `prisma db push` runs.
 
 ## Configuration
 
@@ -52,4 +50,4 @@ Each scenario asserts the four invariants the unit suite cannot prove against a 
 
 ## Status
 
-Scaffold only. Test bodies are `it.todo` placeholders inside `describe.skip` blocks. Implementation lands in a follow-up commit.
+Two scenarios pass against a fresh `prisma migrate deploy`-applied schema: single-variant race and bundle-constituent race. Each asserts the four invariants above.

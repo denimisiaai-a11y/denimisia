@@ -39,25 +39,22 @@ export default function globalSetup(): void {
     );
   }
 
-  // Use prisma db push rather than migrate deploy so the test DB tracks
-  // the current schema.prisma rather than the migration history. The repo
-  // has at least one column (User.isActive, User.tokenVersion) present in
-  // schema.prisma but not yet captured in a migration file; migrate
-  // deploy would produce a DB the login path cannot query.
+  // Apply the version-controlled migration history. The earlier db push
+  // workaround is gone now that migration 20260518000000_baseline_reset_
+  // capture_drift captures the schema features (auth columns, CMS tables,
+  // updatedAt default cleanups) that had drifted into the live DB via
+  // unrecorded db push runs.
   //
   // execSync with a string command (rather than execFileSync + shell:true)
   // avoids the Node 22 DEP0190 deprecation. Every command token is a
   // literal constant except schemaPath, which is derived from
   // process.cwd() inside the repo and guarded above against quotes.
-  execSync(
-    `pnpm prisma db push --skip-generate --accept-data-loss --schema "${schemaPath}"`,
-    {
-      stdio: 'inherit',
-      env: {
-        ...process.env,
-        DATABASE_URL: testDbUrl,
-        DIRECT_URL: testDbUrl,
-      },
+  execSync(`pnpm prisma migrate deploy --schema "${schemaPath}"`, {
+    stdio: 'inherit',
+    env: {
+      ...process.env,
+      DATABASE_URL: testDbUrl,
+      DIRECT_URL: testDbUrl,
     },
-  );
+  });
 }
