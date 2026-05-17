@@ -144,6 +144,12 @@ export class CurationService {
       where: { pageKey_sectionKey: { pageKey, sectionKey } },
       include: {
         products: {
+          // Filter at the SQL layer: a soft-deleted or deactivated product
+          // pinned to a MANUAL or MIXED section would otherwise leak onto
+          // the storefront. The MANUAL branch below trusts curation.products
+          // without re-checking; doing the filter here is the single point
+          // of truth.
+          where: { product: { isActive: true, deletedAt: null } },
           orderBy: [{ isPinned: 'desc' }, { position: 'asc' }],
           include: {
             product: {

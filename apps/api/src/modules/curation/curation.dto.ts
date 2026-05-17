@@ -1,15 +1,20 @@
 import {
+  ArrayMaxSize,
+  ArrayMinSize,
   IsArray,
   IsBoolean,
   IsEnum,
   IsInt,
   IsOptional,
   IsString,
+  Matches,
   Max,
   MaxLength,
   Min,
 } from 'class-validator';
 import { CurationSource } from '@prisma/client';
+
+const CUID_PATTERN = /^c[a-z0-9]{24}$/;
 
 export class UpsertCurationDto {
   @IsString() @MaxLength(100) label!: string;
@@ -24,7 +29,9 @@ export class UpsertCurationDto {
 }
 
 export class AddSectionProductDto {
-  @IsString() productId!: string;
+  @IsString()
+  @Matches(CUID_PATTERN, { message: 'productId must be a valid cuid' })
+  productId!: string;
   @IsOptional() @IsInt() @Min(0) position?: number;
   @IsOptional() @IsBoolean() isPinned?: boolean;
 }
@@ -37,12 +44,22 @@ export class UpdateSectionProductDto {
 
 export class ReorderSectionProductsDto {
   @IsArray()
-  @IsString({ each: true })
+  @ArrayMinSize(1)
+  @ArrayMaxSize(50)
+  @Matches(CUID_PATTERN, {
+    each: true,
+    message: 'each orderedProductId must be a valid cuid',
+  })
   orderedProductIds!: string[];
 }
 
 export class BulkAddProductsDto {
   @IsArray()
-  @IsString({ each: true })
+  @ArrayMinSize(1)
+  @ArrayMaxSize(50)
+  @Matches(CUID_PATTERN, {
+    each: true,
+    message: 'each productId must be a valid cuid',
+  })
   productIds!: string[];
 }
