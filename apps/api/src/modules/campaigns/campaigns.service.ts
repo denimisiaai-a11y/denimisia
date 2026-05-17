@@ -32,6 +32,10 @@ export class CampaignsService {
         take: limit,
         include: {
           products: {
+            // Hide products that were soft-deleted or deactivated after
+            // being attached to the campaign; the campaign itself stays
+            // visible but rotted products do not leak to the storefront.
+            where: { product: { isActive: true, deletedAt: null } },
             include: { product: true },
           },
         },
@@ -61,6 +65,7 @@ export class CampaignsService {
       },
       include: {
         products: {
+          where: { product: { isActive: true, deletedAt: null } },
           include: { product: true },
         },
       },
@@ -153,7 +158,7 @@ export class CampaignsService {
     const product = await this.prisma.product.findUnique({
       where: { id: dto.productId },
     });
-    if (!product) {
+    if (!product || !product.isActive || product.deletedAt !== null) {
       throw new NotFoundException('Product not found');
     }
 

@@ -198,7 +198,11 @@ describe('CampaignsService', () => {
 
     it('rejects when the pair already exists', async () => {
       prisma.campaign.findUnique.mockResolvedValue(mockCampaign);
-      prisma.product.findUnique.mockResolvedValue({ id: 'p-1' });
+      prisma.product.findUnique.mockResolvedValue({
+        id: 'p-1',
+        isActive: true,
+        deletedAt: null,
+      });
       prisma.campaignProduct.findUnique.mockResolvedValue({ id: 'cp-1' });
 
       await expect(
@@ -208,6 +212,23 @@ describe('CampaignsService', () => {
           discountValue: 10,
         } as never),
       ).rejects.toThrow(ConflictException);
+    });
+
+    it('rejects when the product is soft-deleted', async () => {
+      prisma.campaign.findUnique.mockResolvedValue(mockCampaign);
+      prisma.product.findUnique.mockResolvedValue({
+        id: 'p-1',
+        isActive: true,
+        deletedAt: new Date(),
+      });
+
+      await expect(
+        service.addProduct('camp-1', {
+          productId: 'p-1',
+          discountType: 'PERCENTAGE',
+          discountValue: 10,
+        } as never),
+      ).rejects.toThrow(NotFoundException);
     });
   });
 
