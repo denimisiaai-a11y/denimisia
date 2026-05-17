@@ -15,7 +15,7 @@ describe('BundlesService', () => {
     id: 'bun-1',
     name: 'Heritage Bundle',
     slug: 'heritage-bundle',
-    bundlePrice: 250000,
+    bundlePrice: 2500,
     availableSizes: ['S', 'M', 'L'],
     isActive: false,
     items: [
@@ -28,7 +28,7 @@ describe('BundlesService', () => {
     name: 'Heritage Bundle',
     slug: 'heritage-bundle',
     badgeText: 'BEST DEAL',
-    bundlePrice: 250000,
+    bundlePrice: 2500,
     availableSizes: ['S', 'M', 'L'],
     items: [
       { productId: 'prod-1', color: 'Black' },
@@ -119,7 +119,7 @@ describe('BundlesService', () => {
       expect(prisma.productBundle.create).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({
-            bundlePrice: 250000,
+            bundlePrice: 2500,
             availableSizes: ['S', 'M', 'L'],
             items: {
               create: [

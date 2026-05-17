@@ -40,7 +40,7 @@ export class UpdateBundleDto {
   @IsOptional()
   @IsInt()
   @Min(1)
-  @Max(10_000_000)
+  @Max(1_000_000)
   bundlePrice?: number;
 
   @IsOptional()

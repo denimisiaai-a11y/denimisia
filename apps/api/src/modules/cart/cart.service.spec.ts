@@ -451,7 +451,7 @@ describe('CartService', () => {
         id: 'bun-1',
         slug: 'heritage-bundle',
         name: 'Heritage Bundle',
-        bundlePrice: 250000,
+        bundlePrice: 2500,
         availableSizes: ['L'],
         isActive: true,
         image: null,
@@ -488,7 +488,7 @@ describe('CartService', () => {
       id: 'bun-1',
       slug: 'heritage-bundle',
       name: 'Heritage Bundle',
-      bundlePrice: 250000,
+      bundlePrice: 2500,
       availableSizes: ['S', 'M', 'L'],
       isActive: true,
       image: null,
@@ -607,7 +607,7 @@ describe('CartService', () => {
         bundleSlug: 'heritage-bundle',
         bundleName: 'Heritage Bundle',
         bundleSize: 'L',
-        bundlePrice: 250000,
+        bundlePrice: 2500,
         quantity: 1,
       });
     });
@@ -658,15 +658,15 @@ describe('CartService', () => {
             bundleSize: 'L',
             quantity: 1,
             variant: null,
-            bundle: { bundlePrice: 250000, items: [] },
+            bundle: { bundlePrice: 2500, items: [] },
           },
         ],
       });
 
       const result = await service.getCart('user-1');
 
-      // variant: 2500 * 2 = 5000. bundle: 250000 * 1 = 250000. total = 255000.
-      expect(result).toEqual(expect.objectContaining({ total: 255000 }));
+      // variant: 2500 * 2 = 5000. bundle: 2500 * 1 = 2500. total = 7500.
+      expect(result).toEqual(expect.objectContaining({ total: 7500 }));
     });
   });
 });

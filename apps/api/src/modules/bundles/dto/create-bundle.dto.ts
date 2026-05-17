@@ -40,12 +40,14 @@ export class CreateBundleDto {
   @MaxLength(500)
   image?: string;
 
-  // bundlePrice is in cents (Int). Min 1 cent so a placeholder bundle can
-  // never reach the storefront with a ৳0 "free" price. Max 100,000 units
-  // is an overflow guard, well above any realistic Denim bundle.
+  // bundlePrice is whole BDT (Int) — matches Product.price + Variant.price
+  // which are stored as Decimal whole units, no subunits. Min 1 so a
+  // placeholder bundle can never reach the storefront with a ৳0 "free"
+  // price. Max 1,000,000 BDT is an overflow guard well above any
+  // realistic bundle for this shop.
   @IsInt()
   @Min(1)
-  @Max(10_000_000)
+  @Max(1_000_000)
   bundlePrice!: number;
 
   // The set of sizes the customer can pick from when buying this bundle.
