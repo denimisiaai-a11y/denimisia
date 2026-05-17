@@ -19,6 +19,11 @@ export class WishlistService {
       where: { userId },
       include: {
         items: {
+          // Hide items whose product was soft-deleted or deactivated after
+          // it was wishlisted. The DB row stays (so the savedAtPrice
+          // snapshot remains for reporting), but the customer never sees
+          // a dead product card.
+          where: { product: { isActive: true, deletedAt: null } },
           include: {
             product: {
               include: {
@@ -50,7 +55,9 @@ export class WishlistService {
       where: { id: productId },
       include: { variants: { select: { stock: true } } },
     });
-    if (!product) throw new NotFoundException('Product not found');
+    if (!product || !product.isActive || product.deletedAt !== null) {
+      throw new NotFoundException('Product not found');
+    }
 
     const existing = await this.prisma.wishlistItem.findUnique({
       where: { wishlistId_productId: { wishlistId: wishlist.id, productId } },
@@ -102,7 +109,7 @@ export class WishlistService {
       wishlist = await this.prisma.wishlist.create({ data: { userId } });
     }
     const products = await this.prisma.product.findMany({
-      where: { id: { in: productIds }, deletedAt: null },
+      where: { id: { in: productIds }, deletedAt: null, isActive: true },
       select: {
         id: true,
         price: true,
@@ -154,6 +161,9 @@ export class WishlistService {
       where: { shareToken: token },
       include: {
         items: {
+          // Public share page hides items whose product was soft-deleted
+          // or deactivated. Same reasoning as getWishlist.
+          where: { product: { isActive: true, deletedAt: null } },
           orderBy: { createdAt: 'desc' },
           include: {
             product: {

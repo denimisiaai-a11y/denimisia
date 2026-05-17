@@ -13,6 +13,7 @@ describe('WishlistService', () => {
     slug: 'slim-fit-denim',
     price: 2500,
     isActive: true,
+    deletedAt: null as Date | null,
     images: ['image1.jpg'],
     variants: [
       { id: 'var-1', stock: 10 },
@@ -149,6 +150,30 @@ describe('WishlistService', () => {
 
       await expect(service.addItem('user-1', 'prod-1')).rejects.toThrow(
         ConflictException,
+      );
+    });
+
+    it('throws NotFoundException when product is soft-deleted', async () => {
+      prisma.wishlist.findUnique.mockResolvedValue(mockWishlist);
+      prisma.product.findUnique.mockResolvedValue({
+        ...mockProduct,
+        deletedAt: new Date(),
+      });
+
+      await expect(service.addItem('user-1', 'prod-1')).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('throws NotFoundException when product is inactive', async () => {
+      prisma.wishlist.findUnique.mockResolvedValue(mockWishlist);
+      prisma.product.findUnique.mockResolvedValue({
+        ...mockProduct,
+        isActive: false,
+      });
+
+      await expect(service.addItem('user-1', 'prod-1')).rejects.toThrow(
+        NotFoundException,
       );
     });
   });

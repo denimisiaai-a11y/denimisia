@@ -12,19 +12,33 @@ import {
 import { WishlistService } from './wishlist.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { IsString, IsNotEmpty, IsArray, ArrayMaxSize } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsArray,
+  ArrayMaxSize,
+  ArrayMinSize,
+  Matches,
+} from 'class-validator';
+
+const CUID_PATTERN = /^c[a-z0-9]{24}$/;
 
 class AddToWishlistDto {
   @IsString()
   @IsNotEmpty()
-  productId: string;
+  @Matches(CUID_PATTERN, { message: 'productId must be a valid cuid' })
+  productId!: string;
 }
 
 class BulkAddToWishlistDto {
   @IsArray()
+  @ArrayMinSize(1)
   @ArrayMaxSize(50)
-  @IsString({ each: true })
-  productIds: string[];
+  @Matches(CUID_PATTERN, {
+    each: true,
+    message: 'each productId must be a valid cuid',
+  })
+  productIds!: string[];
 }
 
 @Controller('wishlist')
