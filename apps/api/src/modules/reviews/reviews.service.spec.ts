@@ -62,7 +62,7 @@ describe('ReviewsService', () => {
   // ─── getProductReviews ────────────────────────────────────────────────────
 
   describe('getProductReviews', () => {
-    it('should return paginated reviews with breakdown', async () => {
+    it('only returns isApproved=true reviews on the public listing', async () => {
       prisma.review.findMany.mockResolvedValue([mockReview]);
       prisma.review.count.mockResolvedValue(1);
       prisma.review.groupBy.mockResolvedValue([
@@ -71,11 +71,22 @@ describe('ReviewsService', () => {
 
       const result = await service.getProductReviews('prod-1', 1, 10);
 
+      // The public listing filters on isApproved=true - pending and
+      // rejected (deleted) reviews must not surface on the storefront.
+      // findMany, count, and groupBy must all share the same where shape.
       expect(prisma.review.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { productId: 'prod-1' },
+          where: { productId: 'prod-1', isApproved: true },
           skip: 0,
           take: 10,
+        }),
+      );
+      expect(prisma.review.count).toHaveBeenCalledWith({
+        where: { productId: 'prod-1', isApproved: true },
+      });
+      expect(prisma.review.groupBy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { productId: 'prod-1', isApproved: true },
         }),
       );
       expect(result).toEqual({
@@ -292,28 +303,107 @@ describe('ReviewsService', () => {
 
   // ─── getAllReviews ────────────────────────────────────────────────────────
 
-  describe('getAllReviews', () => {
-    it('should return paginated reviews for admin', async () => {
-      const adminReview = {
-        ...mockReview,
-        user: {
-          email: 'test@example.com',
-          firstName: 'Test',
-          lastName: 'User',
-        },
-        product: { name: 'Jeans', slug: 'jeans' },
-      };
+  describe('getAllReviewsAdmin', () => {
+    const adminReview = {
+      ...mockReview,
+      user: {
+        email: 'test@example.com',
+        firstName: 'Test',
+        lastName: 'User',
+      },
+      product: { name: 'Jeans', slug: 'jeans' },
+    };
+
+    it('returns all statuses when approved filter is undefined', async () => {
       prisma.review.findMany.mockResolvedValue([adminReview]);
       prisma.review.count.mockResolvedValue(1);
 
-      const result = await service.getAllReviews(1, 20);
+      const result = await service.getAllReviewsAdmin(1, 20);
 
+      // No isApproved key in the where clause when no filter passed.
+      expect(prisma.review.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: {} }),
+      );
       expect(result).toEqual({
         reviews: [adminReview],
         total: 1,
         page: 1,
         limit: 20,
       });
+    });
+
+    it('filters to pending-only when approved=false (moderation queue)', async () => {
+      prisma.review.findMany.mockResolvedValue([adminReview]);
+      prisma.review.count.mockResolvedValue(1);
+
+      await service.getAllReviewsAdmin(1, 20, false);
+
+      expect(prisma.review.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { isApproved: false } }),
+      );
+      expect(prisma.review.count).toHaveBeenCalledWith({
+        where: { isApproved: false },
+      });
+    });
+
+    it('filters to approved-only when approved=true', async () => {
+      prisma.review.findMany.mockResolvedValue([adminReview]);
+      prisma.review.count.mockResolvedValue(1);
+
+      await service.getAllReviewsAdmin(1, 20, true);
+
+      expect(prisma.review.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { isApproved: true } }),
+      );
+    });
+  });
+
+  // ─── setReviewApproval (admin moderation) ─────────────────────────────────
+
+  describe('setReviewApproval', () => {
+    it('approves a pending review', async () => {
+      prisma.review.findUnique.mockResolvedValue({
+        ...mockReview,
+        isApproved: false,
+      });
+      prisma.review.update.mockResolvedValue({
+        ...mockReview,
+        isApproved: true,
+      });
+
+      const result = await service.setReviewApproval('rev-1', true);
+
+      expect(prisma.review.update).toHaveBeenCalledWith({
+        where: { id: 'rev-1' },
+        data: { isApproved: true },
+        include: expect.any(Object),
+      });
+      expect(result.isApproved).toBe(true);
+    });
+
+    it('un-approves a published review (pull it back to pending)', async () => {
+      prisma.review.findUnique.mockResolvedValue({
+        ...mockReview,
+        isApproved: true,
+      });
+      prisma.review.update.mockResolvedValue({
+        ...mockReview,
+        isApproved: false,
+      });
+
+      await service.setReviewApproval('rev-1', false);
+
+      expect(prisma.review.update).toHaveBeenCalledWith(
+        expect.objectContaining({ data: { isApproved: false } }),
+      );
+    });
+
+    it('throws NotFoundException when review does not exist', async () => {
+      prisma.review.findUnique.mockResolvedValue(null);
+
+      await expect(service.setReviewApproval('rev-999', true)).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 });

@@ -14,6 +14,8 @@ describe('ReviewsController', () => {
       deleteReview: jest.fn(),
       markHelpful: jest.fn(),
       getAllReviews: jest.fn(),
+      getAllReviewsAdmin: jest.fn(),
+      setReviewApproval: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -72,10 +74,56 @@ describe('ReviewsController', () => {
     expect(reviewsService.markHelpful).toHaveBeenCalledWith('rev-1', 'user-1');
   });
 
-  it('should get all reviews for admin', async () => {
-    reviewsService.getAllReviews.mockResolvedValue({ reviews: [], total: 0 });
-    const result = await controller.getAllReviews('1', '20');
-    expect(reviewsService.getAllReviews).toHaveBeenCalledWith(1, 20);
+  it('should get all reviews for admin with undefined approved filter', async () => {
+    reviewsService.getAllReviewsAdmin.mockResolvedValue({
+      reviews: [],
+      total: 0,
+    });
+    await controller.getAllReviews('1', '20');
+    expect(reviewsService.getAllReviewsAdmin).toHaveBeenCalledWith(
+      1,
+      20,
+      undefined,
+    );
+  });
+
+  it('passes approved=false through to the service for the moderation queue', async () => {
+    reviewsService.getAllReviewsAdmin.mockResolvedValue({
+      reviews: [],
+      total: 0,
+    });
+    await controller.getAllReviews('1', '20', 'false');
+    expect(reviewsService.getAllReviewsAdmin).toHaveBeenCalledWith(1, 20, false);
+  });
+
+  it('passes approved=true through to the service for the approved-only view', async () => {
+    reviewsService.getAllReviewsAdmin.mockResolvedValue({
+      reviews: [],
+      total: 0,
+    });
+    await controller.getAllReviews('1', '20', 'true');
+    expect(reviewsService.getAllReviewsAdmin).toHaveBeenCalledWith(1, 20, true);
+  });
+
+  it('admin approves a review via PATCH /admin/:id/approval', async () => {
+    reviewsService.setReviewApproval.mockResolvedValue({
+      id: 'rev-1',
+      isApproved: true,
+    });
+    const result = await controller.setReviewApproval('rev-1', {
+      isApproved: true,
+    });
+    expect(reviewsService.setReviewApproval).toHaveBeenCalledWith('rev-1', true);
+    expect(result.isApproved).toBe(true);
+  });
+
+  it('admin un-approves a review (pull back to pending)', async () => {
+    reviewsService.setReviewApproval.mockResolvedValue({
+      id: 'rev-1',
+      isApproved: false,
+    });
+    await controller.setReviewApproval('rev-1', { isApproved: false });
+    expect(reviewsService.setReviewApproval).toHaveBeenCalledWith('rev-1', false);
   });
 
   it('should admin delete review', async () => {

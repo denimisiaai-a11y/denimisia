@@ -70,9 +70,34 @@ export class ReviewsController {
   @Get('admin/all')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN, Role.SUPER_ADMIN)
-  getAllReviews(@Query('page') page?: string, @Query('limit') limit?: string) {
+  getAllReviews(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    // approved=false drives the moderation queue (pending reviews only);
+    // omit for the full mixed list.
+    @Query('approved') approved?: string,
+  ) {
     const safeLimit = Math.min(Number(limit) || 20, 100);
-    return this.reviewsService.getAllReviews(Number(page) || 1, safeLimit);
+    const approvedFilter =
+      approved === 'true' ? true : approved === 'false' ? false : undefined;
+    return this.reviewsService.getAllReviewsAdmin(
+      Number(page) || 1,
+      safeLimit,
+      approvedFilter,
+    );
+  }
+
+  // Admin moderation: approve or un-approve a review. Body shape is
+  // { isApproved: boolean }. Hard-rejection (delete) goes through
+  // DELETE /admin/:id below.
+  @Patch('admin/:id/approval')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  setReviewApproval(
+    @Param('id') id: string,
+    @Body() body: { isApproved: boolean },
+  ) {
+    return this.reviewsService.setReviewApproval(id, body.isApproved);
   }
 
   @Delete('admin/:id')

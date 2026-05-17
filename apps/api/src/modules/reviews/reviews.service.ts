@@ -20,10 +20,15 @@ export class ReviewsService {
   ) {}
 
   async getProductReviews(productId: string, page = 1, limit = 10) {
+    // Public listing: only APPROVED reviews. Pending + rejected reviews are
+    // invisible to the storefront. Admin uses listAllReviews() for the
+    // moderation queue. See @@index([productId, isApproved]) on schema for
+    // the matching index.
+    const where = { productId, isApproved: true };
     const skip = (page - 1) * limit;
     const [reviews, total] = await Promise.all([
       this.prisma.review.findMany({
-        where: { productId },
+        where,
         orderBy: { createdAt: 'desc' },
         skip,
         take: limit,
@@ -31,12 +36,12 @@ export class ReviewsService {
           user: { select: { firstName: true, lastName: true } },
         },
       }),
-      this.prisma.review.count({ where: { productId } }),
+      this.prisma.review.count({ where }),
     ]);
 
     const ratingBreakdown = await this.prisma.review.groupBy({
       by: ['rating'],
-      where: { productId },
+      where,
       _count: { rating: true },
     });
 
@@ -157,11 +162,18 @@ export class ReviewsService {
   /**
    * Admin-scope review listing for moderation tooling.
    * ADMIN-ONLY: includes PII (user email). Never call from public endpoints.
+   *
+   * Optional `approved` filter targets the moderation queue:
+   *   - undefined (default) -> all reviews regardless of status
+   *   - false -> the pending queue (admin's working list)
+   *   - true -> already-approved set (for audit / un-approve)
    */
-  async getAllReviewsAdmin(page = 1, limit = 20) {
+  async getAllReviewsAdmin(page = 1, limit = 20, approved?: boolean) {
+    const where = approved === undefined ? {} : { isApproved: approved };
     const skip = (page - 1) * limit;
     const [reviews, total] = await Promise.all([
       this.prisma.review.findMany({
+        where,
         orderBy: { createdAt: 'desc' },
         skip,
         take: limit,
@@ -171,9 +183,30 @@ export class ReviewsService {
           product: { select: { name: true, slug: true } },
         },
       }),
-      this.prisma.review.count(),
+      this.prisma.review.count({ where }),
     ]);
     return { reviews, total, page, limit };
+  }
+
+  /**
+   * Admin moderation: approve or un-approve a review. Approval is the
+   * publish action; un-approval pulls a previously-public review back into
+   * pending (use deleteReview to remove a bad one entirely).
+   */
+  async setReviewApproval(reviewId: string, isApproved: boolean) {
+    const review = await this.prisma.review.findUnique({
+      where: { id: reviewId },
+    });
+    if (!review) throw new NotFoundException('Review not found');
+
+    return this.prisma.review.update({
+      where: { id: reviewId },
+      data: { isApproved },
+      include: {
+        user: { select: { firstName: true, lastName: true } },
+        product: { select: { name: true, slug: true } },
+      },
+    });
   }
 
   /** @deprecated Use getAllReviewsAdmin. Kept for backwards compatibility. */
