@@ -8,10 +8,11 @@ export class CategoriesService {
 
   async findAll() {
     return this.prisma.category.findMany({
-      where: { parentId: null },
+      where: { parentId: null, deletedAt: null },
       include: {
         children: {
-          include: { children: true },
+          where: { deletedAt: null },
+          include: { children: { where: { deletedAt: null } } },
         },
       },
       orderBy: { name: 'asc' },
@@ -22,15 +23,20 @@ export class CategoriesService {
     const category = await this.prisma.category.findUnique({
       where: { slug },
       include: {
-        children: true,
+        children: { where: { deletedAt: null } },
         products: {
-          where: { isActive: true },
+          where: { isActive: true, deletedAt: null },
           include: { variants: true },
           take: 24,
         },
       },
     });
-    if (!category) throw new NotFoundException('Category not found');
+    // A soft-deleted category should not be reachable through public reads.
+    // The unique slug lookup may still return one if admin reused the slug
+    // before clearing the deletedAt flag, so re-check after fetch.
+    if (!category || category.deletedAt !== null) {
+      throw new NotFoundException('Category not found');
+    }
     return category;
   }
 

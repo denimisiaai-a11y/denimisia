@@ -36,27 +36,32 @@ describe('CategoriesService', () => {
     service = module.get(CategoriesService);
   });
 
-  it('should find all categories', async () => {
+  it('finds all root categories, filtering out soft-deleted at every level', async () => {
     prisma.category.findMany.mockResolvedValue([mockCategory]);
     const result = await service.findAll();
     expect(prisma.category.findMany).toHaveBeenCalledWith({
-      where: { parentId: null },
-      include: { children: { include: { children: true } } },
+      where: { parentId: null, deletedAt: null },
+      include: {
+        children: {
+          where: { deletedAt: null },
+          include: { children: { where: { deletedAt: null } } },
+        },
+      },
       orderBy: { name: 'asc' },
     });
     expect(result).toEqual([mockCategory]);
   });
 
-  it('should find category by slug', async () => {
-    const withProducts = { ...mockCategory, products: [] };
+  it('finds category by slug, filtering soft-deleted children and products', async () => {
+    const withProducts = { ...mockCategory, deletedAt: null, products: [] };
     prisma.category.findUnique.mockResolvedValue(withProducts);
     const result = await service.findBySlug('jeans');
     expect(prisma.category.findUnique).toHaveBeenCalledWith({
       where: { slug: 'jeans' },
       include: {
-        children: true,
+        children: { where: { deletedAt: null } },
         products: {
-          where: { isActive: true },
+          where: { isActive: true, deletedAt: null },
           include: { variants: true },
           take: 24,
         },
@@ -65,7 +70,18 @@ describe('CategoriesService', () => {
     expect(result).toEqual(withProducts);
   });
 
-  it('should throw NotFoundException when category not found by slug', async () => {
+  it('treats a soft-deleted category as not found, even when slug matches', async () => {
+    prisma.category.findUnique.mockResolvedValue({
+      ...mockCategory,
+      deletedAt: new Date(),
+      products: [],
+    });
+    await expect(service.findBySlug('jeans')).rejects.toThrow(
+      NotFoundException,
+    );
+  });
+
+  it('throws NotFoundException when category not found by slug', async () => {
     prisma.category.findUnique.mockResolvedValue(null);
     await expect(service.findBySlug('missing')).rejects.toThrow(
       NotFoundException,
