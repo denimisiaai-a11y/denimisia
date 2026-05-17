@@ -190,6 +190,88 @@ describe('OrdersService', () => {
       ).rejects.toThrow(BadRequestException);
     });
 
+    // ─── Inventory race protection (LR-001 amendment C4) ─────────────────
+    //
+    // The pre-check on prisma.productVariant.findMany only proves "stock
+    // was N when the order request landed." Between that read and the
+    // decrement, another customer could have consumed the same unit. The
+    // service guards this with SELECT ... FOR UPDATE inside the
+    // transaction (orders.service.ts ~line 138) which row-locks the
+    // variant until the decrement commits. These tests lock in the
+    // structural contract; a true two-process race test belongs in the
+    // integration suite where two real Postgres clients can compete.
+    describe('inventory race protection', () => {
+      it('issues SELECT FOR UPDATE on each variant before decrementing', async () => {
+        prisma.productVariant.findMany.mockResolvedValue([mockVariant]);
+
+        const mockTx = createMockTx();
+        mockTx.$queryRawUnsafe.mockResolvedValue([{ stock: 10 }]);
+        mockTx.order.create.mockResolvedValue(mockOrder);
+        mockTx.productVariant.update.mockResolvedValue({});
+        mockTx.inventoryLog.create.mockResolvedValue({});
+        (prisma as any).$transaction.mockImplementation(async (cb: Function) =>
+          cb(mockTx),
+        );
+        prisma.cart.findUnique.mockResolvedValue(null);
+
+        await service.createOrder('user-1', createOrderDto as any);
+
+        // One call per item, each parameterized with the variantId, each
+        // using the FOR UPDATE clause. Without FOR UPDATE the lock would
+        // not be held and two concurrent transactions could both read
+        // stock=1 and both decrement to -1.
+        expect(mockTx.$queryRawUnsafe).toHaveBeenCalledTimes(1);
+        expect(mockTx.$queryRawUnsafe).toHaveBeenCalledWith(
+          expect.stringMatching(/FOR UPDATE/i),
+          'var-1',
+        );
+      });
+
+      it('throws BadRequestException when locked stock is insufficient (race lost)', async () => {
+        // Simulates the race: pre-check sees stock=10 (variant findMany),
+        // but by the time we acquire the row lock another transaction has
+        // committed and stock is now 1 — less than the 2 we want.
+        prisma.productVariant.findMany.mockResolvedValue([mockVariant]);
+
+        const mockTx = createMockTx();
+        mockTx.$queryRawUnsafe.mockResolvedValue([{ stock: 1 }]);
+        (prisma as any).$transaction.mockImplementation(async (cb: Function) =>
+          cb(mockTx),
+        );
+        prisma.cart.findUnique.mockResolvedValue(null);
+
+        await expect(
+          service.createOrder('user-1', createOrderDto as any),
+        ).rejects.toThrow(BadRequestException);
+
+        // Critical: the order MUST NOT have been created and the variant
+        // MUST NOT have been decremented (transaction rolls back when the
+        // service throws inside the callback).
+        expect(mockTx.order.create).not.toHaveBeenCalled();
+        expect(mockTx.productVariant.update).not.toHaveBeenCalled();
+      });
+
+      it('throws BadRequestException when the locked-stock query returns no row', async () => {
+        // Defensive: between pre-check and lock, the variant could be
+        // soft-deleted by an admin. The lock returns [] (no row). The
+        // service must treat that as out-of-stock, not as success.
+        prisma.productVariant.findMany.mockResolvedValue([mockVariant]);
+
+        const mockTx = createMockTx();
+        mockTx.$queryRawUnsafe.mockResolvedValue([]);
+        (prisma as any).$transaction.mockImplementation(async (cb: Function) =>
+          cb(mockTx),
+        );
+        prisma.cart.findUnique.mockResolvedValue(null);
+
+        await expect(
+          service.createOrder('user-1', createOrderDto as any),
+        ).rejects.toThrow(BadRequestException);
+
+        expect(mockTx.order.create).not.toHaveBeenCalled();
+      });
+    });
+
     it('should clear user cart after successful order', async () => {
       prisma.productVariant.findMany.mockResolvedValue([mockVariant]);
 

@@ -200,18 +200,30 @@ export class OrdersService {
         });
       }
 
-      // Increment discount used count (atomic guard against race condition)
+      // Atomic discount-use reservation (LR-001 amendment S9, race-safe).
+      //
+      // The earlier shape (read usedCount, compare to maxUses, then update)
+      // was a TOCTOU race: two concurrent orders could both observe
+      // usedCount < maxUses and both succeed past the cap. The single
+      // updateMany below atomically increments ONLY when the row is still
+      // active AND still under the cap; if neither condition holds, count
+      // = 0 and we abort the order. This mirrors discounts.service.tryConsume
+      // but stays inside the order-creation transaction.
       if (discountId) {
-        const discount = await tx.discount.findUnique({
-          where: { id: discountId },
-        });
-        if (discount?.maxUses && discount.usedCount >= discount.maxUses) {
-          throw new BadRequestException('Discount is no longer available');
-        }
-        await tx.discount.update({
-          where: { id: discountId },
+        const reserved = await tx.discount.updateMany({
+          where: {
+            id: discountId,
+            isActive: true,
+            OR: [
+              { maxUses: null },
+              { usedCount: { lt: tx.discount.fields.maxUses } },
+            ],
+          },
           data: { usedCount: { increment: 1 } },
         });
+        if (reserved.count === 0) {
+          throw new BadRequestException('Discount is no longer available');
+        }
       }
 
       return created;
