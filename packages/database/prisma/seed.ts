@@ -557,7 +557,13 @@ async function main() {
       const product = allProducts.find((p) => p.slug === slug);
       if (!product) continue;
       await prisma.bundleItem.upsert({
-        where: { bundleId_productId: { bundleId: bundle.id, productId: product.id } },
+        where: {
+          bundleId_productId_color: {
+            bundleId: bundle.id,
+            productId: product.id,
+            color: '',
+          },
+        },
         update: {},
         create: { bundleId: bundle.id, productId: product.id },
       });

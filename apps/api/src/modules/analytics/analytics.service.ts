@@ -385,19 +385,19 @@ export class AnalyticsService {
     return grouped
       .filter((g): g is typeof g & { userId: string } => g.userId !== null)
       .map((g) => {
-      const u = users.find((x) => x.id === g.userId);
-      return {
-        user: u
-          ? {
-              id: u.id,
-              name: `${u.firstName} ${u.lastName}`.trim(),
-              email: u.email,
-            }
-          : null,
-        orderCount: g._count.id ?? 0,
-        totalRevenue: Number(g._sum.total ?? 0),
-      };
-    });
+        const u = users.find((x) => x.id === g.userId);
+        return {
+          user: u
+            ? {
+                id: u.id,
+                name: `${u.firstName} ${u.lastName}`.trim(),
+                email: u.email,
+              }
+            : null,
+          orderCount: g._count.id ?? 0,
+          totalRevenue: Number(g._sum.total ?? 0),
+        };
+      });
   }
 
   async getLowStock(limit = 10, threshold = 5) {

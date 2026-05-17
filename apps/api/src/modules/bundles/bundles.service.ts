@@ -100,7 +100,7 @@ export class BundlesService {
   async removeItem(bundleId: string, productId: string) {
     await this.prisma.bundleItem.delete({
       where: {
-        bundleId_productId: { bundleId, productId },
+        bundleId_productId_color: { bundleId, productId, color: '' },
       },
     });
   }

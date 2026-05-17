@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException } from '@nestjs/common';
+import { ConflictException, NotFoundException } from '@nestjs/common';
 import { ProductsService } from './products.service';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -501,7 +501,10 @@ describe('ProductsService', () => {
         stock: 10,
         images: ['a.jpg', 'b.jpg'], // matches sibling exactly
       };
-      prisma.productVariant.create.mockResolvedValue({ id: 'var-new', ...variantDto });
+      prisma.productVariant.create.mockResolvedValue({
+        id: 'var-new',
+        ...variantDto,
+      });
 
       await expect(
         service.addVariant('prod-1', variantDto as any),
@@ -509,7 +512,6 @@ describe('ProductsService', () => {
     });
 
     it('rejects a new variant whose images differ from siblings of same color (409)', async () => {
-      const { ConflictException } = require('@nestjs/common');
       prisma.product.findUnique.mockResolvedValue(mockProduct);
       prisma.productVariant.findMany.mockResolvedValue([
         { id: 'var-existing', images: ['a.jpg', 'b.jpg'] },
@@ -533,7 +535,6 @@ describe('ProductsService', () => {
       // Order matters: image[0] is the primary thumbnail per the product
       // model's contract. Swapping the order would silently re-thumbnail
       // every variant of the same color.
-      const { ConflictException } = require('@nestjs/common');
       prisma.product.findUnique.mockResolvedValue(mockProduct);
       prisma.productVariant.findMany.mockResolvedValue([
         { id: 'var-existing', images: ['a.jpg', 'b.jpg', 'c.jpg'] },

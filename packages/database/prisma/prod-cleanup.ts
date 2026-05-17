@@ -122,7 +122,13 @@ async function run(): Promise<CleanupReport> {
     if (newProductId && newProductId !== item.productId) {
       // Check for duplicate (bundle, newProduct) would violate @@unique
       const dup = await prisma.bundleItem.findUnique({
-        where: { bundleId_productId: { bundleId: item.bundleId, productId: newProductId } },
+        where: {
+          bundleId_productId_color: {
+            bundleId: item.bundleId,
+            productId: newProductId,
+            color: '',
+          },
+        },
       });
       if (dup) {
         console.log(`  [bundle ${item.bundleId}] ${item.product.name.slice(0, 40)} → duplicate of existing, will drop`);

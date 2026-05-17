@@ -93,7 +93,11 @@ describe('ReviewsController', () => {
       total: 0,
     });
     await controller.getAllReviews('1', '20', 'false');
-    expect(reviewsService.getAllReviewsAdmin).toHaveBeenCalledWith(1, 20, false);
+    expect(reviewsService.getAllReviewsAdmin).toHaveBeenCalledWith(
+      1,
+      20,
+      false,
+    );
   });
 
   it('passes approved=true through to the service for the approved-only view', async () => {
@@ -113,7 +117,10 @@ describe('ReviewsController', () => {
     const result = await controller.setReviewApproval('rev-1', {
       isApproved: true,
     });
-    expect(reviewsService.setReviewApproval).toHaveBeenCalledWith('rev-1', true);
+    expect(reviewsService.setReviewApproval).toHaveBeenCalledWith(
+      'rev-1',
+      true,
+    );
     expect(result.isApproved).toBe(true);
   });
 
@@ -123,7 +130,10 @@ describe('ReviewsController', () => {
       isApproved: false,
     });
     await controller.setReviewApproval('rev-1', { isApproved: false });
-    expect(reviewsService.setReviewApproval).toHaveBeenCalledWith('rev-1', false);
+    expect(reviewsService.setReviewApproval).toHaveBeenCalledWith(
+      'rev-1',
+      false,
+    );
   });
 
   it('should admin delete review', async () => {

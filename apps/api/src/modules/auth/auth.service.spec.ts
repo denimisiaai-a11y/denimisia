@@ -206,8 +206,16 @@ describe('AuthService', () => {
         secret: expect.any(String),
       });
 
-      expect(jwt.signAsync).toHaveBeenNthCalledWith(1, expectedPayload, expectedOptionsShape);
-      expect(jwt.signAsync).toHaveBeenNthCalledWith(2, expectedPayload, expectedOptionsShape);
+      expect(jwt.signAsync).toHaveBeenNthCalledWith(
+        1,
+        expectedPayload,
+        expectedOptionsShape,
+      );
+      expect(jwt.signAsync).toHaveBeenNthCalledWith(
+        2,
+        expectedPayload,
+        expectedOptionsShape,
+      );
 
       const firstCallSecret = jwt.signAsync.mock.calls[0][1].secret;
       const secondCallSecret = jwt.signAsync.mock.calls[1][1].secret;

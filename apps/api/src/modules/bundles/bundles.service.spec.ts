@@ -126,7 +126,13 @@ describe('BundlesService', () => {
     prisma.bundleItem.delete.mockResolvedValue({});
     await service.removeItem('bun-1', 'p1');
     expect(prisma.bundleItem.delete).toHaveBeenCalledWith({
-      where: { bundleId_productId: { bundleId: 'bun-1', productId: 'p1' } },
+      where: {
+        bundleId_productId_color: {
+          bundleId: 'bun-1',
+          productId: 'p1',
+          color: '',
+        },
+      },
     });
   });
 });

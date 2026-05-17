@@ -16,7 +16,9 @@ interface MockConfig {
   RESEND_FROM_NAME: string;
 }
 
-const buildConfigService = (overrides: Partial<MockConfig> = {}): ConfigService => {
+const buildConfigService = (
+  overrides: Partial<MockConfig> = {},
+): ConfigService => {
   const values: MockConfig = {
     RESEND_API_KEY: 'test-key',
     RESEND_FROM_EMAIL: 'noreply@test.example',

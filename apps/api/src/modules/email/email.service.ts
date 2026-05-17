@@ -43,7 +43,9 @@ export class EmailService {
         { error, to: input.to, subject: input.subject },
         'Resend send failed',
       );
-      throw new Error(`Resend send failed: ${error?.message ?? 'no data returned'}`);
+      throw new Error(
+        `Resend send failed: ${error?.message ?? 'no data returned'}`,
+      );
     }
 
     return { id: data.id };

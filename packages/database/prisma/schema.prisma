@@ -501,20 +501,19 @@ model CampaignUsage {
 // ─── Product Bundle ───────────────────────────────────────────────────────────
 
 model ProductBundle {
-  id          String   @id @default(cuid())
-  name        String
-  slug        String   @unique
-  description String?
-  badgeText   String
-  image       String?
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  deletedAt   DateTime?
+  id             String   @id @default(cuid())
+  name           String
+  slug           String   @unique
+  description    String?
+  badgeText      String
+  image          String?
+  bundlePrice    Int      @default(0)
+  availableSizes String[] @default([])
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   items BundleItem[]
-
-  @@index([deletedAt])
 }
 
 model BundleItem {
@@ -523,9 +522,10 @@ model BundleItem {
   bundle    ProductBundle @relation(fields: [bundleId], references: [id], onDelete: Cascade)
   productId String
   product   Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
+  color     String        @default("")
   createdAt DateTime      @default(now())
 
-  @@unique([bundleId, productId])
+  @@unique([bundleId, productId, color])
   @@index([productId])
 }
 

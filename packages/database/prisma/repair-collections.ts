@@ -123,7 +123,13 @@ async function repairBundles(): Promise<void> {
     if (picks.length === 0) continue;
     for (const p of picks) {
       await prisma.bundleItem.upsert({
-        where:  { bundleId_productId: { bundleId: bundle.id, productId: p.id } },
+        where: {
+          bundleId_productId_color: {
+            bundleId: bundle.id,
+            productId: p.id,
+            color: '',
+          },
+        },
         update: {},
         create: { bundleId: bundle.id, productId: p.id },
       });

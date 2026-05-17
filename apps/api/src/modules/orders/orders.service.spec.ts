@@ -441,19 +441,28 @@ describe('OrdersService', () => {
 
       it('rejects anonymous order missing guestEmail', async () => {
         await expect(
-          service.createOrder(null, { ...guestDto, guestEmail: undefined } as any),
+          service.createOrder(null, {
+            ...guestDto,
+            guestEmail: undefined,
+          } as any),
         ).rejects.toThrow(BadRequestException);
       });
 
       it('rejects anonymous order missing guestName', async () => {
         await expect(
-          service.createOrder(null, { ...guestDto, guestName: undefined } as any),
+          service.createOrder(null, {
+            ...guestDto,
+            guestName: undefined,
+          } as any),
         ).rejects.toThrow(BadRequestException);
       });
 
       it('rejects anonymous order missing guestPhone', async () => {
         await expect(
-          service.createOrder(null, { ...guestDto, guestPhone: undefined } as any),
+          service.createOrder(null, {
+            ...guestDto,
+            guestPhone: undefined,
+          } as any),
         ).rejects.toThrow(BadRequestException);
       });
 
@@ -997,12 +1006,18 @@ describe('OrdersService', () => {
             invalidPairs.push([from, to]);
             continue;
           }
-          (VALID[from].includes(to) ? validPairs : invalidPairs).push([from, to]);
+          (VALID[from].includes(to) ? validPairs : invalidPairs).push([
+            from,
+            to,
+          ]);
         }
       }
 
       it.each(validPairs)('allows %s -> %s', async (from, to) => {
-        prisma.order.findUnique.mockResolvedValue({ ...mockOrder, status: from });
+        prisma.order.findUnique.mockResolvedValue({
+          ...mockOrder,
+          status: from,
+        });
         mockStatusTx({ ...mockOrder, status: to });
 
         const result = await service.updateOrderStatus(
@@ -1014,13 +1029,19 @@ describe('OrdersService', () => {
         expect(result.status).toBe(to);
       });
 
-      it.each(invalidPairs)('rejects %s -> %s with BadRequest', async (from, to) => {
-        prisma.order.findUnique.mockResolvedValue({ ...mockOrder, status: from });
+      it.each(invalidPairs)(
+        'rejects %s -> %s with BadRequest',
+        async (from, to) => {
+          prisma.order.findUnique.mockResolvedValue({
+            ...mockOrder,
+            status: from,
+          });
 
-        await expect(
-          service.updateOrderStatus('order-1', { status: to }, 'admin-1'),
-        ).rejects.toThrow(BadRequestException);
-      });
+          await expect(
+            service.updateOrderStatus('order-1', { status: to }, 'admin-1'),
+          ).rejects.toThrow(BadRequestException);
+        },
+      );
     });
   });
 
