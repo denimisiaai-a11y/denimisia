@@ -1,0 +1,283 @@
+'use client';
+
+import { useState } from 'react';
+import Image from 'next/image';
+import Link from 'next/link';
+import { useSession } from 'next-auth/react';
+import { useCart } from '@/stores/cart';
+import { formatPrice } from '@/lib/utils';
+
+const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api/v1';
+
+export default function CheckoutPage() {
+  const { data: session, status } = useSession();
+  const { items, total, count, clearCart } = useCart();
+
+  const [street, setStreet] = useState('');
+  const [city, setCity] = useState('');
+  const [state, setState] = useState('');
+  const [zip, setZip] = useState('');
+  const [phone, setPhone] = useState('');
+  const [discountCode, setDiscountCode] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [orderPlaced, setOrderPlaced] = useState<string | null>(null);
+
+  // Shipping calculation
+  const subtotal = total();
+  const isDhaka = city.toLowerCase().includes('dhaka');
+  const shippingCost = subtotal >= 1500 ? 0 : isDhaka ? 80 : 120;
+  const grandTotal = subtotal + shippingCost;
+
+  if (status === 'loading') {
+    return (
+      <div className="flex min-h-screen items-center justify-center pt-24">
+        <p className="text-sm text-muted">Loading...</p>
+      </div>
+    );
+  }
+
+  if (status === 'unauthenticated') {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 pt-24">
+        <p className="text-sm text-muted">You need to sign in to checkout.</p>
+        <Link href="/login" className="btn-pill btn-pill-outline !border-ink !text-ink">
+          Sign In
+        </Link>
+      </div>
+    );
+  }
+
+  if (count() === 0 && !orderPlaced) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 pt-24">
+        <p className="text-sm text-muted">Your cart is empty.</p>
+        <Link href="/" className="btn-pill btn-pill-outline !border-ink !text-ink">
+          Continue Shopping
+        </Link>
+      </div>
+    );
+  }
+
+  if (orderPlaced) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 px-6 pt-24 text-center">
+        <h1 className="text-2xl font-medium uppercase tracking-[0.2em] text-ink">
+          Order Placed
+        </h1>
+        <p className="text-sm text-muted">
+          Thank you! Your order #{orderPlaced.slice(-8).toUpperCase()} has been placed.
+        </p>
+        <p className="text-sm text-muted">
+          Payment method: Cash on Delivery (COD)
+        </p>
+        <Link href="/account/orders" className="btn-pill btn-pill-outline !border-ink !text-ink mt-4">
+          View Orders
+        </Link>
+      </div>
+    );
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    try {
+      const accessToken = (session as any)?.accessToken;
+      if (!accessToken) {
+        setError('Session expired. Please sign in again.');
+        return;
+      }
+
+      const res = await fetch(`${API}/orders`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          items: items.map((item) => ({
+            variantId: item.variantId,
+            quantity: item.qty,
+          })),
+          shippingAddress: { street, city, state, zip, phone },
+          ...(discountCode.trim() ? { discountCode: discountCode.trim() } : {}),
+        }),
+      });
+
+      const json = await res.json();
+
+      if (!res.ok || !json.success) {
+        const msg = Array.isArray(json.error) ? json.error[0] : json.error ?? 'Failed to place order';
+        setError(msg);
+        return;
+      }
+
+      clearCart();
+      setOrderPlaced(json.data.id);
+    } catch {
+      setError('Something went wrong. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="mx-auto max-w-[1440px] px-6 pb-20 pt-28 lg:px-12">
+      <h1 className="mb-10 text-2xl font-medium uppercase tracking-[0.2em] text-ink">
+        Checkout
+      </h1>
+
+      <div className="grid gap-12 lg:grid-cols-[1fr_400px]">
+        {/* Left: Shipping form */}
+        <form onSubmit={handleSubmit} id="checkout-form" className="space-y-5">
+          {error && (
+            <p className="text-sm text-error">{error}</p>
+          )}
+
+          <h2 className="text-xs font-semibold uppercase tracking-[0.15em] text-ink">
+            Shipping Address
+          </h2>
+
+          <div>
+            <label htmlFor="street" className="mb-1.5 block text-xs text-muted">Street Address</label>
+            <input
+              id="street"
+              type="text"
+              value={street}
+              onChange={(e) => setStreet(e.target.value)}
+              required
+              className="w-full border border-border bg-transparent px-4 py-3 text-sm text-ink outline-none focus:border-ink"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="city" className="mb-1.5 block text-xs text-muted">City</label>
+              <input
+                id="city"
+                type="text"
+                value={city}
+                onChange={(e) => setCity(e.target.value)}
+                required
+                className="w-full border border-border bg-transparent px-4 py-3 text-sm text-ink outline-none focus:border-ink"
+              />
+            </div>
+            <div>
+              <label htmlFor="state" className="mb-1.5 block text-xs text-muted">Division/State</label>
+              <input
+                id="state"
+                type="text"
+                value={state}
+                onChange={(e) => setState(e.target.value)}
+                required
+                className="w-full border border-border bg-transparent px-4 py-3 text-sm text-ink outline-none focus:border-ink"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="zip" className="mb-1.5 block text-xs text-muted">Postal Code</label>
+              <input
+                id="zip"
+                type="text"
+                value={zip}
+                onChange={(e) => setZip(e.target.value)}
+                required
+                className="w-full border border-border bg-transparent px-4 py-3 text-sm text-ink outline-none focus:border-ink"
+              />
+            </div>
+            <div>
+              <label htmlFor="phone" className="mb-1.5 block text-xs text-muted">Phone</label>
+              <input
+                id="phone"
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                required
+                className="w-full border border-border bg-transparent px-4 py-3 text-sm text-ink outline-none focus:border-ink"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label htmlFor="discount" className="mb-1.5 block text-xs text-muted">Discount Code (optional)</label>
+            <input
+              id="discount"
+              type="text"
+              value={discountCode}
+              onChange={(e) => setDiscountCode(e.target.value)}
+              className="w-full border border-border bg-transparent px-4 py-3 text-sm text-ink outline-none focus:border-ink"
+              placeholder="e.g. WELCOME10"
+            />
+          </div>
+
+          <div className="pt-2">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-[0.1em] text-ink">Payment Method</p>
+            <div className="flex items-center gap-3 border border-ink p-4">
+              <div className="flex h-4 w-4 items-center justify-center rounded-full border-2 border-ink">
+                <div className="h-2 w-2 rounded-full bg-ink" />
+              </div>
+              <span className="text-sm text-ink">Cash on Delivery (COD)</span>
+            </div>
+          </div>
+        </form>
+
+        {/* Right: Order summary */}
+        <div className="lg:sticky lg:top-28 lg:self-start">
+          <div className="border border-border p-6">
+            <h2 className="mb-4 text-xs font-semibold uppercase tracking-[0.15em] text-ink">
+              Order Summary
+            </h2>
+
+            <div className="space-y-4">
+              {items.map((item) => (
+                <div key={item.variantId} className="flex gap-3">
+                  <div className="relative h-16 w-12 flex-shrink-0 overflow-hidden bg-muted-bg">
+                    <Image src={item.image} alt={item.productName} fill className="object-cover" sizes="48px" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm text-ink">{item.productName}</p>
+                    <p className="text-xs text-muted">{item.color} / {item.size} &times; {item.qty}</p>
+                  </div>
+                  <p className="text-sm text-ink">{formatPrice(item.price * item.qty)}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-6 space-y-2 border-t border-border pt-4">
+              <div className="flex justify-between text-sm">
+                <span className="text-muted">Subtotal</span>
+                <span className="text-ink">{formatPrice(subtotal)}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted">Shipping</span>
+                <span className="text-ink">
+                  {shippingCost === 0 ? 'Free' : formatPrice(shippingCost)}
+                </span>
+              </div>
+              {shippingCost === 0 && (
+                <p className="text-xs text-success">Free shipping on orders over ৳1,500</p>
+              )}
+              <div className="flex justify-between border-t border-border pt-2 text-base font-semibold">
+                <span className="text-ink">Total</span>
+                <span className="text-ink">{formatPrice(grandTotal)}</span>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              form="checkout-form"
+              disabled={loading}
+              className="mt-6 w-full bg-ink py-3.5 text-sm font-semibold uppercase tracking-[0.15em] text-paper transition-colors hover:bg-ink/90 disabled:bg-muted"
+            >
+              {loading ? 'Placing order...' : `Place Order — ${formatPrice(grandTotal)}`}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

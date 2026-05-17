@@ -1,0 +1,88 @@
+import NextAuth from 'next-auth';
+import type { NextAuthResult } from 'next-auth';
+import Credentials from 'next-auth/providers/credentials';
+
+const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api/v1';
+
+const nextAuth: NextAuthResult = NextAuth({
+  providers: [
+    Credentials({
+      name: 'credentials',
+      credentials: {
+        email: { label: 'Email', type: 'email' },
+        password: { label: 'Password', type: 'password' },
+      },
+      async authorize(credentials) {
+        if (!credentials?.email || !credentials?.password) return null;
+
+        try {
+          const res = await fetch(`${API}/auth/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              email: credentials.email,
+              password: credentials.password,
+            }),
+          });
+
+          if (!res.ok) return null;
+
+          const json = await res.json();
+          if (!json.success) return null;
+
+          const { accessToken, user } = json.data;
+
+          return {
+            id: user.id,
+            email: user.email,
+            name: `${user.firstName} ${user.lastName}`,
+            accessToken,
+            role: user.role,
+          };
+        } catch {
+          return null;
+        }
+      },
+    }),
+  ],
+  callbacks: {
+    async jwt({ token, user }) {
+      if (user) {
+        token.id = user.id;
+        token.accessToken = (user as any).accessToken;
+        token.role = (user as any).role;
+      }
+      return token;
+    },
+    async session({ session, token }) {
+      if (session.user) {
+        session.user.id = token.id as string;
+        (session as any).accessToken = token.accessToken;
+        (session as any).user.role = token.role;
+      }
+      return session;
+    },
+  },
+  pages: {
+    signIn: '/login',
+  },
+  session: {
+    strategy: 'jwt',
+  },
+  secret: process.env.NEXTAUTH_SECRET,
+  logger: {
+    error(error) {
+      if (error?.name === 'JWTSessionError') return;
+      console.error(error);
+    },
+    warn(code) {
+      console.warn(code);
+    },
+    debug() {},
+  },
+});
+
+export const handlers: NextAuthResult['handlers'] = nextAuth.handlers;
+export const signIn: NextAuthResult['signIn'] = nextAuth.signIn;
+export const signOut: NextAuthResult['signOut'] = nextAuth.signOut;
+export const auth: NextAuthResult['auth'] = nextAuth.auth;
