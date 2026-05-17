@@ -368,13 +368,23 @@ export class AnalyticsService {
       take: limit,
     });
 
-    const userIds = grouped.map((g) => g.userId);
+    // Guest orders carry userId = NULL and are excluded from the
+    // "top customers" leaderboard by design — there's no User row to point
+    // at, and an unverified guest email is not a stable customer identity.
+    // Phase 1 amendment C2's verified-email-attach flow folds those orders
+    // into the new account, at which point they start counting toward this
+    // metric. Filter nulls before the user lookup to keep the type tight.
+    const userIds = grouped
+      .map((g) => g.userId)
+      .filter((id): id is string => id !== null);
     const users = await this.prisma.user.findMany({
       where: { id: { in: userIds } },
       select: { id: true, firstName: true, lastName: true, email: true },
     });
 
-    return grouped.map((g) => {
+    return grouped
+      .filter((g): g is typeof g & { userId: string } => g.userId !== null)
+      .map((g) => {
       const u = users.find((x) => x.id === g.userId);
       return {
         user: u
@@ -428,18 +438,30 @@ export class AnalyticsService {
         status: true,
         total: true,
         createdAt: true,
+        // user row is null for guest checkout orders; guestName + guestEmail
+        // carry the customer contact in that case.
         user: { select: { firstName: true, lastName: true, email: true } },
+        guestName: true,
+        guestEmail: true,
       },
     });
 
-    return orders.map((o) => ({
-      id: o.id,
-      status: o.status,
-      total: Number(o.total),
-      createdAt: o.createdAt.toISOString(),
-      customer: `${o.user.firstName} ${o.user.lastName}`.trim(),
-      email: o.user.email,
-    }));
+    return orders.map((o) => {
+      const isGuest = !o.user;
+      const customer = isGuest
+        ? (o.guestName ?? 'Guest')
+        : `${o.user!.firstName} ${o.user!.lastName}`.trim();
+      const email = isGuest ? (o.guestEmail ?? '') : o.user!.email;
+      return {
+        id: o.id,
+        status: o.status,
+        total: Number(o.total),
+        createdAt: o.createdAt.toISOString(),
+        customer,
+        email,
+        isGuest,
+      };
+    });
   }
 
   async getOrdersByStatus() {

@@ -17,8 +17,13 @@ const TRUNCATED_SUFFIX = '…[truncated]';
 export class AuditLogService {
   constructor(private readonly prisma: PrismaService) {}
 
+  // userId is nullable so events emitted by guest-checkout flows (no
+  // authenticated actor) still leave an audit trail. Anonymous rows show
+  // up in the admin audit log with a "guest" badge keyed off userId IS
+  // NULL plus the order's guestEmail. See migration
+  // 20260517150000_guest_checkout_support.
   async log(
-    userId: string,
+    userId: string | null,
     action: string,
     entity: string,
     entityId?: string,

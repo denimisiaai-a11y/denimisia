@@ -334,6 +334,140 @@ describe('OrdersService', () => {
         }),
       );
     });
+
+    // ─── Guest checkout (LR-001 Phase 1 slice B) ───────────────────────────
+    //
+    // Locks the three guarantees of the guest flow:
+    //   1. createOrder(null, dto) without the full guest tuple throws 400
+    //      (the service guard, before the DB CHECK can throw an opaque error)
+    //   2. createOrder(null, dto) WITH the full guest tuple succeeds and the
+    //      Order row is written with userId=null + guest fields populated
+    //   3. createOrder(userId, dto) ignores any guest fields a logged-in
+    //      caller sends — userId always wins, guest fields stay null
+    //
+    // The auth/permission boundary is enforced at the controller level (POST
+    // /orders is the only endpoint that does NOT require JWT); these tests
+    // assert the service contract regardless of how the controller gates it.
+    describe('guest checkout', () => {
+      const guestDto = {
+        items: [{ productId: 'prod-1', variantId: 'var-1', quantity: 1 }],
+        shippingAddress: { city: 'Dhaka' },
+        guestEmail: 'guest@example.com',
+        guestName: 'Guest Buyer',
+        guestPhone: '+8801700000000',
+      };
+
+      it('rejects anonymous order missing guestEmail', async () => {
+        await expect(
+          service.createOrder(null, { ...guestDto, guestEmail: undefined } as any),
+        ).rejects.toThrow(BadRequestException);
+      });
+
+      it('rejects anonymous order missing guestName', async () => {
+        await expect(
+          service.createOrder(null, { ...guestDto, guestName: undefined } as any),
+        ).rejects.toThrow(BadRequestException);
+      });
+
+      it('rejects anonymous order missing guestPhone', async () => {
+        await expect(
+          service.createOrder(null, { ...guestDto, guestPhone: undefined } as any),
+        ).rejects.toThrow(BadRequestException);
+      });
+
+      it('creates a guest order with userId=null and full contact tuple', async () => {
+        prisma.productVariant.findMany.mockResolvedValue([mockVariant]);
+
+        const mockTx = createMockTx();
+        mockTx.$queryRawUnsafe.mockResolvedValue([{ stock: 10 }]);
+        mockTx.order.create.mockResolvedValue({
+          ...mockOrder,
+          userId: null,
+          guestEmail: 'guest@example.com',
+        });
+        mockTx.productVariant.update.mockResolvedValue({});
+        mockTx.inventoryLog.create.mockResolvedValue({});
+
+        (prisma as any).$transaction.mockImplementation(async (cb: Function) =>
+          cb(mockTx),
+        );
+
+        await service.createOrder(null, guestDto as any);
+
+        expect(mockTx.order.create).toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: expect.objectContaining({
+              userId: null,
+              guestEmail: 'guest@example.com',
+              guestName: 'Guest Buyer',
+              guestPhone: '+8801700000000',
+            }),
+          }),
+        );
+        // Guests have no Cart row keyed by userId. The service must not try
+        // to clear a cart that doesn't exist.
+        expect(prisma.cart.findUnique).not.toHaveBeenCalled();
+      });
+
+      it('emits order.created with userId=null for guest order', async () => {
+        prisma.productVariant.findMany.mockResolvedValue([mockVariant]);
+
+        const mockTx = createMockTx();
+        mockTx.$queryRawUnsafe.mockResolvedValue([{ stock: 10 }]);
+        mockTx.order.create.mockResolvedValue({
+          ...mockOrder,
+          id: 'order-guest-1',
+          userId: null,
+        });
+        mockTx.productVariant.update.mockResolvedValue({});
+        mockTx.inventoryLog.create.mockResolvedValue({});
+
+        (prisma as any).$transaction.mockImplementation(async (cb: Function) =>
+          cb(mockTx),
+        );
+
+        await service.createOrder(null, guestDto as any);
+
+        expect(eventEmitter.emit).toHaveBeenCalledWith(
+          'order.created',
+          expect.objectContaining({
+            orderId: 'order-guest-1',
+            userId: null,
+          }),
+        );
+      });
+
+      it('ignores guest fields when a userId is supplied (logged-in wins)', async () => {
+        // Logged-in customer who somehow sends guestEmail in the body. The
+        // service must NOT write that guestEmail to the Order — the user's
+        // identity wins. (Defense against confused or malicious clients.)
+        prisma.productVariant.findMany.mockResolvedValue([mockVariant]);
+
+        const mockTx = createMockTx();
+        mockTx.$queryRawUnsafe.mockResolvedValue([{ stock: 10 }]);
+        mockTx.order.create.mockResolvedValue(mockOrder);
+        mockTx.productVariant.update.mockResolvedValue({});
+        mockTx.inventoryLog.create.mockResolvedValue({});
+
+        (prisma as any).$transaction.mockImplementation(async (cb: Function) =>
+          cb(mockTx),
+        );
+        prisma.cart.findUnique.mockResolvedValue(null);
+
+        await service.createOrder('user-1', guestDto as any);
+
+        expect(mockTx.order.create).toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: expect.objectContaining({
+              userId: 'user-1',
+              guestEmail: null,
+              guestName: null,
+              guestPhone: null,
+            }),
+          }),
+        );
+      });
+    });
   });
 
   // ─── getMyOrders() ────────────────────────────────────────────────────────

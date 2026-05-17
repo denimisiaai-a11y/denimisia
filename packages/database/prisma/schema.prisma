@@ -3,8 +3,14 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  // Pooler in transaction mode (port 6543) for runtime queries — gives
+  // the API IPv4 + connection pooling.
+  url       = env("DATABASE_URL")
+  // Pooler in session mode (port 5432) for migrations — Prisma migrate
+  // needs session-level advisory locks which transaction mode rejects.
+  // See https://www.prisma.io/docs/orm/overview/databases/supabase
+  directUrl = env("DIRECT_URL")
 }
 
 // ─── Enums ────────────────────────────────────────────────────────────────────
@@ -277,8 +283,18 @@ model WishlistItem {
 
 model Order {
   id              String      @id @default(cuid())
-  userId          String
-  user            User        @relation(fields: [userId], references: [id], onDelete: Restrict)
+  // userId is nullable so customers can complete an order as a guest. The
+  // DB-level CHECK constraint Order_owner_check enforces "either userId
+  // OR the full guest tuple (email + name + phone)". See migration
+  // 20260517150000_guest_checkout_support.
+  userId          String?
+  user            User?       @relation(fields: [userId], references: [id], onDelete: Restrict)
+  // Guest checkout contact tuple. NULL on logged-in orders. Populated
+  // together on guest orders. After a verified-email signup, the C2
+  // attach flow copies userId in and clears these three.
+  guestEmail      String?
+  guestName       String?
+  guestPhone      String?
   status          OrderStatus @default(PENDING)
   items           OrderItem[]
   shippingAddress Json
@@ -302,6 +318,7 @@ model Order {
   @@index([userId, status])
   @@index([status, createdAt])
   @@index([trackingNumber])
+  @@index([guestEmail])
 }
 
 model OrderItem {
@@ -516,8 +533,12 @@ model BundleItem {
 
 model AuditLog {
   id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+  // userId is nullable for events emitted by guest-checkout flows where
+  // there is no authenticated actor. See migration
+  // 20260517150000_guest_checkout_support for the rationale + admin
+  // audit-log UI implications.
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: Restrict)
   action    String
   entity    String
   entityId  String?

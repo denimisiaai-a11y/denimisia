@@ -21,7 +21,22 @@ export class OrdersService {
     private eventEmitter: EventEmitter2,
   ) {}
 
-  async createOrder(userId: string, dto: CreateOrderDto) {
+  // userId is `string | null`. When null, the caller is anonymous and the
+  // dto MUST carry the full guest tuple (email + name + phone). The DB-
+  // level CHECK Order_owner_check is the last line of defense; this guard
+  // produces the user-facing 400 first so attackers can't probe schema by
+  // triggering opaque DB errors.
+  async createOrder(userId: string | null, dto: CreateOrderDto) {
+    const isGuest = userId === null;
+    if (isGuest) {
+      const { guestEmail, guestName, guestPhone } = dto;
+      if (!guestEmail || !guestName || !guestPhone) {
+        throw new BadRequestException(
+          'Guest checkout requires guestEmail + guestName + guestPhone',
+        );
+      }
+    }
+
     // Validate all variants and check stock
     const variantIds = dto.items.map((i) => i.variantId);
     const variants = await this.prisma.productVariant.findMany({
@@ -148,7 +163,14 @@ export class OrdersService {
 
       const created = await tx.order.create({
         data: {
+          // Logged-in: write userId, leave guest tuple null. Anonymous:
+          // write the guest tuple, leave userId null. The DB CHECK
+          // constraint rejects "neither"; the service guard above rejects
+          // it with a friendlier 400 first.
           userId,
+          guestEmail: userId ? null : dto.guestEmail,
+          guestName: userId ? null : dto.guestName,
+          guestPhone: userId ? null : dto.guestPhone,
           shippingAddress: dto.shippingAddress as any,
           billingAddress: dto.billingAddress as any,
           subtotal,
@@ -195,10 +217,13 @@ export class OrdersService {
       return created;
     });
 
-    // Clear user's cart after successful order
-    const cart = await this.prisma.cart.findUnique({ where: { userId } });
-    if (cart) {
-      await this.prisma.cartItem.deleteMany({ where: { cartId: cart.id } });
+    // Clear cart after successful checkout. Guests have no Cart row (cart
+    // is keyed by userId), so this only runs for authenticated customers.
+    if (userId) {
+      const cart = await this.prisma.cart.findUnique({ where: { userId } });
+      if (cart) {
+        await this.prisma.cartItem.deleteMany({ where: { cartId: cart.id } });
+      }
     }
 
     this.eventEmitter.emit(
