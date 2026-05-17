@@ -134,6 +134,34 @@ export class CartService {
     if (!guestCartData) return;
 
     const guestItems: GuestCartItem[] = JSON.parse(guestCartData);
+
+    // Pre-fetch every variant referenced by variant lines in one query
+    // (LR-001 BUG #11). The pre-LR-001 shape did one findUnique per item
+    // which was O(N) DB calls during signup-time merge — bounded by a
+    // small typical cart today but unbounded as catalog growth pushes
+    // larger guest carts. Bundle lines skip this lookup; they route
+    // through addBundleItem which does its own bundle-scoped validation.
+    const variantItems = guestItems.filter(
+      (item): item is GuestCartItem & { variantId: string } =>
+        !item.bundleId && !!item.variantId,
+    );
+    const variantStockMap = new Map<
+      string,
+      { stock: number; productId: string }
+    >();
+    if (variantItems.length > 0) {
+      const variants = await this.prisma.productVariant.findMany({
+        where: { id: { in: variantItems.map((i) => i.variantId) } },
+        select: { id: true, stock: true, productId: true },
+      });
+      for (const v of variants) {
+        variantStockMap.set(v.id, {
+          stock: v.stock,
+          productId: v.productId,
+        });
+      }
+    }
+
     for (const item of guestItems) {
       if (item.bundleId && item.bundleSlug && item.bundleSize) {
         try {
@@ -159,18 +187,14 @@ export class CartService {
         );
         continue;
       }
-      // Re-validate stock at merge time — guest cart may be days old.
-      const variant = await this.prisma.productVariant.findUnique({
-        where: { id: item.variantId },
-        select: { id: true, stock: true },
-      });
-      if (!variant) {
+      const meta = variantStockMap.get(item.variantId);
+      if (!meta) {
         this.logger.warn(
           `mergeGuestCart: skipping missing variant ${item.variantId}`,
         );
         continue;
       }
-      if (variant.stock <= 0) {
+      if (meta.stock <= 0) {
         this.logger.warn(
           `mergeGuestCart: skipping out-of-stock variant ${item.variantId}`,
         );
@@ -178,7 +202,7 @@ export class CartService {
       }
       const cappedQty = Math.min(
         item.quantity,
-        variant.stock,
+        meta.stock,
         CartService.MAX_QUANTITY_PER_ITEM,
       );
       if (cappedQty !== item.quantity) {
@@ -187,7 +211,7 @@ export class CartService {
         );
       }
       await this.addToUserCart(userId, {
-        productId: item.productId ?? '',
+        productId: meta.productId,
         variantId: item.variantId,
         quantity: cappedQty,
       });

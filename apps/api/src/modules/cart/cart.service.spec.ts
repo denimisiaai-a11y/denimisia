@@ -410,6 +410,11 @@ describe('CartService', () => {
       redis.get.mockResolvedValue(JSON.stringify(guestItems));
       redis.del.mockResolvedValue(1);
 
+      // Pre-fetch all variants in one batched call (BUG #11 fix).
+      prisma.productVariant.findMany.mockResolvedValue([
+        { id: 'var-1', stock: 5, productId: 'prod-1' },
+      ]);
+
       // addToUserCart mock chain
       prisma.cart.findUnique.mockResolvedValue({
         id: 'cart-1',
@@ -423,6 +428,11 @@ describe('CartService', () => {
 
       await service.mergeGuestCart('user-1', 'session-123');
 
+      // The batched findMany replaces the per-item findUnique loop.
+      expect(prisma.productVariant.findMany).toHaveBeenCalledWith({
+        where: { id: { in: ['var-1'] } },
+        select: { id: true, stock: true, productId: true },
+      });
       expect(redis.get).toHaveBeenCalledWith('cart:session-123');
       expect(redis.del).toHaveBeenCalledWith('cart:session-123');
     });
