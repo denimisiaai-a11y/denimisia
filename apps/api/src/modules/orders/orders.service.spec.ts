@@ -729,6 +729,83 @@ describe('OrdersService', () => {
 
       expect(result.status).toBe('DELIVERED');
     });
+
+    // ─── Parameterized full transition matrix (LR-001 amendment C3) ─────────
+    //
+    // Locks every (from, to) pair against the VALID_TRANSITIONS table in
+    // orders.service.ts. Adding a state, renaming a state, or changing
+    // which transitions are legal MUST update this matrix in the same PR
+    // so the contract stays auditable. Each invalid pair must throw
+    // BadRequestException; each valid pair must resolve cleanly.
+    //
+    // Valid transitions per VALID_TRANSITIONS:
+    //   PENDING        -> CONFIRMED, CANCELLED, PAYMENT_FAILED
+    //   CONFIRMED      -> PROCESSING, CANCELLED
+    //   PROCESSING     -> SHIPPED, CANCELLED
+    //   SHIPPED        -> DELIVERED, RETURNED
+    //   DELIVERED      -> RETURNED
+    //   CANCELLED      -> {} terminal
+    //   RETURNED       -> REFUNDED
+    //   REFUNDED       -> {} terminal
+    //   PAYMENT_FAILED -> PENDING, CANCELLED
+    describe('full transition matrix', () => {
+      const ALL_STATES = [
+        'PENDING',
+        'CONFIRMED',
+        'PROCESSING',
+        'SHIPPED',
+        'DELIVERED',
+        'CANCELLED',
+        'REFUNDED',
+        'PAYMENT_FAILED',
+        'RETURNED',
+      ] as const;
+
+      const VALID: Record<string, string[]> = {
+        PENDING: ['CONFIRMED', 'CANCELLED', 'PAYMENT_FAILED'],
+        CONFIRMED: ['PROCESSING', 'CANCELLED'],
+        PROCESSING: ['SHIPPED', 'CANCELLED'],
+        SHIPPED: ['DELIVERED', 'RETURNED'],
+        DELIVERED: ['RETURNED'],
+        CANCELLED: [],
+        RETURNED: ['REFUNDED'],
+        REFUNDED: [],
+        PAYMENT_FAILED: ['PENDING', 'CANCELLED'],
+      };
+
+      const validPairs: Array<[string, string]> = [];
+      const invalidPairs: Array<[string, string]> = [];
+      for (const from of ALL_STATES) {
+        for (const to of ALL_STATES) {
+          if (from === to) {
+            invalidPairs.push([from, to]);
+            continue;
+          }
+          (VALID[from].includes(to) ? validPairs : invalidPairs).push([from, to]);
+        }
+      }
+
+      it.each(validPairs)('allows %s -> %s', async (from, to) => {
+        prisma.order.findUnique.mockResolvedValue({ ...mockOrder, status: from });
+        mockStatusTx({ ...mockOrder, status: to });
+
+        const result = await service.updateOrderStatus(
+          'order-1',
+          { status: to },
+          'admin-1',
+        );
+
+        expect(result.status).toBe(to);
+      });
+
+      it.each(invalidPairs)('rejects %s -> %s with BadRequest', async (from, to) => {
+        prisma.order.findUnique.mockResolvedValue({ ...mockOrder, status: from });
+
+        await expect(
+          service.updateOrderStatus('order-1', { status: to }, 'admin-1'),
+        ).rejects.toThrow(BadRequestException);
+      });
+    });
   });
 
   // ─── getStatusHistory() ──────────────────────────────────────────────────
