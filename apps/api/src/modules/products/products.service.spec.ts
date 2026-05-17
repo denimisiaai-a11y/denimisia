@@ -237,12 +237,40 @@ describe('ProductsService', () => {
   // ─── findNewArrivals() ────────────────────────────────────────────────────
 
   describe('findNewArrivals', () => {
-    it('should return up to 8 latest active products', async () => {
+    it('returns up to 8 admin-flagged isNewArrival products', async () => {
       prisma.product.findMany.mockResolvedValue([mockProduct]);
 
       const result = await service.findNewArrivals();
 
       expect(prisma.product.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { isActive: true, isNewArrival: true },
+          take: 8,
+          orderBy: { createdAt: 'desc' },
+        }),
+      );
+      expect(result).toEqual([mockProduct]);
+    });
+
+    it('falls back to recent active products when no flagged rows exist', async () => {
+      // First call: zero flagged rows.
+      // Second call (fallback): a populated list keeps the homepage section
+      // from rendering empty.
+      prisma.product.findMany
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([mockProduct]);
+
+      const result = await service.findNewArrivals();
+
+      expect(prisma.product.findMany).toHaveBeenCalledTimes(2);
+      expect(prisma.product.findMany).toHaveBeenNthCalledWith(
+        1,
+        expect.objectContaining({
+          where: { isActive: true, isNewArrival: true },
+        }),
+      );
+      expect(prisma.product.findMany).toHaveBeenNthCalledWith(
+        2,
         expect.objectContaining({
           where: { isActive: true },
           take: 8,

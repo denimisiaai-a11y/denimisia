@@ -181,26 +181,35 @@ describe('AuthService', () => {
 
       await service.register(registerDto);
 
-      // Note: the service reads secrets directly from the `env` helper rather
-      // than ConfigService, so we don't assert specific secret values here;
-      // we just verify that signAsync was called twice with the expected
-      // payload and expiry windows.
-      expect(jwt.signAsync).toHaveBeenCalledWith(
-        expect.objectContaining({
-          sub: 'user-new',
-          email: registerDto.email,
-          role: 'CUSTOMER',
-        }),
-        expect.objectContaining({ expiresIn: '15m' }),
-      );
-      expect(jwt.signAsync).toHaveBeenCalledWith(
-        expect.objectContaining({
-          sub: 'user-new',
-          email: registerDto.email,
-          role: 'CUSTOMER',
-        }),
-        expect.objectContaining({ expiresIn: '7d' }),
-      );
+      // The service reads expiry windows + secrets from the `env` helper, so we
+      // assert the structural shape (algorithm + issuer + audience + presence of
+      // each option) rather than specific values that swing with env. We also
+      // assert the two calls used DIFFERENT secrets — same-secret-for-access-
+      // and-refresh would be a security regression (refresh tokens have a much
+      // longer life and must not validate as access tokens).
+      expect(jwt.signAsync).toHaveBeenCalledTimes(2);
+
+      const expectedPayload = expect.objectContaining({
+        sub: 'user-new',
+        email: registerDto.email,
+        role: 'CUSTOMER',
+      });
+      const expectedOptionsShape = expect.objectContaining({
+        algorithm: 'HS256',
+        issuer: 'denimisia-api',
+        audience: 'denimisia-clients',
+        expiresIn: expect.anything(),
+        secret: expect.any(String),
+      });
+
+      expect(jwt.signAsync).toHaveBeenNthCalledWith(1, expectedPayload, expectedOptionsShape);
+      expect(jwt.signAsync).toHaveBeenNthCalledWith(2, expectedPayload, expectedOptionsShape);
+
+      const firstCallSecret = jwt.signAsync.mock.calls[0][1].secret;
+      const secondCallSecret = jwt.signAsync.mock.calls[1][1].secret;
+      expect(firstCallSecret).toBeTruthy();
+      expect(secondCallSecret).toBeTruthy();
+      expect(firstCallSecret).not.toBe(secondCallSecret);
     });
   });
 
