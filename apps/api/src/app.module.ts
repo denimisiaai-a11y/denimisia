@@ -33,6 +33,7 @@ import { MediaModule } from './modules/media/media.module';
 import { CurationModule } from './modules/curation/curation.module';
 import { HealthModule } from './common/health/health.module';
 import { BulkModule } from './common/bulk/bulk.module';
+import { EmailModule } from './modules/email/email.module';
 
 @Module({
   imports: [
@@ -68,6 +69,7 @@ import { BulkModule } from './common/bulk/bulk.module';
     CurationModule,
     HealthModule,
     BulkModule,
+    EmailModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
