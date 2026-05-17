@@ -5,41 +5,64 @@ import {
   IsArray,
   ArrayMaxSize,
   ArrayMinSize,
-  Matches,
+  IsInt,
+  Min,
+  Max,
+  ValidateNested,
+  MaxLength,
 } from 'class-validator';
-
-// Product IDs are Prisma cuid() — lowercase alphanumeric, 25 chars starting
-// with "c". Constraining the shape blocks obviously-malformed input at the
-// validation layer without coupling to Prisma's exact format.
-const CUID_PATTERN = /^c[a-z0-9]{24}$/;
+import { Type } from 'class-transformer';
+import { BundleItemInputDto } from './bundle-item-input.dto';
 
 export class CreateBundleDto {
   @IsString()
   @IsNotEmpty()
-  name: string;
+  @MaxLength(120)
+  name!: string;
 
   @IsString()
   @IsNotEmpty()
-  slug: string;
+  @MaxLength(120)
+  slug!: string;
 
   @IsOptional()
   @IsString()
+  @MaxLength(500)
   description?: string;
 
   @IsString()
   @IsNotEmpty()
-  badgeText: string;
+  @MaxLength(120)
+  badgeText!: string;
 
   @IsOptional()
   @IsString()
+  @MaxLength(500)
   image?: string;
+
+  // bundlePrice is in cents (Int). Min 1 cent so a placeholder bundle can
+  // never reach the storefront with a ৳0 "free" price. Max 100,000 units
+  // is an overflow guard, well above any realistic Denim bundle.
+  @IsInt()
+  @Min(1)
+  @Max(10_000_000)
+  bundlePrice!: number;
+
+  // The set of sizes the customer can pick from when buying this bundle.
+  // Service-layer integrity check (assertBundleIntegrity) verifies that
+  // every (item.productId, item.color, size) tuple resolves to a real
+  // ProductVariant before the create succeeds.
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(20)
+  @IsString({ each: true })
+  @MaxLength(16, { each: true })
+  availableSizes!: string[];
 
   @IsArray()
   @ArrayMinSize(1)
   @ArrayMaxSize(50)
-  @Matches(CUID_PATTERN, {
-    each: true,
-    message: 'each productId must be a valid cuid',
-  })
-  productIds: string[];
+  @ValidateNested({ each: true })
+  @Type(() => BundleItemInputDto)
+  items!: BundleItemInputDto[];
 }

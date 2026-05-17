@@ -548,10 +548,21 @@ async function main() {
   ];
 
   for (const b of bundleSeeds) {
+    // isActive defaults to false on a fresh seed and is left untouched on
+    // re-seed. The LR-001 buyable-bundles migration deactivated the
+    // existing seed bundles because they hold placeholder values for
+    // bundlePrice + availableSizes + per-item color. Admin re-enables
+    // each one in the Phase 2C bundle UI after filling in real values.
     const bundle = await prisma.productBundle.upsert({
       where: { slug: b.slug },
-      update: { name: b.name, badgeText: b.badgeText, image: b.image, isActive: true },
-      create: { slug: b.slug, name: b.name, badgeText: b.badgeText, image: b.image, isActive: true },
+      update: { name: b.name, badgeText: b.badgeText, image: b.image },
+      create: {
+        slug: b.slug,
+        name: b.name,
+        badgeText: b.badgeText,
+        image: b.image,
+        isActive: false,
+      },
     });
     for (const slug of b.productSlugs) {
       const product = allProducts.find((p) => p.slug === slug);

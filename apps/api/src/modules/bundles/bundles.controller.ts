@@ -58,14 +58,18 @@ export class BundlesController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN, Role.SUPER_ADMIN)
   addItems(@Param('id') id: string, @Body() dto: AddBundleItemsDto) {
-    return this.bundlesService.addItems(id, dto.productIds);
+    return this.bundlesService.addItems(id, dto.items);
   }
 
-  @Delete(':id/items/:productId')
+  @Delete(':id/items/:productId/:color')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN, Role.SUPER_ADMIN)
   @HttpCode(HttpStatus.NO_CONTENT)
-  removeItem(@Param('id') id: string, @Param('productId') productId: string) {
-    return this.bundlesService.removeItem(id, productId);
+  removeItem(
+    @Param('id') id: string,
+    @Param('productId') productId: string,
+    @Param('color') color: string,
+  ) {
+    return this.bundlesService.removeItem(id, productId, color);
   }
 }

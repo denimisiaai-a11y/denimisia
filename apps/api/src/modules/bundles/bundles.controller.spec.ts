@@ -25,49 +25,65 @@ describe('BundlesController', () => {
     controller = module.get(BundlesController);
   });
 
-  it('should find all', async () => {
+  it('GET / dispatches to findAllActive', async () => {
     bundlesService.findAllActive.mockResolvedValue([]);
-    const result = await controller.findAll();
+    await controller.findAll();
     expect(bundlesService.findAllActive).toHaveBeenCalled();
   });
 
-  it('should find by slug', async () => {
+  it('GET /:slug dispatches to findBySlug', async () => {
     bundlesService.findBySlug.mockResolvedValue({ id: 'bun-1' });
-    const result = await controller.findBySlug('summer');
-    expect(bundlesService.findBySlug).toHaveBeenCalledWith('summer');
+    await controller.findBySlug('heritage-bundle');
+    expect(bundlesService.findBySlug).toHaveBeenCalledWith('heritage-bundle');
   });
 
-  it('should create', async () => {
+  it('POST / dispatches to create with the full DTO', async () => {
     bundlesService.create.mockResolvedValue({ id: 'bun-1' });
-    const result = await controller.create({ name: 'Summer' } as any);
-    expect(bundlesService.create).toHaveBeenCalledWith({ name: 'Summer' });
+    const dto = {
+      name: 'Heritage Bundle',
+      slug: 'heritage-bundle',
+      badgeText: 'BEST DEAL',
+      bundlePrice: 250000,
+      availableSizes: ['S', 'M', 'L'],
+      items: [
+        { productId: 'prod-1', color: 'Black' },
+        { productId: 'prod-2', color: 'Indigo' },
+      ],
+    };
+    await controller.create(dto as any);
+    expect(bundlesService.create).toHaveBeenCalledWith(dto);
   });
 
-  it('should update', async () => {
+  it('PATCH /:id dispatches to update', async () => {
     bundlesService.update.mockResolvedValue({ id: 'bun-1' });
-    const result = await controller.update('bun-1', { name: 'Updated' } as any);
+    await controller.update('bun-1', { name: 'Renamed' } as any);
     expect(bundlesService.update).toHaveBeenCalledWith('bun-1', {
-      name: 'Updated',
+      name: 'Renamed',
     });
   });
 
-  it('should delete', async () => {
+  it('DELETE /:id dispatches to delete', async () => {
     bundlesService.delete.mockResolvedValue(undefined);
     await controller.delete('bun-1');
     expect(bundlesService.delete).toHaveBeenCalledWith('bun-1');
   });
 
-  it('should add items', async () => {
+  it('POST /:id/items dispatches to addItems with the items array', async () => {
     bundlesService.addItems.mockResolvedValue({ id: 'bun-1' });
-    const result = await controller.addItems('bun-1', {
-      productIds: ['p1'],
-    } as any);
-    expect(bundlesService.addItems).toHaveBeenCalledWith('bun-1', ['p1']);
+    const dto = {
+      items: [{ productId: 'prod-3', color: 'Olive' }],
+    };
+    await controller.addItems('bun-1', dto as any);
+    expect(bundlesService.addItems).toHaveBeenCalledWith('bun-1', dto.items);
   });
 
-  it('should remove item', async () => {
+  it('DELETE /:id/items/:productId/:color dispatches to removeItem', async () => {
     bundlesService.removeItem.mockResolvedValue(undefined);
-    await controller.removeItem('bun-1', 'p1');
-    expect(bundlesService.removeItem).toHaveBeenCalledWith('bun-1', 'p1');
+    await controller.removeItem('bun-1', 'prod-1', 'Black');
+    expect(bundlesService.removeItem).toHaveBeenCalledWith(
+      'bun-1',
+      'prod-1',
+      'Black',
+    );
   });
 });
