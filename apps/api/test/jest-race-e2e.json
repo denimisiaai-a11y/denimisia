@@ -1,0 +1,21 @@
+{
+  "moduleFileExtensions": ["js", "json", "ts"],
+  "rootDir": ".",
+  "testEnvironment": "node",
+  "testRegex": "race/.+\\.e2e-spec\\.ts$",
+  "testTimeout": 60000,
+  "maxWorkers": 1,
+  "globalSetup": "<rootDir>/race/global-setup.ts",
+  "globalTeardown": "<rootDir>/race/global-teardown.ts",
+  "moduleNameMapper": {
+    "^isomorphic-dompurify$": "<rootDir>/../src/common/testing/dompurify.mock.ts"
+  },
+  "transform": {
+    "^.+\\.(t|j)s$": [
+      "ts-jest",
+      {
+        "tsconfig": "<rootDir>/../tsconfig.json"
+      }
+    ]
+  }
+}
