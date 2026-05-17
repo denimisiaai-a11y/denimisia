@@ -56,16 +56,25 @@ export class MediaService {
     totalAssets: number;
     byKind: Record<MediaKind, number>;
   }> {
-    const all = await this.prisma.mediaAsset.findMany({
-      select: { bytes: true, kind: true },
+    // Single SQL with SUM + COUNT per kind (LR-001 BUG #12). The pre-fix
+    // shape did a full-table findMany then summed in JS, which scaled
+    // O(N) in both DB transfer and process memory. groupBy returns one
+    // row per MediaKind (currently IMAGE + VIDEO) — O(K).
+    const grouped = await this.prisma.mediaAsset.groupBy({
+      by: ['kind'],
+      _sum: { bytes: true },
+      _count: { _all: true },
     });
     const byKind: Record<MediaKind, number> = { IMAGE: 0, VIDEO: 0 };
     let totalBytes = 0;
-    for (const a of all) {
-      totalBytes += a.bytes;
-      byKind[a.kind] += a.bytes;
+    let totalAssets = 0;
+    for (const g of grouped) {
+      const sumBytes = g._sum.bytes ?? 0;
+      byKind[g.kind] = sumBytes;
+      totalBytes += sumBytes;
+      totalAssets += g._count._all;
     }
-    return { totalBytes, totalAssets: all.length, byKind };
+    return { totalBytes, totalAssets, byKind };
   }
 
   /**
