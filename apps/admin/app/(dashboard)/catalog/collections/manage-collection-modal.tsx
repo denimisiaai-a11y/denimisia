@@ -20,6 +20,7 @@ import { useSession } from 'next-auth/react';
 import { adminFetch } from '@/lib/api';
 import { Modal } from '@/components/modal';
 import { Banner, PrimaryButton } from '@/components/admin-ui';
+import { ImageUploader } from '@/components/image-uploader';
 
 interface VariantSummary { readonly sku: string }
 
@@ -38,6 +39,7 @@ interface CollectionDetail {
   readonly name: string;
   readonly slug: string;
   readonly description: string | null;
+  readonly image: string | null;
   readonly isActive: boolean;
   readonly products: readonly { readonly productId: string; readonly product: ProductSummary }[];
 }
@@ -60,6 +62,7 @@ export function ManageCollectionModal({ open, collectionId, onClose, onChanged }
   const [name, setName] = useState('');
   const [slug, setSlug] = useState('');
   const [description, setDescription] = useState('');
+  const [image, setImage] = useState('');
   const [isActive, setIsActive] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -73,6 +76,7 @@ export function ManageCollectionModal({ open, collectionId, onClose, onChanged }
       setName(c.name);
       setSlug(c.slug);
       setDescription(c.description ?? '');
+      setImage(c.image ?? '');
       setIsActive(c.isActive);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load collection');
@@ -97,7 +101,13 @@ export function ManageCollectionModal({ open, collectionId, onClose, onChanged }
     try {
       await adminFetch(`/collections/${collectionId}`, token, {
         method: 'PATCH',
-        body: JSON.stringify({ name: name.trim(), slug: slug.trim(), description: description.trim() || null, isActive }),
+        body: JSON.stringify({
+          name: name.trim(),
+          slug: slug.trim(),
+          description: description.trim() || null,
+          image: image.trim() || null,
+          isActive,
+        }),
       });
       onChanged();
     } catch (err) {
@@ -105,7 +115,7 @@ export function ManageCollectionModal({ open, collectionId, onClose, onChanged }
     } finally {
       setSaving(false);
     }
-  }, [token, collectionId, name, slug, description, isActive, onChanged]);
+  }, [token, collectionId, name, slug, description, image, isActive, onChanged]);
 
   const addProduct = useCallback(async (productId: string) => {
     if (!token || !collectionId) return;
@@ -222,6 +232,22 @@ export function ManageCollectionModal({ open, collectionId, onClose, onChanged }
                   className="w-full rounded-md border border-outline-variant/20 bg-surface-container-low px-3 py-2 font-body text-sm text-on-surface focus:border-primary focus:outline-none"
                 />
               </label>
+              <div>
+                <p className="mb-2 block font-mono text-[10px] uppercase tracking-[0.2em] text-secondary">
+                  Collection cover image
+                </p>
+                <ImageUploader
+                  value={image ? [image] : []}
+                  onChange={(urls) => setImage(urls[0] ?? '')}
+                  token={token}
+                  folder="cms"
+                  maxFiles={1}
+                />
+                <p className="mt-2 text-[10px] tracking-wide text-secondary">
+                  Shown on the collections index tile and as the
+                  collection-detail hero fallback.
+                </p>
+              </div>
               <label className="flex items-center gap-2">
                 <input
                   type="checkbox"

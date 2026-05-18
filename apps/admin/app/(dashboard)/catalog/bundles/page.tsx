@@ -16,6 +16,7 @@ import {
 } from '@/components/admin-ui';
 import { Modal, ConfirmModal } from '@/components/modal';
 import { Field, TextArea, TextInput, slugify } from '@/components/form';
+import { ImageUploader } from '@/components/image-uploader';
 
 interface BundleItem {
   readonly productId: string;
@@ -29,6 +30,7 @@ interface Bundle {
   readonly slug: string;
   readonly price: number | string;
   readonly compareAtPrice?: number | string | null;
+  readonly image?: string | null;
   readonly isActive: boolean;
   readonly items?: readonly BundleItem[];
 }
@@ -221,6 +223,7 @@ function CreateBundleModal({ open, onClose, onCreated }: CreateBundleModalProps)
   const [slug, setSlug] = useState('');
   const [description, setDescription] = useState('');
   const [badgeText, setBadgeText] = useState('Editorial');
+  const [image, setImage] = useState('');
   const [productIds, setProductIds] = useState<readonly string[]>([]);
   const [productPool, setProductPool] = useState<readonly PickerProduct[]>([]);
   const [productQuery, setProductQuery] = useState('');
@@ -233,6 +236,7 @@ function CreateBundleModal({ open, onClose, onCreated }: CreateBundleModalProps)
       setSlug('');
       setDescription('');
       setBadgeText('Editorial');
+      setImage('');
       setProductIds([]);
       setProductQuery('');
       setFormError('');
@@ -283,6 +287,7 @@ function CreateBundleModal({ open, onClose, onCreated }: CreateBundleModalProps)
           slug: slug.trim(),
           description: description.trim() || undefined,
           badgeText: badgeText.trim(),
+          image: image.trim() || undefined,
           productIds,
         }),
       });
@@ -355,6 +360,19 @@ function CreateBundleModal({ open, onClose, onCreated }: CreateBundleModalProps)
           />
         </Field>
         <Field
+          label="Bundle image"
+          name="image"
+          hint="Hero image rendered on the storefront bundle card and bundle detail page."
+        >
+          <ImageUploader
+            value={image ? [image] : []}
+            onChange={(urls) => setImage(urls[0] ?? '')}
+            token={token}
+            folder="bundles"
+            maxFiles={1}
+          />
+        </Field>
+        <Field
           label={`Products (${productIds.length} selected)`}
           name="products"
           required
@@ -424,6 +442,7 @@ function EditBundleModal({ bundle, onClose, onSaved }: EditBundleModalProps) {
   const [slug, setSlug] = useState('');
   const [price, setPrice] = useState('');
   const [compareAtPrice, setCompareAtPrice] = useState('');
+  const [image, setImage] = useState('');
   const [isActive, setIsActive] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState('');
@@ -436,6 +455,7 @@ function EditBundleModal({ bundle, onClose, onSaved }: EditBundleModalProps) {
       setCompareAtPrice(
         bundle.compareAtPrice != null ? String(bundle.compareAtPrice) : '',
       );
+      setImage(bundle.image ?? '');
       setIsActive(bundle.isActive);
       setFormError('');
     }
@@ -462,6 +482,7 @@ function EditBundleModal({ bundle, onClose, onSaved }: EditBundleModalProps) {
           slug: slug.trim(),
           price: priceNumber,
           compareAtPrice: compareAtPrice ? Number(compareAtPrice) : null,
+          image: image.trim() || null,
           isActive,
         }),
       });
@@ -530,6 +551,19 @@ function EditBundleModal({ bundle, onClose, onSaved }: EditBundleModalProps) {
             />
           </Field>
         </div>
+        <Field
+          label="Bundle image"
+          name="edit-bundle-image"
+          hint="Hero image rendered on the storefront bundle card and bundle detail page."
+        >
+          <ImageUploader
+            value={image ? [image] : []}
+            onChange={(urls) => setImage(urls[0] ?? '')}
+            token={token}
+            folder="bundles"
+            maxFiles={1}
+          />
+        </Field>
         <label className="flex items-center gap-2">
           <input
             type="checkbox"

@@ -15,6 +15,7 @@ import {
 } from '@/components/admin-ui';
 import { Modal, ConfirmModal } from '@/components/modal';
 import { Field, Select, TextArea, TextInput, slugify } from '@/components/form';
+import { ImageUploader } from '@/components/image-uploader';
 
 interface Category {
   readonly id: string;
@@ -243,6 +244,7 @@ function CreateCategoryModal({
   const [name, setName] = useState('');
   const [slug, setSlug] = useState('');
   const [description, setDescription] = useState('');
+  const [image, setImage] = useState('');
   const [parentId, setParentId] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState('');
@@ -252,6 +254,7 @@ function CreateCategoryModal({
       setName('');
       setSlug('');
       setDescription('');
+      setImage('');
       setParentId('');
       setFormError('');
     }
@@ -272,6 +275,7 @@ function CreateCategoryModal({
           name: name.trim(),
           slug: slug.trim(),
           description: description.trim() || undefined,
+          image: image.trim() || undefined,
           parentId: parentId || undefined,
         }),
       });
@@ -350,6 +354,19 @@ function CreateCategoryModal({
             rows={3}
           />
         </Field>
+        <Field
+          label="Category image"
+          name="image"
+          hint="Used as the storefront category-card image."
+        >
+          <ImageUploader
+            value={image ? [image] : []}
+            onChange={(urls) => setImage(urls[0] ?? '')}
+            token={token}
+            folder="cms"
+            maxFiles={1}
+          />
+        </Field>
       </div>
     </Modal>
   );
@@ -374,6 +391,7 @@ function EditCategoryModal({
   const [name, setName] = useState('');
   const [slug, setSlug] = useState('');
   const [description, setDescription] = useState('');
+  const [image, setImage] = useState('');
   const [parentId, setParentId] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState('');
@@ -383,6 +401,7 @@ function EditCategoryModal({
       setName(category.name);
       setSlug(category.slug);
       setDescription(category.description ?? '');
+      setImage(category.image ?? '');
       setParentId(category.parentId ?? '');
       setFormError('');
     }
@@ -403,6 +422,7 @@ function EditCategoryModal({
           name: name.trim(),
           slug: slug.trim(),
           description: description.trim() || null,
+          image: image.trim() || null,
           parentId: parentId || null,
         }),
       });
@@ -484,6 +504,19 @@ function EditCategoryModal({
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             rows={3}
+          />
+        </Field>
+        <Field
+          label="Category image"
+          name="edit-image"
+          hint="Used as the storefront category-card image."
+        >
+          <ImageUploader
+            value={image ? [image] : []}
+            onChange={(urls) => setImage(urls[0] ?? '')}
+            token={token}
+            folder="cms"
+            maxFiles={1}
           />
         </Field>
       </div>
