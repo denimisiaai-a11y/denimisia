@@ -932,6 +932,67 @@ describe('OrdersService', () => {
     });
   });
 
+  // ─── lookupForGuest() ─────────────────────────────────────────────────────
+
+  describe('lookupForGuest', () => {
+    const lookupOrder = {
+      id: 'order-1',
+      status: 'CONFIRMED',
+      subtotal: 1500,
+      discount: 0,
+      shippingCost: 80,
+      total: 1580,
+      shippingAddress: { city: 'Dhaka' },
+      createdAt: new Date('2026-05-18T00:00:00Z'),
+      guestEmail: null,
+      items: [],
+      user: { email: 'Owner@Example.com', firstName: 'Owner' },
+    };
+
+    it('returns the order when (id, email) matches the registered user email case-insensitively', async () => {
+      prisma.order.findUnique.mockResolvedValue(lookupOrder);
+
+      const result = await service.lookupForGuest(
+        'order-1',
+        'OWNER@example.com',
+      );
+
+      expect(result.id).toBe('order-1');
+      expect(result.status).toBe('CONFIRMED');
+    });
+
+    it('returns the order when (id, email) matches the guestEmail tuple', async () => {
+      prisma.order.findUnique.mockResolvedValue({
+        ...lookupOrder,
+        user: null,
+        guestEmail: 'GUEST@example.com',
+      });
+
+      const result = await service.lookupForGuest(
+        'order-1',
+        'guest@example.com',
+      );
+
+      expect(result.id).toBe('order-1');
+    });
+
+    it('throws NotFoundException when the order does not exist', async () => {
+      prisma.order.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.lookupForGuest('missing', 'someone@example.com'),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('throws NotFoundException with the same message when the email does not match the order — no enumeration leak', async () => {
+      prisma.order.findUnique.mockResolvedValue(lookupOrder);
+
+      await expect(
+        service.lookupForGuest('order-1', 'someone-else@example.com'),
+      ).rejects.toThrow(NotFoundException);
+    });
+  });
+
   // ─── cancelOrder() ────────────────────────────────────────────────────────
 
   describe('cancelOrder', () => {

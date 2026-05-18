@@ -76,12 +76,19 @@ const nextAuth: NextAuthResult = NextAuth({
   },
   secret: process.env.NEXTAUTH_SECRET,
   logger: {
+    // NextAuth log spew is dev-only. Production swallows everything that
+    // would otherwise hit the user's browser console — server-side logs
+    // remain available via the runtime's own logging.
     error(error) {
       if (error?.name === 'JWTSessionError') return;
-      console.error(error);
+      if (process.env.NODE_ENV !== 'production') {
+        console.error(error);
+      }
     },
     warn(code) {
-      console.warn(code);
+      if (process.env.NODE_ENV !== 'production') {
+        console.warn(code);
+      }
     },
     debug() {},
   },

@@ -11,8 +11,12 @@ interface ErrorPageProps {
 
 export default function ErrorPage({ error, reset }: ErrorPageProps) {
   useEffect(() => {
-    // In production, report to an error monitoring service here.
-    console.error('[denimisia:error-boundary]', error);
+    // Dev-only console output. In production, error.digest still flows
+    // to the runtime logs via Next.js; when a monitoring provider is
+    // added, send it here instead of console.
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('[denimisia:error-boundary]', error);
+    }
   }, [error]);
 
   return (

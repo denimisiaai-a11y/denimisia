@@ -30,7 +30,10 @@ type OrderStatus =
   | 'PROCESSING'
   | 'SHIPPED'
   | 'DELIVERED'
-  | 'CANCELLED';
+  | 'CANCELLED'
+  | 'RETURNED'
+  | 'REFUNDED'
+  | 'PAYMENT_FAILED';
 
 interface StatusBadge {
   label: string;
@@ -62,8 +65,23 @@ const STATUS_CONFIG: Record<OrderStatus, StatusBadge> = {
     label: 'Cancelled',
     classes: 'bg-error/10 text-error',
   },
+  RETURNED: {
+    label: 'Returned',
+    classes: 'bg-warning/10 text-warning',
+  },
+  REFUNDED: {
+    label: 'Refunded',
+    classes: 'bg-secondary/10 text-secondary',
+  },
+  PAYMENT_FAILED: {
+    label: 'Payment Failed',
+    classes: 'bg-error/10 text-error',
+  },
 };
 
+// Linear happy-path used to render the progress timeline in the sidebar.
+// Branches (CANCELLED / RETURNED / REFUNDED / PAYMENT_FAILED) are
+// reachable through TRANSITIONS below but do not appear on the timeline.
 const STATUS_FLOW: OrderStatus[] = [
   'PENDING',
   'CONFIRMED',
@@ -72,19 +90,23 @@ const STATUS_FLOW: OrderStatus[] = [
   'DELIVERED',
 ];
 
-const TERMINAL_STATUSES: OrderStatus[] = ['CANCELLED'];
+// Mirrors OrdersService.VALID_TRANSITIONS in apps/api/src/modules/orders.
+// Keep these two lists in sync — the API rejects any transition not
+// listed here, so the admin select must not offer one either.
+const TRANSITIONS: Record<OrderStatus, readonly OrderStatus[]> = {
+  PENDING: ['CONFIRMED', 'CANCELLED', 'PAYMENT_FAILED'],
+  CONFIRMED: ['PROCESSING', 'CANCELLED'],
+  PROCESSING: ['SHIPPED', 'CANCELLED'],
+  SHIPPED: ['DELIVERED', 'RETURNED'],
+  DELIVERED: ['RETURNED'],
+  CANCELLED: [],
+  RETURNED: ['REFUNDED'],
+  REFUNDED: [],
+  PAYMENT_FAILED: ['PENDING', 'CANCELLED'],
+};
 
 function computeAllowedNext(current: OrderStatus): OrderStatus[] {
-  const idx = STATUS_FLOW.indexOf(current);
-  const next: OrderStatus[] = [];
-  if (idx >= 0 && idx + 1 < STATUS_FLOW.length) {
-    const advanced = STATUS_FLOW[idx + 1];
-    if (advanced) next.push(advanced);
-  }
-  for (const term of TERMINAL_STATUSES) {
-    if (current !== term && !next.includes(term)) next.push(term);
-  }
-  return next;
+  return [...(TRANSITIONS[current] ?? [])];
 }
 
 interface OrderItem {
