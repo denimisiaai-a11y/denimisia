@@ -13,8 +13,15 @@ import * as bcrypt from 'bcrypt';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditLogService } from '../audit-log/audit-log.service';
+import { EmailService } from '../email/email.service';
+import {
+  buildVerifyEmail,
+  buildPasswordResetEmail,
+} from '../email/email-templates';
 import { RegisterDto, LoginDto } from './auth.dto';
 import { env, isProd } from '../../common/env';
+
+const PASSWORD_RESET_EXPIRY_HOURS = 1;
 
 const JWT_ISSUER = 'denimisia-api';
 const JWT_AUDIENCE = 'denimisia-clients';
@@ -45,7 +52,31 @@ export class AuthService {
     private jwt: JwtService,
     @InjectRedis() private redis: Redis,
     private readonly auditLog: AuditLogService,
+    private readonly email: EmailService,
   ) {}
+
+  /**
+   * Best-effort transactional email dispatch. Email sends MUST NOT brick the
+   * auth flow — if Resend is down or the request times out, the user still
+   * gets a successful response and an audit row, and we log the failure for
+   * ops follow-up. The recipient can re-request the verification or reset.
+   */
+  private async sendTransactional(
+    to: string,
+    subject: string,
+    text: string,
+    html: string,
+    context: string,
+  ): Promise<void> {
+    try {
+      await this.email.send({ to, subject, text, html });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      this.logger.warn(
+        `transactional email failed (context=${context}, to=${to}): ${message}`,
+      );
+    }
+  }
 
   /**
    * Fire-and-forget audit write. Auth succeeds regardless of whether the
@@ -251,12 +282,25 @@ export class AuthService {
     const token = randomBytes(32).toString('hex');
     await this.redis.setex(`reset:${token}`, 3600, user.id);
 
-    // TODO: Send email with reset link (blocked on email provider decision)
     if (!isProd()) {
       this.logger.debug(
         `Password reset token generated (email=${email}, tokenLen=${token.length})`,
       );
     }
+
+    const resetUrl = `${env.STOREFRONT_URL}/reset-password?token=${token}`;
+    const rendered = buildPasswordResetEmail({
+      firstName: user.firstName,
+      resetUrl,
+      expiresInHours: PASSWORD_RESET_EXPIRY_HOURS,
+    });
+    await this.sendTransactional(
+      user.email,
+      rendered.subject,
+      rendered.text,
+      rendered.html,
+      'password-reset',
+    );
 
     return { message: 'If an account exists, a reset link has been sent' };
   }
@@ -328,6 +372,19 @@ export class AuthService {
         `Email verification token generated (email=${user.email}, tokenLen=${token.length})`,
       );
     }
+
+    const verifyUrl = `${env.STOREFRONT_URL}/verify-email?token=${token}`;
+    const rendered = buildVerifyEmail({
+      firstName: user.firstName,
+      verifyUrl,
+    });
+    await this.sendTransactional(
+      user.email,
+      rendered.subject,
+      rendered.text,
+      rendered.html,
+      'verify-email',
+    );
 
     return { message: 'Verification email sent' };
   }

@@ -74,6 +74,11 @@ const envSchema = z.object({
   ALGOLIA_SEARCH_KEY: z.string().optional(),
   ALGOLIA_INDEX_NAME: z.string().default('products'),
 
+  // Storefront URL used to build links inside transactional emails
+  // (verify-email, password-reset, order-confirmation). MUST point at the
+  // customer-facing site without a trailing slash.
+  STOREFRONT_URL: z.string().url().default('http://localhost:3000'),
+
   // Rate limiting
   THROTTLE_TTL_MS: z.coerce.number().int().positive().default(60000),
   THROTTLE_LIMIT: z.coerce.number().int().positive().default(60),

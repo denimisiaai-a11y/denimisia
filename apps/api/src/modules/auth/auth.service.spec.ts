@@ -10,6 +10,7 @@ import { AuthService } from './auth.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { REDIS_CLIENT } from '../redis/redis.decorator';
 import { AuditLogService } from '../audit-log/audit-log.service';
+import { EmailService } from '../email/email.service';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 
@@ -23,6 +24,7 @@ describe('AuthService', () => {
   let jwt: { signAsync: jest.Mock };
   let config: { get: jest.Mock };
   let redis: { get: jest.Mock; del: jest.Mock; setex: jest.Mock };
+  let email: { send: jest.Mock };
 
   const mockUser = {
     id: 'user-1',
@@ -69,6 +71,10 @@ describe('AuthService', () => {
       setex: jest.fn(),
     };
 
+    email = {
+      send: jest.fn().mockResolvedValue({ id: 'mock-email-id' }),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthService,
@@ -80,6 +86,7 @@ describe('AuthService', () => {
           provide: AuditLogService,
           useValue: { log: jest.fn().mockResolvedValue(undefined) },
         },
+        { provide: EmailService, useValue: email },
       ],
     }).compile();
 
@@ -408,6 +415,33 @@ describe('AuthService', () => {
         message: 'If an account exists, a reset link has been sent',
       });
       expect(redis.setex).not.toHaveBeenCalled();
+      expect(email.send).not.toHaveBeenCalled();
+    });
+
+    it('should send a reset-password message to the user with a token link', async () => {
+      prisma.user.findFirst.mockResolvedValue(mockUser);
+      redis.setex.mockResolvedValue('OK');
+
+      await service.forgotPassword('test@example.com');
+
+      expect(email.send).toHaveBeenCalledTimes(1);
+      const arg = email.send.mock.calls[0][0];
+      expect(arg.to).toBe('test@example.com');
+      expect(arg.subject).toMatch(/Reset/i);
+      expect(arg.text).toContain('/reset-password?token=');
+      expect(arg.html).toContain('/reset-password?token=');
+    });
+
+    it('should still return success when the email provider fails (no enumeration leak)', async () => {
+      prisma.user.findFirst.mockResolvedValue(mockUser);
+      redis.setex.mockResolvedValue('OK');
+      email.send.mockRejectedValueOnce(new Error('Resend down'));
+
+      const result = await service.forgotPassword('test@example.com');
+
+      expect(result).toEqual({
+        message: 'If an account exists, a reset link has been sent',
+      });
     });
   });
 
@@ -474,6 +508,30 @@ describe('AuthService', () => {
       await expect(
         service.requestEmailVerification('non-existent'),
       ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should send a verify-email message to the user with a token link', async () => {
+      prisma.user.findFirst.mockResolvedValue(mockUser);
+      redis.setex.mockResolvedValue('OK');
+
+      await service.requestEmailVerification('user-1');
+
+      expect(email.send).toHaveBeenCalledTimes(1);
+      const arg = email.send.mock.calls[0][0];
+      expect(arg.to).toBe('test@example.com');
+      expect(arg.subject).toMatch(/Verify/i);
+      expect(arg.text).toContain('/verify-email?token=');
+      expect(arg.html).toContain('/verify-email?token=');
+    });
+
+    it('should still return success when the email provider fails', async () => {
+      prisma.user.findFirst.mockResolvedValue(mockUser);
+      redis.setex.mockResolvedValue('OK');
+      email.send.mockRejectedValueOnce(new Error('Resend down'));
+
+      const result = await service.requestEmailVerification('user-1');
+
+      expect(result).toEqual({ message: 'Verification email sent' });
     });
   });
 

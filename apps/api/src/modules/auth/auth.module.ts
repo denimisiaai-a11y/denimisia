@@ -7,9 +7,15 @@ import { JwtStrategy } from './jwt.strategy';
 import { JwtRefreshStrategy } from './jwt-refresh.strategy';
 import { EmailThrottlerGuard } from '../../common/throttler/email-throttler.guard';
 import { AuditLogModule } from '../audit-log/audit-log.module';
+import { EmailModule } from '../email/email.module';
 
 @Module({
-  imports: [PassportModule, JwtModule.register({}), AuditLogModule],
+  imports: [
+    PassportModule,
+    JwtModule.register({}),
+    AuditLogModule,
+    EmailModule,
+  ],
   controllers: [AuthController],
   providers: [
     AuthService,
