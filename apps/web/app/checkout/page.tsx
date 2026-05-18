@@ -154,8 +154,33 @@ export default function CheckoutPage() {
       const json = await res.json();
 
       if (!res.ok || !json.success) {
-        const msg = Array.isArray(json.error) ? json.error[0] : json.error ?? 'Failed to place order';
-        setError(msg);
+        // NestJS validation responses look like
+        //   { success: false, error: 'Bad Request', message: '...', details: [...] }
+        // We previously only surfaced `json.error` which is always the HTTP-
+        // level label ('Bad Request', 'Conflict', etc.). Prefer the actual
+        // human-readable validator message so the customer can see which
+        // field was wrong.
+        const fromDetails =
+          Array.isArray(json.details) && json.details.length > 0
+            ? String(json.details[0])
+            : null;
+        const fromMessage =
+          typeof json.message === 'string'
+            ? json.message
+            : Array.isArray(json.message)
+              ? String(json.message[0])
+              : null;
+        const fromError = Array.isArray(json.error)
+          ? String(json.error[0])
+          : typeof json.error === 'string'
+            ? json.error
+            : null;
+        setError(
+          fromDetails ??
+            fromMessage ??
+            fromError ??
+            'Failed to place order',
+        );
         return;
       }
 
