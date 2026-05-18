@@ -642,12 +642,17 @@ function MobileQuickView({ product, related, onClose }: ProductQuickViewProps) {
             <div className="px-5 pt-1 pb-4">
               <div className="relative mx-auto aspect-[4/5] w-full max-w-[360px] max-h-[48svh] overflow-hidden rounded-2xl bg-[var(--color-surface-low)]">
                 <Image
-                  src={product.image}
-                  alt={product.name}
+                  key={swatches[selectedColour]?.image ?? product.image}
+                  src={swatches[selectedColour]?.image ?? product.image}
+                  alt={
+                    swatches[selectedColour]?.name
+                      ? `${product.name} — ${swatches[selectedColour]?.name}`
+                      : product.name
+                  }
                   fill
                   priority
                   sizes="(max-width: 480px) 100vw, 360px"
-                  className="object-cover"
+                  className="object-cover transition-opacity duration-300"
                 />
               </div>
             </div>
