@@ -33,6 +33,7 @@ interface Collection {
   name: string;
   slug: string;
   description: string | null;
+  image: string | null;
   products: CollectionProduct[];
 }
 
@@ -57,7 +58,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     name,
     slug,
     description: api?.description ?? copy?.description ?? null,
-    image: copy?.hero ?? null,
+    image: api?.image ?? copy?.hero ?? null,
   });
 }
 
@@ -71,7 +72,11 @@ export default async function CollectionPage({ params }: { params: Promise<{ slu
 
   const name = api?.name ?? copy!.name;
   const description = api?.description ?? copy!.description;
-  const hero = copy?.hero;
+  // Admin can set Collection.image from the admin panel (manage-collection
+  // modal). When present it overrides the hardcoded copy.hero. The
+  // hardcoded value remains as fallback for collections that exist in
+  // category-copy.ts but were not yet seeded in the API.
+  const hero = api?.image ?? copy?.hero;
   const season = copy?.season;
   const tagline = copy?.tagline;
   const status = copy?.status;

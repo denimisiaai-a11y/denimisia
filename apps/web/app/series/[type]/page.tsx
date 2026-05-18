@@ -8,6 +8,7 @@ import { CategoryGrid, type CategoryCard } from '@/components/shop/category-grid
 import { resolveProductImage, resolveHoverImage } from '@/lib/placeholder-images';
 import { fallbackProducts } from '@/lib/placeholder-products';
 import { seriesTypeCopy, SERIES_TYPE_SUBTYPES } from '@/lib/category-copy';
+import { fetchPageSlots, pickSlot, resolveSlotUrl } from '@/lib/page-slots';
 
 interface Props {
   params: Promise<{ type: string }>;
@@ -24,6 +25,14 @@ export default async function SeriesTypePage({ params }: Props) {
   const { type } = await params;
   const copy = seriesTypeCopy(type);
   if (!copy) notFound();
+
+  // Admin can swap the series-type hero via the Media Manager
+  // (series.hero_tops / series.hero_pants). Falls back to the hardcoded
+  // copy.hero from category-copy.ts when no asset has been uploaded.
+  const seriesSlots = await fetchPageSlots('series').catch(() => []);
+  const heroSlotKey = `hero_${type.replace(/-/g, '_')}`;
+  const heroSlot = pickSlot(seriesSlots, heroSlotKey);
+  const { src: heroSrc } = resolveSlotUrl(heroSlot, copy.hero);
 
   let data;
   try {
@@ -73,8 +82,10 @@ export default async function SeriesTypePage({ params }: Props) {
     <div>
       <div className="relative mt-20 h-[40vh] min-h-[280px] w-full overflow-hidden bg-ink">
         <Image
-          src={copy.hero}
-          alt={copy.title}
+          data-slot-field="media"
+          data-slot={`series.${heroSlotKey}`}
+          src={heroSrc}
+          alt={heroSlot?.altText ?? copy.title}
           fill
           priority
           sizes="100vw"

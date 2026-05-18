@@ -13,7 +13,13 @@ export interface NavMenuItem {
   label: string;
   href?: string;
   sections?: NavMenuSection[];
-  featuredImages?: { src: string; alt: string; href: string }[];
+  featuredImages?: {
+    src: string;
+    alt: string;
+    href: string;
+    /** Optional nav.* slotKey — mega-menu overlays the slot asset on top of `src`. */
+    slotKey?: string;
+  }[];
 }
 
 export const NAV_ITEMS: NavMenuItem[] = [
@@ -51,8 +57,18 @@ export const NAV_ITEMS: NavMenuItem[] = [
       },
     ],
     featuredImages: [
-      { src: NAV_FEATURED.shopWomen, alt: 'Women collection', href: '/shop/women' },
-      { src: NAV_FEATURED.shopMen, alt: 'Men collection', href: '/shop/men' },
+      {
+        src: NAV_FEATURED.shopWomen,
+        alt: 'Women collection',
+        href: '/shop/women',
+        slotKey: 'featured_shop_women',
+      },
+      {
+        src: NAV_FEATURED.shopMen,
+        alt: 'Men collection',
+        href: '/shop/men',
+        slotKey: 'featured_shop_men',
+      },
     ],
   },
   {
@@ -71,7 +87,12 @@ export const NAV_ITEMS: NavMenuItem[] = [
       },
     ],
     featuredImages: [
-      { src: NAV_FEATURED.collectionLatest, alt: 'Latest collection', href: '/collections/spring26' },
+      {
+        src: NAV_FEATURED.collectionLatest,
+        alt: 'Latest collection',
+        href: '/collections/spring26',
+        slotKey: 'featured_collection_latest',
+      },
     ],
   },
   {
@@ -102,8 +123,18 @@ export const NAV_ITEMS: NavMenuItem[] = [
       },
     ],
     featuredImages: [
-      { src: NAV_FEATURED.seriesBestSellers, alt: 'Best sellers', href: '/series/tops' },
-      { src: NAV_FEATURED.seriesWideLeg, alt: 'Wide leg pants', href: '/series/pants' },
+      {
+        src: NAV_FEATURED.seriesBestSellers,
+        alt: 'Best sellers',
+        href: '/series/tops',
+        slotKey: 'featured_series_bestsellers',
+      },
+      {
+        src: NAV_FEATURED.seriesWideLeg,
+        alt: 'Wide leg pants',
+        href: '/series/pants',
+        slotKey: 'featured_series_wide_leg',
+      },
     ],
   },
   {

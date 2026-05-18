@@ -8,6 +8,12 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { Search, X, ArrowUpRight, TrendingUp, Clock } from 'lucide-react';
 import { formatPrice, cn } from '@/lib/utils';
 import {
+  fetchPageSlots,
+  pickSlot,
+  resolveSlotUrl,
+  type PageSlotRecord,
+} from '@/lib/page-slots';
+import {
   CATEGORY_IMAGES,
   resolveProductImage,
 } from '@/lib/placeholder-images';
@@ -45,10 +51,27 @@ const POPULAR_CATEGORIES: ReadonlyArray<{
   label: string;
   href: string;
   image: string;
+  /** Optional search.* slotKey — the overlay overlays the slot asset on `image`. */
+  slotKey?: string;
 }> = [
-  { label: 'Denims', href: '/collections/denims', image: CATEGORY_IMAGES.denims },
-  { label: 'Tops', href: '/collections/tops', image: CATEGORY_IMAGES.tops },
-  { label: 'Jackets', href: '/collections/jackets', image: CATEGORY_IMAGES.jackets },
+  {
+    label: 'Denims',
+    href: '/collections/denims',
+    image: CATEGORY_IMAGES.denims,
+    slotKey: 'category_denims',
+  },
+  {
+    label: 'Tops',
+    href: '/collections/tops',
+    image: CATEGORY_IMAGES.tops,
+    slotKey: 'category_tops',
+  },
+  {
+    label: 'Jackets',
+    href: '/collections/jackets',
+    image: CATEGORY_IMAGES.jackets,
+    slotKey: 'category_jackets',
+  },
 ];
 
 const EASE = [0.22, 1, 0.36, 1] as const;
@@ -88,6 +111,24 @@ export function SearchOverlay({ open, onClose }: SearchOverlayProps) {
   const [hasSearched, setHasSearched] = useState(false);
   const [cursor, setCursor] = useState(0);
   const [recent, setRecent] = useState<string[]>([]);
+  const [searchSlots, setSearchSlots] = useState<readonly PageSlotRecord[]>(
+    [],
+  );
+
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    fetchPageSlots('search')
+      .then((slots) => {
+        if (!cancelled) setSearchSlots(slots);
+      })
+      .catch(() => {
+        // Search overlay falls back to hardcoded CATEGORY_IMAGES on error.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open]);
 
   // Focus input on open and refresh recent searches
   useEffect(() => {
@@ -336,7 +377,12 @@ export function SearchOverlay({ open, onClose }: SearchOverlayProps) {
                       Shop by category
                     </div>
                     <div className="grid grid-cols-3 gap-3">
-                      {POPULAR_CATEGORIES.map((cat) => (
+                      {POPULAR_CATEGORIES.map((cat) => {
+                        const slot = cat.slotKey
+                          ? pickSlot(searchSlots, cat.slotKey)
+                          : undefined;
+                        const { src: catSrc } = resolveSlotUrl(slot, cat.image);
+                        return (
                         <Link
                           key={cat.label}
                           href={cat.href}
@@ -344,8 +390,12 @@ export function SearchOverlay({ open, onClose }: SearchOverlayProps) {
                           className="group relative block aspect-[4/5] overflow-hidden bg-ink/5"
                         >
                           <Image
-                            src={cat.image}
-                            alt={cat.label}
+                            data-slot-field="media"
+                            data-slot={
+                              cat.slotKey ? `search.${cat.slotKey}` : undefined
+                            }
+                            src={catSrc}
+                            alt={slot?.altText ?? cat.label}
                             fill
                             sizes="(max-width: 768px) 33vw, 220px"
                             className="object-cover transition-transform duration-500 group-hover:scale-105"
@@ -360,7 +410,8 @@ export function SearchOverlay({ open, onClose }: SearchOverlayProps) {
                             />
                           </div>
                         </Link>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 </div>
