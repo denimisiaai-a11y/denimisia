@@ -8,6 +8,7 @@ import { CategoryGrid, type CategoryCard } from '@/components/shop/category-grid
 import { resolveProductImage, resolveHoverImage } from '@/lib/placeholder-images';
 import { fallbackProducts } from '@/lib/placeholder-products';
 import { SHOP_GENDER_COPY, SHOP_GENDER_FITS } from '@/lib/category-copy';
+import { fetchPageSlots, pickSlot, resolveSlotUrl } from '@/lib/page-slots';
 
 interface Props {
   params: Promise<{ gender: string }>;
@@ -24,6 +25,14 @@ export default async function ShopGenderPage({ params }: Props) {
   const { gender } = await params;
   const copy = SHOP_GENDER_COPY[gender];
   if (!copy) notFound();
+
+  // Admin can swap the gender hero through the Media Manager
+  // (shop.hero_women / shop.hero_men). Falls back to the hardcoded
+  // copy.hero when no asset has been uploaded.
+  const shopSlots = await fetchPageSlots('shop').catch(() => []);
+  const heroSlotKey = gender === 'men' ? 'hero_men' : 'hero_women';
+  const heroSlot = pickSlot(shopSlots, heroSlotKey);
+  const { src: heroSrc } = resolveSlotUrl(heroSlot, copy.hero);
 
   let data;
   try {
@@ -74,8 +83,10 @@ export default async function ShopGenderPage({ params }: Props) {
       {/* Hero */}
       <div className="relative mt-20 h-[46vh] min-h-[320px] w-full overflow-hidden bg-ink">
         <Image
-          src={copy.hero}
-          alt={copy.title}
+          data-slot-field="media"
+          data-slot={`shop.${heroSlotKey}`}
+          src={heroSrc}
+          alt={heroSlot?.altText ?? copy.title}
           fill
           priority
           sizes="100vw"

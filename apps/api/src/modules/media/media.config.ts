@@ -553,6 +553,65 @@ export const SLOT_SPECS: readonly SlotSpec[] = [
     defaultHeading: 'No matches.',
     defaultSubheading: 'Try fewer keywords or browse the shop.',
   },
+
+  // ─── SHOP ── Gender landing hero (rendered at the top of /shop/women + men) ─
+  {
+    pageKey: PAGE_KEYS.shop,
+    slotKey: 'hero_women',
+    label: 'Shop Women hero',
+    mediaKind: 'IMAGE',
+    acceptsVideo: false,
+    specWidth: 2560,
+    specHeight: 1180,
+    specAspect: '16:7.4',
+    maxBytes: 3 * MB,
+    defaultHeading: 'Shop Women.',
+  },
+  {
+    pageKey: PAGE_KEYS.shop,
+    slotKey: 'hero_men',
+    label: 'Shop Men hero',
+    mediaKind: 'IMAGE',
+    acceptsVideo: false,
+    specWidth: 2560,
+    specHeight: 1180,
+    specAspect: '16:7.4',
+    maxBytes: 3 * MB,
+    defaultHeading: 'Shop Men.',
+  },
+
+  // ─── SHOP ── Fit-carousel tiles (Shop by Fit on the shop landing) ──────────
+  // 11 individually-uploadable tiles, one per fit slug. Tile label + link
+  // are taxonomy and stay in storefront source; only the image is admin-
+  // controlled here. Add a new tile by registering a slot and exposing
+  // the corresponding link target in apps/web/components/shop/fit-carousel.tsx.
+  ...(
+    [
+      { slug: 'cargo', label: 'Cargo' },
+      { slug: 'culotte', label: 'Culotte' },
+      { slug: 'flare', label: 'Flare' },
+      { slug: 'wide-leg', label: 'Wide Leg' },
+      { slug: 'mom', label: 'Mom' },
+      { slug: 'jegging', label: 'Jegging' },
+      { slug: 'slouchy', label: 'Slouchy' },
+      { slug: 'skinny', label: 'Skinny' },
+      { slug: 'straight', label: 'Straight' },
+      { slug: 'sweatshirt', label: 'Sweatshirt' },
+      { slug: 'jacket', label: 'Jacket' },
+    ] as const
+  ).map((fit, index) => ({
+    pageKey: PAGE_KEYS.shop,
+    slotKey: `fit_${fit.slug.replace(/-/g, '_')}`,
+    label: `Fit tile · ${fit.label}`,
+    mediaKind: 'IMAGE' as const,
+    acceptsVideo: false,
+    specWidth: 900,
+    specHeight: 1125,
+    specAspect: '4:5',
+    maxBytes: 2 * MB,
+    position: index + 1,
+    groupKey: 'shop.fits',
+  })),
 ];
 
 export function findSpec(

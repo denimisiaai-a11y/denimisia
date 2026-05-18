@@ -1,9 +1,15 @@
 'use client';
 
-import { useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import {
+  fetchPageSlots,
+  pickSlot,
+  resolveSlotUrl,
+  type PageSlotRecord,
+} from '@/lib/page-slots';
 
 interface Fit {
   label: string;
@@ -28,8 +34,28 @@ const FITS: Fit[] = [
   { label: 'Jacket', slug: 'jacket', image: U('1548142813-c348350df52b') },
 ];
 
+function slotKeyForFit(slug: string): string {
+  // Must match the slot key encoding in apps/api/src/modules/media/media.config.ts
+  return `fit_${slug.replace(/-/g, '_')}`;
+}
+
 export function FitCarousel() {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [shopSlots, setShopSlots] = useState<readonly PageSlotRecord[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchPageSlots('shop')
+      .then((slots) => {
+        if (!cancelled) setShopSlots(slots);
+      })
+      .catch(() => {
+        // Fall back to hardcoded fit images — slot fetch is best-effort.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const scroll = (dir: 'left' | 'right') => {
     if (!scrollRef.current) return;
@@ -70,27 +96,33 @@ export function FitCarousel() {
           ref={scrollRef}
           className="scrollbar-hide flex gap-6 overflow-x-auto scroll-smooth"
         >
-          {FITS.map((fit) => (
-            <Link
-              key={fit.slug}
-              href={`/shop/women/${fit.slug}`}
-              className="group block min-w-[180px] flex-shrink-0 md:min-w-[220px]"
-            >
-              <div className="relative aspect-[4/5] overflow-hidden bg-[var(--color-surface-low)]">
-                <Image
-                  src={fit.image}
-                  alt={`${fit.label} fit`}
-                  fill
-                  className="object-cover transition-transform duration-700 group-hover:scale-105"
-                  sizes="(max-width: 768px) 50vw, (max-width: 1200px) 25vw, 18vw"
-                />
-                <div className="pointer-events-none absolute inset-0 bg-ink/0 transition-colors duration-500 group-hover:bg-ink/10" />
-              </div>
-              <p className="mt-4 text-center text-xs font-medium uppercase tracking-[0.25em] text-ink">
-                {fit.label}
-              </p>
-            </Link>
-          ))}
+          {FITS.map((fit) => {
+            const slot = pickSlot(shopSlots, slotKeyForFit(fit.slug));
+            const { src } = resolveSlotUrl(slot, fit.image);
+            return (
+              <Link
+                key={fit.slug}
+                href={`/shop/women/${fit.slug}`}
+                className="group block min-w-[180px] flex-shrink-0 md:min-w-[220px]"
+              >
+                <div className="relative aspect-[4/5] overflow-hidden bg-[var(--color-surface-low)]">
+                  <Image
+                    data-slot-field="media"
+                    data-slot={`shop.${slotKeyForFit(fit.slug)}`}
+                    src={src}
+                    alt={slot?.altText ?? `${fit.label} fit`}
+                    fill
+                    className="object-cover transition-transform duration-700 group-hover:scale-105"
+                    sizes="(max-width: 768px) 50vw, (max-width: 1200px) 25vw, 18vw"
+                  />
+                  <div className="pointer-events-none absolute inset-0 bg-ink/0 transition-colors duration-500 group-hover:bg-ink/10" />
+                </div>
+                <p className="mt-4 text-center text-xs font-medium uppercase tracking-[0.25em] text-ink">
+                  {fit.label}
+                </p>
+              </Link>
+            );
+          })}
         </div>
       </div>
     </section>
