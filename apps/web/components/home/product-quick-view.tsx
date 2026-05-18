@@ -305,11 +305,16 @@ function DesktopQuickView({ product, related, onClose }: ProductQuickViewProps) 
           style={{ animation: animFor(220) }}
         >
           <Image
-            src={product.image}
-            alt={product.name}
+            key={swatches[selectedColour]?.image ?? product.image}
+            src={swatches[selectedColour]?.image ?? product.image}
+            alt={
+              swatches[selectedColour]?.name
+                ? `${product.name} — ${swatches[selectedColour]?.name}`
+                : product.name
+            }
             fill
             priority
-            className="object-cover"
+            className="object-cover transition-opacity duration-300"
             sizes="(max-width: 1024px) 100vw, 50vw"
           />
         </div>
