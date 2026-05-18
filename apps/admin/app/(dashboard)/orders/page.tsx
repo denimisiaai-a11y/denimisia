@@ -93,7 +93,14 @@ const FILTER_OPTIONS: { value: StatusFilter; label: string }[] = [
 interface Order {
   id: string;
   orderNumber?: string;
-  user?: { name?: string; email?: string };
+  user?: {
+    name?: string;
+    email?: string;
+    firstName?: string;
+    lastName?: string;
+  };
+  guestEmail?: string;
+  guestName?: string;
   customer?: { name?: string; email?: string };
   total: number;
   status: OrderStatus;
@@ -275,11 +282,25 @@ export default function OrdersPage() {
   };
 
   const getCustomerName = (order: Order): string => {
-    return order.user?.name ?? order.customer?.name ?? 'Unknown';
+    // API User has firstName + lastName, not a single `name` field. Fall
+    // back to guest fields for orders placed without an account.
+    const fullName = [order.user?.firstName, order.user?.lastName]
+      .filter(Boolean)
+      .join(' ')
+      .trim();
+    return (
+      fullName ||
+      order.user?.name ||
+      order.guestName ||
+      order.customer?.name ||
+      'Unknown'
+    );
   };
 
   const getCustomerEmail = (order: Order): string => {
-    return order.user?.email ?? order.customer?.email ?? '';
+    return (
+      order.user?.email ?? order.guestEmail ?? order.customer?.email ?? ''
+    );
   };
 
   const getDisplayId = (order: Order): string => {

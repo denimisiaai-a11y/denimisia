@@ -98,10 +98,18 @@ export default function CheckoutPage() {
         },
         body: JSON.stringify({
           items: items.map((item) => ({
+            productId: item.productId,
             variantId: item.variantId,
             quantity: item.qty,
           })),
-          shippingAddress: { street, city, state, zip, phone },
+          shippingAddress: {
+            name: session?.user?.name ?? undefined,
+            line1: street,
+            city,
+            state,
+            zip,
+            phone,
+          },
           ...(discountCode.trim() ? { discountCode: discountCode.trim() } : {}),
         }),
       });

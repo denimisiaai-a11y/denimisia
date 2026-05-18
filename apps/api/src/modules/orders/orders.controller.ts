@@ -9,6 +9,7 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
+  BadRequestException,
 } from '@nestjs/common';
 import { OrdersService } from './orders.service';
 import { CreateOrderDto, UpdateOrderStatusDto } from './orders.dto';
@@ -51,6 +52,21 @@ export class OrdersController {
       Number(page) || 1,
       safeLimit,
     );
+  }
+
+  // Unauthenticated lookup for guest order tracking. Requires BOTH the
+  // order id and the email on the order to match — otherwise the same
+  // 404 fires whether the order does not exist or the email is wrong.
+  // This prevents enumeration by id alone. Global ThrottlerGuard already
+  // caps the per-IP request rate.
+  @Get('lookup')
+  lookupOrder(@Query('id') id?: string, @Query('email') email?: string) {
+    const cleanId = (id ?? '').trim();
+    const cleanEmail = (email ?? '').trim();
+    if (!cleanId || !cleanEmail) {
+      throw new BadRequestException('id and email are required');
+    }
+    return this.ordersService.lookupForGuest(cleanId, cleanEmail);
   }
 
   @Get(':id')

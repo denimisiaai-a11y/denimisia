@@ -192,7 +192,7 @@ export default function OrderDetailPage() {
     setUpdatingStatus(true);
     setActionBanner(null);
     try {
-      await adminFetch(`/orders/${orderId}/status`, token, {
+      await adminFetch(`/orders/admin/${orderId}/status`, token, {
         method: 'PATCH',
         body: JSON.stringify({ status: next }),
       });
@@ -418,7 +418,16 @@ export default function OrderDetailPage() {
   const currentIdx = STATUS_FLOW.indexOf(order.status);
   const nextTransitions = computeAllowedNext(order.status);
   const allowedStatuses: OrderStatus[] = [order.status, ...nextTransitions];
-  const canRefund = order.status === 'DELIVERED' || order.status === 'CANCELLED' || order.status === 'SHIPPED';
+  // Refunds are gated off for the COD-only launch — there is no API
+  // endpoint behind /orders/admin/:id/refund yet and cash returns are
+  // handled by the courier physically. Flip this back to the real
+  // status check once the backend refund flow ships.
+  const REFUND_ENABLED = false;
+  const canRefund =
+    REFUND_ENABLED &&
+    (order.status === 'DELIVERED' ||
+      order.status === 'CANCELLED' ||
+      order.status === 'SHIPPED');
 
   return (
     <>
@@ -731,14 +740,16 @@ export default function OrderDetailPage() {
             <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-secondary mb-1">
               Actions
             </p>
-            <button
-              type="button"
-              onClick={openRefundDialog}
-              disabled={!canRefund}
-              className="w-full px-6 py-2 bg-primary text-on-primary text-xs font-semibold uppercase tracking-widest hover:opacity-90 transition-opacity duration-300 ease-editorial disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              Issue Refund
-            </button>
+            {REFUND_ENABLED && (
+              <button
+                type="button"
+                onClick={openRefundDialog}
+                disabled={!canRefund}
+                className="w-full px-6 py-2 bg-primary text-on-primary text-xs font-semibold uppercase tracking-widest hover:opacity-90 transition-opacity duration-300 ease-editorial disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Issue Refund
+              </button>
+            )}
             <button
               type="button"
               onClick={handleDownloadInvoice}

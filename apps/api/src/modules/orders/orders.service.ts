@@ -216,6 +216,46 @@ export class OrdersService {
     return order;
   }
 
+  // Public order lookup gated by (orderId, email). Used by the guest
+  // track-order page. Returns the same 404 whether the order does not
+  // exist or the email does not match the row, so an attacker cannot
+  // enumerate order existence by id alone. Email comparison is case-
+  // insensitive against both the registered user's email and the guest
+  // checkout email tuple.
+  async lookupForGuest(orderId: string, email: string) {
+    const normEmail = email.toLowerCase();
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      include: {
+        items: { include: ORDER_ITEM_DISPLAY_INCLUDE },
+        user: { select: { email: true, firstName: true } },
+      },
+    });
+    if (!order) throw new NotFoundException('Order not found');
+
+    const candidateEmails = [
+      order.user?.email ?? null,
+      order.guestEmail ?? null,
+    ]
+      .filter((e): e is string => Boolean(e))
+      .map((e) => e.toLowerCase());
+    if (!candidateEmails.includes(normEmail)) {
+      throw new NotFoundException('Order not found');
+    }
+
+    return {
+      id: order.id,
+      status: order.status,
+      subtotal: order.subtotal,
+      discount: order.discount,
+      shippingCost: order.shippingCost,
+      total: order.total,
+      shippingAddress: order.shippingAddress,
+      createdAt: order.createdAt,
+      items: order.items,
+    };
+  }
+
   async cancelOrder(userId: string, orderId: string) {
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },

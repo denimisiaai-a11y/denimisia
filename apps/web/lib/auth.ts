@@ -5,6 +5,11 @@ import Credentials from 'next-auth/providers/credentials';
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api/v1';
 
 const nextAuth: NextAuthResult = NextAuth({
+  // Required when the app runs behind a reverse proxy / CDN (Vercel,
+  // Cloudflare, custom load balancer). Without this, NextAuth v5
+  // rejects the callback host on first sign-in and login silently
+  // fails. The admin app already sets this; mirroring here.
+  trustHost: true,
   providers: [
     Credentials({
       name: 'credentials',

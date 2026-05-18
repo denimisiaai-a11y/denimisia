@@ -21,7 +21,13 @@ async function getOrders(accessToken: string): Promise<Order[]> {
     });
     if (!res.ok) return [];
     const json = await res.json();
-    return json.success ? json.data : [];
+    // API returns { success, data: { orders, total, page, limit } } via
+    // OrdersService.getMyOrders. Earlier code assumed data was already
+    // the array and rendered "No orders yet." on every successful call.
+    if (!json.success) return [];
+    const payload = json.data;
+    if (Array.isArray(payload)) return payload;
+    return Array.isArray(payload?.orders) ? payload.orders : [];
   } catch {
     return [];
   }
