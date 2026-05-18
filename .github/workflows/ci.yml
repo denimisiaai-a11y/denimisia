@@ -49,7 +49,7 @@ jobs:
       - name: Generate Prisma Client
         run: pnpm --filter database exec prisma generate
       - name: Run tests
-        run: pnpm test --if-present
+        run: pnpm test
 
   gitleaks:
     name: Secret scan (gitleaks)
