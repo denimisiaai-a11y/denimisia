@@ -6,6 +6,7 @@ import { useSession } from 'next-auth/react';
 import { adminFetch } from '@/lib/api';
 import { Banner } from '@/components/admin-ui';
 import { ConfirmModal } from '@/components/modal';
+import { ImageUploader } from '@/components/image-uploader';
 
 interface Category {
   id: string;
@@ -74,7 +75,7 @@ export default function EditProductPage() {
   const [categoryId, setCategoryId] = useState('');
   const [tags, setTags] = useState('');
   const [isFeatured, setIsFeatured] = useState(false);
-  const [imagesInput, setImagesInput] = useState('');
+  const [images, setImages] = useState<string[]>([]);
 
   // Variant state
   const [variants, setVariants] = useState<Variant[]>([]);
@@ -105,7 +106,7 @@ export default function EditProductPage() {
       setCategoryId(product.categoryId ?? product.category?.id ?? '');
       setTags((product.tags ?? []).join(', '));
       setIsFeatured(product.isFeatured);
-      setImagesInput((product.images ?? []).join(', '));
+      setImages(product.images ?? []);
       setVariants(product.variants ?? []);
     } catch (err: unknown) {
       const message =
@@ -145,11 +146,6 @@ export default function EditProductPage() {
     setError('');
 
     try {
-      const images = imagesInput
-        .split(',')
-        .map((url) => url.trim())
-        .filter(Boolean);
-
       const tagList = tags
         .split(',')
         .map((t) => t.trim())
@@ -247,11 +243,6 @@ export default function EditProductPage() {
       setDeletingVariant(false);
     }
   };
-
-  const previewImages = imagesInput
-    .split(',')
-    .map((url) => url.trim())
-    .filter(Boolean);
 
   if (loading) {
     return (
@@ -440,42 +431,17 @@ export default function EditProductPage() {
               </span>
             </header>
 
-            <label className="block">
-              <span className="block text-[10px] font-bold uppercase tracking-[0.2em] text-secondary mb-2">
-                Image URLs
-              </span>
-              <input
-                type="text"
-                value={imagesInput}
-                onChange={(e) => setImagesInput(e.target.value)}
-                placeholder="https://example.com/img1.jpg, https://example.com/img2.jpg"
-                className="w-full border-0 border-b border-outline-variant/25 bg-transparent py-2 text-sm text-on-surface placeholder:text-secondary focus:border-primary focus:outline-none focus:ring-0"
-              />
-              <p className="mt-2 text-[10px] tracking-wide text-secondary">
-                Comma-separated URLs.
-              </p>
-            </label>
-
-            {previewImages.length > 0 && (
-              <div className="mt-6 grid grid-cols-4 md:grid-cols-6 gap-3">
-                {previewImages.map((url, i) => (
-                  <div
-                    key={i}
-                    className="relative aspect-[3/4] bg-surface-container-high overflow-hidden border border-outline-variant/15"
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={url}
-                      alt={`Preview ${i + 1}`}
-                      className="h-full w-full object-cover"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).style.display = 'none';
-                      }}
-                    />
-                  </div>
-                ))}
-              </div>
-            )}
+            <ImageUploader
+              value={images}
+              onChange={setImages}
+              token={token}
+              folder="products"
+              maxFiles={12}
+            />
+            <p className="mt-4 text-[10px] tracking-wide text-secondary">
+              First image is used as the product cover. Hover a thumbnail to
+              reorder or remove.
+            </p>
           </section>
         </div>
 

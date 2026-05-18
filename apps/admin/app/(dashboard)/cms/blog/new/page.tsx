@@ -4,6 +4,7 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { adminFetch } from '@/lib/api';
+import { ImageUploader } from '@/components/image-uploader';
 
 function generateSlug(title: string): string {
   return title
@@ -211,32 +212,19 @@ export default function NewBlogPostPage() {
               <label className="block text-[10px] font-bold uppercase tracking-[0.2em] text-secondary mb-2">
                 Cover Image
               </label>
-              {form.coverImageUrl ? (
-                <div className="mb-3 bg-surface-container-low border border-outline-variant/15 overflow-hidden">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={form.coverImageUrl}
-                    alt="Cover preview"
-                    className="w-full h-40 object-cover"
-                  />
-                </div>
-              ) : (
-                <div className="mb-3 border border-dashed border-outline-variant/30 bg-surface-container-low flex flex-col items-center justify-center py-10 gap-2">
-                  <span className="material-symbols-outlined text-secondary/60 text-3xl">
-                    cloud_upload
-                  </span>
-                  <p className="text-[11px] uppercase tracking-[0.2em] text-secondary">
-                    Drop image · paste URL below
-                  </p>
-                </div>
-              )}
-              <input
-                type="url"
-                value={form.coverImageUrl}
-                onChange={(e) => updateField('coverImageUrl', e.target.value)}
-                placeholder="https://..."
-                className="w-full border-0 border-b border-outline-variant/25 bg-transparent py-2 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-0"
+              <ImageUploader
+                value={form.coverImageUrl ? [form.coverImageUrl] : []}
+                onChange={(urls) =>
+                  updateField('coverImageUrl', urls[0] ?? '')
+                }
+                token={token}
+                folder="cms"
+                maxFiles={1}
               />
+              <p className="mt-2 text-[10px] tracking-wide text-secondary">
+                Recommended at least 1600×900 (16:9). Used as the post header
+                and in the blog index card.
+              </p>
             </div>
 
             <div>

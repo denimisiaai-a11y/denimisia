@@ -7,6 +7,7 @@ import { ChevronRight, ArrowRight, Heart, Truck, RefreshCcw, Star } from 'lucide
 import { motion, useInView, useReducedMotion, useScroll, useTransform } from 'framer-motion';
 import { formatPrice } from '@/lib/utils';
 import { NAV_FEATURED } from '@/lib/placeholder-images';
+import { useSlotImage } from '@/lib/use-slot-image';
 import { WishlistButton } from '@/components/ui/wishlist-button';
 
 interface ProductData {
@@ -34,6 +35,11 @@ const SORT_OPTIONS = [
 type SortValue = (typeof SORT_OPTIONS)[number]['value'];
 
 export function BestsellersCollection({ products, isPlaceholder }: BestsellersCollectionProps) {
+  const { src: parallaxHeroSrc, altText: parallaxHeroAlt } = useSlotImage(
+    'collection-bestsellers',
+    'bestsellers_parallax_hero',
+    NAV_FEATURED.seriesBestSellers,
+  );
   const [sort, setSort] = useState<SortValue>('rank');
   const heroRef = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({
@@ -73,8 +79,8 @@ export function BestsellersCollection({ products, isPlaceholder }: BestsellersCo
         >
           <Image
             data-slot-field="media"
-            src={NAV_FEATURED.seriesBestSellers}
-            alt="Bestsellers hero"
+            src={parallaxHeroSrc}
+            alt={parallaxHeroAlt ?? 'Bestsellers hero'}
             fill
             priority
             sizes="100vw"

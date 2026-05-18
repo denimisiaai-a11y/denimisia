@@ -47,6 +47,7 @@ export const PAGE_KEYS = {
   contact: 'contact',
   returns: 'returns',
   privacy: 'privacy',
+  terms: 'terms',
   sizeGuide: 'size-guide',
   trackOrder: 'track-order',
   outlets: 'outlets',
@@ -418,6 +419,19 @@ export const SLOT_SPECS: readonly SlotSpec[] = [
     specAspect: '16:8.3',
     maxBytes: 3 * MB,
     defaultHeading: 'Privacy policy.',
+  },
+
+  {
+    pageKey: PAGE_KEYS.terms,
+    slotKey: 'terms_hero',
+    label: 'Terms of service hero',
+    mediaKind: 'IMAGE',
+    acceptsVideo: false,
+    specWidth: 2560,
+    specHeight: 1330,
+    specAspect: '16:8.3',
+    maxBytes: 3 * MB,
+    defaultHeading: 'Terms of service.',
   },
   {
     pageKey: PAGE_KEYS.privacy,

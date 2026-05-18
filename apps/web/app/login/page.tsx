@@ -6,9 +6,16 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { signIn } from 'next-auth/react';
 import { AUTH_EDITORIAL } from '@/lib/placeholder-images';
+import { useSlotImage } from '@/lib/use-slot-image';
 
 export default function LoginPage() {
+  const { src: editorialSrc, altText: editorialAlt } = useSlotImage(
+    'auth',
+    'auth_editorial_panel',
+    AUTH_EDITORIAL,
+  );
   const router = useRouter();
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -48,8 +55,8 @@ export default function LoginPage() {
       >
         <Image
           data-slot-field="media"
-          src={AUTH_EDITORIAL}
-          alt="Editorial denim photography"
+          src={editorialSrc}
+          alt={editorialAlt ?? 'Editorial denim photography'}
           fill
           priority
           sizes="(min-width: 1024px) 60vw, 50vw"

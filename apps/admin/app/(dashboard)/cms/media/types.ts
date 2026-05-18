@@ -87,6 +87,7 @@ export const PAGE_ROUTES: Record<string, { label: string; path: string }> = {
   'contact':                 { label: 'Contact',           path: '/contact' },
   'returns':                 { label: 'Returns',           path: '/returns' },
   'privacy':                 { label: 'Privacy',           path: '/privacy' },
+  'terms':                   { label: 'Terms of Service',  path: '/terms' },
   'size-guide':              { label: 'Size guide',        path: '/size-guide' },
   'track-order':             { label: 'Track order',       path: '/track-order' },
   'outlets':                 { label: 'Outlets',           path: '/outlets' },

@@ -3,6 +3,7 @@
 import { useSession } from 'next-auth/react';
 import { useEffect, useState, useCallback } from 'react';
 import { adminFetch } from '@/lib/api';
+import { ImageUploader } from '@/components/image-uploader';
 
 interface Banner {
   id: string;
@@ -233,35 +234,18 @@ export default function BannersPage() {
             </div>
             <div className="sm:col-span-2">
               <label className="block text-[10px] font-bold uppercase tracking-[0.2em] text-secondary mb-2">
-                Image URL *
+                Image *
               </label>
-              {form.imageUrl ? (
-                <div className="mb-3 bg-surface-container-low border border-outline-variant/15 overflow-hidden">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={form.imageUrl}
-                    alt="Banner preview"
-                    className="w-full h-48 object-cover"
-                  />
-                </div>
-              ) : (
-                <div className="mb-3 border border-dashed border-outline-variant/30 bg-surface-container-low flex flex-col items-center justify-center py-10 gap-2">
-                  <span className="material-symbols-outlined text-secondary/60 text-3xl">
-                    cloud_upload
-                  </span>
-                  <p className="text-[11px] uppercase tracking-[0.2em] text-secondary">
-                    Drop image · paste URL below
-                  </p>
-                </div>
-              )}
-              <input
-                type="url"
-                required
-                value={form.imageUrl}
-                onChange={(e) => updateField('imageUrl', e.target.value)}
-                placeholder="https://..."
-                className="w-full border-0 border-b border-outline-variant/25 bg-transparent py-2 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-0"
+              <ImageUploader
+                value={form.imageUrl ? [form.imageUrl] : []}
+                onChange={(urls) => updateField('imageUrl', urls[0] ?? '')}
+                token={token}
+                folder="banners"
+                maxFiles={1}
               />
+              <p className="mt-2 text-[10px] tracking-wide text-secondary">
+                Recommended 2560×1440 (16:9). Drag-and-drop or click to upload.
+              </p>
             </div>
             <div>
               <label className="block text-[10px] font-bold uppercase tracking-[0.2em] text-secondary mb-2">
