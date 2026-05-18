@@ -18,10 +18,17 @@ export default function CheckoutPage() {
   const [state, setState] = useState('');
   const [zip, setZip] = useState('');
   const [phone, setPhone] = useState('');
+  // Guest checkout state. Only used when the customer is not logged in.
+  // The API's CreateOrderDto requires guestEmail + guestName + guestPhone
+  // as a tuple; guestPhone reuses the shipping phone field below.
+  const [guestEmail, setGuestEmail] = useState('');
+  const [guestName, setGuestName] = useState('');
   const [discountCode, setDiscountCode] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [orderPlaced, setOrderPlaced] = useState<string | null>(null);
+
+  const isGuest = status === 'unauthenticated';
 
   // Shipping calculation
   const subtotal = total();
@@ -33,17 +40,6 @@ export default function CheckoutPage() {
     return (
       <div className="flex min-h-screen items-center justify-center pt-24">
         <p className="text-sm text-muted">Loading...</p>
-      </div>
-    );
-  }
-
-  if (status === 'unauthenticated') {
-    return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-4 pt-24">
-        <p className="text-sm text-muted">You need to sign in to checkout.</p>
-        <Link href="/login" className="btn-pill btn-pill-outline !border-ink !text-ink">
-          Sign In
-        </Link>
       </div>
     );
   }
@@ -60,19 +56,35 @@ export default function CheckoutPage() {
   }
 
   if (orderPlaced) {
+    // Logged-in customers land on /account/orders; guests get the
+    // email-gated /track-order page since they have no account yet.
+    const followUpHref = isGuest
+      ? `/track-order?order=${orderPlaced}`
+      : '/account/orders';
+    const followUpLabel = isGuest ? 'Track Order' : 'View Orders';
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-4 px-6 pt-24 text-center">
         <h1 className="text-2xl font-medium uppercase tracking-[0.2em] text-ink">
           Order Placed
         </h1>
         <p className="text-sm text-muted">
-          Thank you! Your order #{orderPlaced.slice(-8).toUpperCase()} has been placed.
+          Thank you! Your order #{orderPlaced.slice(-8).toUpperCase()} has
+          been placed.
         </p>
         <p className="text-sm text-muted">
           Payment method: Cash on Delivery (COD)
         </p>
-        <Link href="/account/orders" className="btn-pill btn-pill-outline !border-ink !text-ink mt-4">
-          View Orders
+        {isGuest && (
+          <p className="max-w-md text-xs text-muted">
+            We&apos;ve sent a confirmation to {guestEmail}. Keep your order
+            number — you&apos;ll need it (with your email) to check status.
+          </p>
+        )}
+        <Link
+          href={followUpHref}
+          className="btn-pill btn-pill-outline !border-ink !text-ink mt-4"
+        >
+          {followUpLabel}
         </Link>
       </div>
     );
@@ -85,17 +97,33 @@ export default function CheckoutPage() {
 
     try {
       const accessToken = (session as any)?.accessToken;
-      if (!accessToken) {
+
+      // Validate guest tuple up front. The API also enforces this and the
+      // DB has a CHECK constraint, but failing fast in the form is friendlier.
+      if (isGuest) {
+        if (!guestEmail.trim() || !guestName.trim() || !phone.trim()) {
+          setError(
+            'Guest checkout needs your email, name, and phone so we can reach you about delivery.',
+          );
+          setLoading(false);
+          return;
+        }
+      } else if (!accessToken) {
         setError('Session expired. Please sign in again.');
+        setLoading(false);
         return;
+      }
+
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (!isGuest && accessToken) {
+        headers.Authorization = `Bearer ${accessToken}`;
       }
 
       const res = await fetch(`${API}/orders`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${accessToken}`,
-        },
+        headers,
         body: JSON.stringify({
           items: items.map((item) => ({
             productId: item.productId,
@@ -103,13 +131,22 @@ export default function CheckoutPage() {
             quantity: item.qty,
           })),
           shippingAddress: {
-            name: session?.user?.name ?? undefined,
+            name: isGuest
+              ? guestName || undefined
+              : session?.user?.name ?? undefined,
             line1: street,
             city,
             state,
             zip,
             phone,
           },
+          ...(isGuest
+            ? {
+                guestEmail: guestEmail.trim(),
+                guestName: guestName.trim(),
+                guestPhone: phone.trim(),
+              }
+            : {}),
           ...(discountCode.trim() ? { discountCode: discountCode.trim() } : {}),
         }),
       });
@@ -140,8 +177,64 @@ export default function CheckoutPage() {
       <div className="grid gap-12 lg:grid-cols-[1fr_400px]">
         {/* Left: Shipping form */}
         <form onSubmit={handleSubmit} id="checkout-form" className="space-y-5">
-          {error && (
-            <p className="text-sm text-error">{error}</p>
+          {error && <p className="text-sm text-error">{error}</p>}
+
+          {isGuest && (
+            <div className="space-y-5 border border-border p-5">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xs font-semibold uppercase tracking-[0.15em] text-ink">
+                  Contact Details
+                </h2>
+                <Link
+                  href="/login"
+                  className="text-xs text-muted underline-offset-4 hover:text-ink hover:underline"
+                >
+                  Have an account? Sign in
+                </Link>
+              </div>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                  <label
+                    htmlFor="guest-name"
+                    className="mb-1.5 block text-xs text-muted"
+                  >
+                    Full Name
+                  </label>
+                  <input
+                    id="guest-name"
+                    type="text"
+                    value={guestName}
+                    onChange={(e) => setGuestName(e.target.value)}
+                    required
+                    autoComplete="name"
+                    className="w-full border border-border bg-transparent px-4 py-3 text-sm text-ink outline-none focus:border-ink"
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor="guest-email"
+                    className="mb-1.5 block text-xs text-muted"
+                  >
+                    Email
+                  </label>
+                  <input
+                    id="guest-email"
+                    type="email"
+                    value={guestEmail}
+                    onChange={(e) => setGuestEmail(e.target.value)}
+                    required
+                    autoComplete="email"
+                    placeholder="you@example.com"
+                    className="w-full border border-border bg-transparent px-4 py-3 text-sm text-ink outline-none focus:border-ink"
+                  />
+                </div>
+              </div>
+              <p className="text-[11px] leading-relaxed text-muted">
+                We&apos;ll send order updates to this email. No password
+                required — but creating an account later lets you see your
+                full order history in one place.
+              </p>
+            </div>
           )}
 
           <h2 className="text-xs font-semibold uppercase tracking-[0.15em] text-ink">
