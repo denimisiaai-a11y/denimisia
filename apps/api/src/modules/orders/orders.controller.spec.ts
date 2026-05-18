@@ -39,12 +39,29 @@ describe('OrdersController', () => {
     expect(ordersService.getMyOrders).toHaveBeenCalledWith('user-1', 2, 5);
   });
 
-  it('should get order by id', async () => {
+  it('should get order by id without admin bypass for regular customers', async () => {
     ordersService.getOrderById.mockResolvedValue({ id: 'order-1' });
-    const result = await controller.getOrder({ id: 'user-1' }, 'order-1');
+    const result = await controller.getOrder(
+      { id: 'user-1', role: 'CUSTOMER' },
+      'order-1',
+    );
     expect(ordersService.getOrderById).toHaveBeenCalledWith(
       'user-1',
       'order-1',
+      false,
+    );
+  });
+
+  it('should pass isAdmin=true so admins can open guest orders', async () => {
+    ordersService.getOrderById.mockResolvedValue({ id: 'order-1' });
+    await controller.getOrder(
+      { id: 'admin-1', role: 'SUPER_ADMIN' },
+      'order-1',
+    );
+    expect(ordersService.getOrderById).toHaveBeenCalledWith(
+      'admin-1',
+      'order-1',
+      true,
     );
   });
 

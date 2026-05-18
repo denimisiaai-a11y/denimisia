@@ -72,7 +72,12 @@ export class OrdersController {
   @Get(':id')
   @UseGuards(JwtAuthGuard)
   getOrder(@CurrentUser() user: any, @Param('id') id: string) {
-    return this.ordersService.getOrderById(user.id, id);
+    // Admins (ADMIN / SUPER_ADMIN) must be able to open any order from
+    // the admin panel — including guest orders where order.userId is
+    // null. Without the isAdmin flag, the service's row-owner check
+    // rejects every admin view of a guest order with Forbidden.
+    const isAdmin = user.role === 'ADMIN' || user.role === 'SUPER_ADMIN';
+    return this.ordersService.getOrderById(user.id, id, isAdmin);
   }
 
   @Patch(':id/cancel')
