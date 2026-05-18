@@ -213,7 +213,7 @@ export default function RegisterPage() {
               By creating an account, you agree to our
               <br />
               <Link
-                href="/privacy"
+                href="/terms"
                 className="underline underline-offset-4 transition-colors hover:text-ink"
               >
                 Terms of Service

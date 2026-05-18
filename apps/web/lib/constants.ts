@@ -126,6 +126,7 @@ export const FOOTER_COLUMNS = [
       { label: 'Blog/Press', href: '/blog' },
       { label: 'Career', href: '/career' },
       { label: 'Privacy Policy', href: '/privacy' },
+      { label: 'Terms of Service', href: '/terms' },
     ],
   },
   {
