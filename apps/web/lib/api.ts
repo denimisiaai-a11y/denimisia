@@ -17,6 +17,10 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
 // ─── Products ────────────────────────────────────────────────────────────────
 
 export interface ProductVariant {
+  // Optional CSS hex (e.g. "#94a2b2"). When present, the PDP color
+  // selector paints a solid swatch in this color. Falls back to the
+  // variant's first image when null/absent.
+  colorHex?: string | null;
   id: string;
   size: string;
   color: string;

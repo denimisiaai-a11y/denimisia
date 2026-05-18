@@ -18,6 +18,7 @@ interface Variant {
   id: string;
   size?: string;
   color?: string;
+  colorHex?: string | null;
   stock: number;
   price?: number;
   sku?: string;
@@ -82,6 +83,7 @@ export default function EditProductPage() {
   const [newVariant, setNewVariant] = useState({
     size: '',
     color: '',
+    colorHex: '',
     stock: '',
     price: '',
     sku: '',
@@ -200,6 +202,7 @@ export default function EditProductPage() {
       const body = {
         size: newVariant.size || undefined,
         color: newVariant.color || undefined,
+        colorHex: newVariant.colorHex.trim() || undefined,
         stock: Number(newVariant.stock) || 0,
         price: newVariant.price ? Number(newVariant.price) : undefined,
         sku: newVariant.sku || undefined,
@@ -211,7 +214,14 @@ export default function EditProductPage() {
         { method: 'POST', body: JSON.stringify(body) },
       );
       setVariants((prev) => [...prev, created]);
-      setNewVariant({ size: '', color: '', stock: '', price: '', sku: '' });
+      setNewVariant({
+        size: '',
+        color: '',
+        colorHex: '',
+        stock: '',
+        price: '',
+        sku: '',
+      });
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : 'Failed to add variant');
     } finally {
@@ -658,9 +668,19 @@ export default function EditProductPage() {
                       )}
                     </td>
                     <td className="px-5 py-4 text-sm text-on-surface">
-                      {v.color ?? (
-                        <span className="text-secondary">—</span>
-                      )}
+                      <span className="inline-flex items-center gap-2">
+                        {v.colorHex && (
+                          <span
+                            aria-hidden
+                            className="inline-block h-3.5 w-3.5 rounded-full border border-outline-variant/30"
+                            style={{ backgroundColor: v.colorHex }}
+                            title={v.colorHex}
+                          />
+                        )}
+                        {v.color ?? (
+                          <span className="text-secondary">—</span>
+                        )}
+                      </span>
                     </td>
                     <td className="px-5 py-4">
                       <span className="text-sm font-semibold text-on-surface">
@@ -734,15 +754,30 @@ export default function EditProductPage() {
               <span className="block text-[10px] font-bold uppercase tracking-[0.2em] text-secondary mb-2">
                 Color
               </span>
-              <input
-                type="text"
-                value={newVariant.color}
-                onChange={(e) =>
-                  setNewVariant((prev) => ({ ...prev, color: e.target.value }))
-                }
-                placeholder="Indigo"
-                className="w-full border-0 border-b border-outline-variant/25 bg-transparent py-2 text-sm text-on-surface placeholder:text-secondary focus:border-primary focus:outline-none focus:ring-0"
-              />
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={newVariant.color}
+                  onChange={(e) =>
+                    setNewVariant((prev) => ({ ...prev, color: e.target.value }))
+                  }
+                  placeholder="Indigo"
+                  className="flex-1 border-0 border-b border-outline-variant/25 bg-transparent py-2 text-sm text-on-surface placeholder:text-secondary focus:border-primary focus:outline-none focus:ring-0"
+                />
+                <input
+                  type="color"
+                  value={newVariant.colorHex || '#cccccc'}
+                  onChange={(e) =>
+                    setNewVariant((prev) => ({
+                      ...prev,
+                      colorHex: e.target.value,
+                    }))
+                  }
+                  className="h-7 w-7 cursor-pointer rounded-full border border-outline-variant/30 bg-transparent p-0"
+                  aria-label="Pick hex color for swatch"
+                  title="Hex shown as the solid PDP swatch when set"
+                />
+              </div>
             </label>
             <label className="block">
               <span className="block text-[10px] font-bold uppercase tracking-[0.2em] text-secondary mb-2">

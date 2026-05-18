@@ -470,6 +470,7 @@ export function buildVariantsFromBuilder(
   sku: string;
   size: string;
   color: string;
+  colorHex?: string;
   stock: number;
   images?: string[];
 }[] {
@@ -498,6 +499,9 @@ export function buildVariantsFromBuilder(
           sku: `${slugCode}-${colorCode}-${sizeCode}`,
           size: sz.label.trim(),
           color: color.name.trim(),
+          ...(color.hex && color.hex.trim()
+            ? { colorHex: color.hex.trim() }
+            : {}),
           stock: sz.stock,
           ...(color.images.length > 0 ? { images: color.images } : {}),
         };

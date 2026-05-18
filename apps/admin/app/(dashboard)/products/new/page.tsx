@@ -191,6 +191,7 @@ export default function NewProductPage() {
                 sku: `${slugCode}-${colorCode}-${sizeCode}`,
                 size: trimmedSize,
                 color: trimmedMainColor,
+                ...(mainColorHex.trim() ? { colorHex: mainColorHex.trim() } : {}),
                 stock: s.stock,
               };
             })

@@ -36,6 +36,7 @@ const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api/v1';
 interface FullVariant {
   id: string;
   color: string;
+  colorHex?: string | null;
   size: string;
   stock: number;
   price: string | null;
@@ -56,6 +57,9 @@ interface FullProduct {
 interface ColorSwatch {
   name: string;
   image: string;
+  /** Optional CSS hex (e.g. "#94a2b2"). When present the swatch renders
+   *  as a solid color circle; otherwise the variant image is used. */
+  hex: string | null;
 }
 
 /** Lazy-fetch the full product on open so quick view renders the same
@@ -87,7 +91,7 @@ function colorsFromProduct(
 ): ColorSwatch[] {
   if (!full) {
     // Single placeholder swatch using the card image while data loads.
-    return [{ name: '', image: fallback.image }];
+    return [{ name: '', image: fallback.image, hex: null }];
   }
   const seen = new Set<string>();
   const out: ColorSwatch[] = [];
@@ -97,9 +101,12 @@ function colorsFromProduct(
     out.push({
       name: v.color,
       image: v.images[0] ?? full.images[0] ?? fallback.image,
+      hex: v.colorHex ?? null,
     });
   }
-  return out.length > 0 ? out : [{ name: '', image: fallback.image }];
+  return out.length > 0
+    ? out
+    : [{ name: '', image: fallback.image, hex: null }];
 }
 
 function sizesForColor(full: FullProduct | null, color: string): string[] {
@@ -288,14 +295,17 @@ function DesktopQuickView({ product, related, onClose }: ProductQuickViewProps) 
                       ? 'ring-2 ring-ink'
                       : 'ring-1 ring-ink/15 hover:ring-ink/40'
                   }`}
+                  style={swatch.hex ? { backgroundColor: swatch.hex } : undefined}
                 >
-                  <Image
-                    src={swatch.image}
-                    alt={swatch.name || 'colour swatch'}
-                    fill
-                    sizes="40px"
-                    className="object-cover"
-                  />
+                  {!swatch.hex && (
+                    <Image
+                      src={swatch.image}
+                      alt={swatch.name || 'colour swatch'}
+                      fill
+                      sizes="40px"
+                      className="object-cover"
+                    />
+                  )}
                 </button>
               ))}
             </div>
@@ -609,14 +619,19 @@ function MobileQuickView({ product, related, onClose }: ProductQuickViewProps) {
                           ? 'ring-2 ring-ink'
                           : 'ring-1 ring-ink/15'
                       }`}
+                      style={
+                        swatch.hex ? { backgroundColor: swatch.hex } : undefined
+                      }
                     >
-                      <Image
-                        src={swatch.image}
-                        alt={swatch.name || 'colour swatch'}
-                        fill
-                        sizes="44px"
-                        className="object-cover"
-                      />
+                      {!swatch.hex && (
+                        <Image
+                          src={swatch.image}
+                          alt={swatch.name || 'colour swatch'}
+                          fill
+                          sizes="44px"
+                          className="object-cover"
+                        />
+                      )}
                     </button>
                   ))}
                 </div>

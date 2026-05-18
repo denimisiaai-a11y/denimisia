@@ -172,7 +172,8 @@ export function ProductDetail({ product }: ProductDetailProps) {
           </div>
 
 
-          {/* Color selector — image swatches */}
+          {/* Color selector — solid hex swatch when the variant has a
+              colorHex, fallback to a variant image circle otherwise. */}
           {colors.length > 1 && (
             <div className="mt-8">
               <p className="mb-3 flex items-baseline gap-1 text-xs font-semibold uppercase tracking-[0.15em] text-ink">
@@ -185,6 +186,7 @@ export function ProductDetail({ product }: ProductDetailProps) {
               <div className="inline-flex items-center gap-3">
                 {colors.map((color) => {
                   const variant = product.variants.find((v) => v.color === color);
+                  const swatchHex = variant?.colorHex ?? null;
                   const swatchImg = variant?.images[0] ?? product.images[0];
                   const isActive = selectedColor === color;
                   return (
@@ -207,11 +209,12 @@ export function ProductDetail({ product }: ProductDetailProps) {
                         aria-label={color}
                         aria-pressed={isActive}
                         className={cn(
-                          'relative h-10 w-10 overflow-hidden rounded-full bg-paper transition-opacity',
+                          'relative h-10 w-10 overflow-hidden rounded-full border border-ink/10 bg-paper transition-opacity',
                           isActive ? 'opacity-100' : 'opacity-80 hover:opacity-100',
                         )}
+                        style={swatchHex ? { backgroundColor: swatchHex } : undefined}
                       >
-                        {swatchImg && (
+                        {!swatchHex && swatchImg && (
                           <Image
                             src={swatchImg}
                             alt={color}

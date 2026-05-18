@@ -69,6 +69,16 @@ export class CreateVariantDto {
   @IsNotEmpty()
   color: string;
 
+  // Optional hex (e.g. "#94a2b2") shown as a solid storefront swatch.
+  // Validated as a 3- or 6-digit CSS hex so admin-input garbage cannot
+  // leak into inline `style.backgroundColor` on the PDP.
+  @IsOptional()
+  @IsString()
+  @Matches(/^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/, {
+    message: 'colorHex must be a CSS hex color like #abc or #aabbcc',
+  })
+  colorHex?: string;
+
   @IsOptional()
   @IsString()
   material?: string;
@@ -222,6 +232,13 @@ export class UpdateVariantDto {
   @IsOptional()
   @IsString()
   color?: string;
+
+  @IsOptional()
+  @IsString()
+  @Matches(/^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/, {
+    message: 'colorHex must be a CSS hex color like #abc or #aabbcc',
+  })
+  colorHex?: string;
 
   @IsOptional()
   @IsString()

@@ -211,6 +211,11 @@ model ProductVariant {
   sku           String         @unique
   size          String
   color         String
+  // Optional hex (e.g. "#94a2b2") shown as a solid swatch on the
+  // storefront PDP color selector when present. Falls back to the
+  // variant's first image when null so legacy variants stay rendered
+  // the way they always were.
+  colorHex      String?
   material      String?
   stock         Int            @default(0)
   price         Decimal?
