@@ -454,7 +454,13 @@ export class OrdersService {
     const variants = await this.prisma.productVariant.findMany({
       where: { id: { in: variantIds } },
       include: {
-        product: { select: { id: true, name: true, images: true, slug: true } },
+        // product.price is the canonical price; variant.price is an
+        // override per size/color and is null for the common case where
+        // every variant shares the parent price. Pull both so the order
+        // line can fall back when the override is null.
+        product: {
+          select: { id: true, name: true, images: true, slug: true, price: true },
+        },
       },
     });
 
@@ -474,7 +480,16 @@ export class OrdersService {
           `Insufficient stock for ${variant.product.name} (${variant.size}/${variant.color})`,
         );
       }
-      const unitPrice = Number(variant.price);
+      // variant.price overrides product.price when set (e.g. limited-edition
+      // colorway costs more than the base SKU). When null, fall back to
+      // product.price so orders never save a 0-priced line.
+      const rawPrice = variant.price ?? variant.product.price;
+      const unitPrice = Number(rawPrice);
+      if (!Number.isFinite(unitPrice) || unitPrice <= 0) {
+        throw new BadRequestException(
+          `No price configured for ${variant.product.name} (${variant.size}/${variant.color})`,
+        );
+      }
       const total = unitPrice * item.quantity;
       return {
         productId: item.productId,

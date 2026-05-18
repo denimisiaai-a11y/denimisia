@@ -109,9 +109,19 @@ function computeAllowedNext(current: OrderStatus): OrderStatus[] {
   return [...(TRANSITIONS[current] ?? [])];
 }
 
+interface ItemSnapshot {
+  name?: string;
+  size?: string;
+  color?: string;
+  image?: string | null;
+  bundleName?: string;
+  bundleSize?: string;
+  bundleImage?: string | null;
+}
+
 interface OrderItem {
   id: string;
-  product?: { name: string; slug?: string };
+  product?: { name: string; slug?: string; images?: string[] };
   productName?: string;
   variant?: { size?: string; color?: string };
   variantLabel?: string;
@@ -119,6 +129,7 @@ interface OrderItem {
   unitPrice?: number;
   price?: number;
   total?: number;
+  snapshot?: ItemSnapshot;
 }
 
 interface ShippingAddress {
@@ -386,14 +397,28 @@ export default function OrderDetailPage() {
   };
 
   const getItemName = (item: OrderItem): string => {
-    return item.product?.name ?? item.productName ?? 'Unknown Product';
+    // Prefer the snapshot taken at order time so refunds / re-prints stay
+    // accurate even if the product or bundle has been renamed since.
+    return (
+      item.snapshot?.bundleName ??
+      item.snapshot?.name ??
+      item.product?.name ??
+      item.productName ??
+      'Unknown Product'
+    );
   };
 
   const getItemVariant = (item: OrderItem): string => {
     if (item.variantLabel) return item.variantLabel;
     const parts: string[] = [];
-    if (item.variant?.size) parts.push(item.variant.size);
-    if (item.variant?.color) parts.push(item.variant.color);
+    const snapSize = item.snapshot?.bundleSize ?? item.snapshot?.size;
+    const snapColor = item.snapshot?.color;
+    if (item.variant?.size ?? snapSize) {
+      parts.push((item.variant?.size ?? snapSize) as string);
+    }
+    if (item.variant?.color ?? snapColor) {
+      parts.push((item.variant?.color ?? snapColor) as string);
+    }
     return parts.length > 0 ? parts.join(' / ') : '—';
   };
 

@@ -146,7 +146,13 @@ describe('OrdersService', () => {
         where: { id: { in: ['var-1'] } },
         include: {
           product: {
-            select: { id: true, name: true, images: true, slug: true },
+            select: {
+              id: true,
+              name: true,
+              images: true,
+              slug: true,
+              price: true,
+            },
           },
         },
       });
