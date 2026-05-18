@@ -199,21 +199,43 @@ export default function EditProductPage() {
     if (!token) return;
     setAddingVariant(true);
     try {
-      const body = {
-        size: newVariant.size || undefined,
-        color: newVariant.color || undefined,
-        colorHex: newVariant.colorHex.trim() || undefined,
-        stock: Number(newVariant.stock) || 0,
-        price: newVariant.price ? Number(newVariant.price) : undefined,
-        sku: newVariant.sku || undefined,
-      };
-
-      const created = await adminFetch<Variant>(
-        `/products/${productId}/variants`,
-        token,
-        { method: 'POST', body: JSON.stringify(body) },
-      );
-      setVariants((prev) => [...prev, created]);
+      // Size field accepts a single size OR a comma-separated list like
+      // "M, L, XL". Each entry becomes its own variant on the API, all
+      // sharing the same color + hex + stock. SKU gets per-size suffixed
+      // so the API's unique-SKU check doesn't reject the batch on the
+      // second size.
+      const sizeList = newVariant.size
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
+      const sizes = sizeList.length > 0 ? sizeList : [''];
+      const stock = Number(newVariant.stock) || 0;
+      const price = newVariant.price ? Number(newVariant.price) : undefined;
+      const baseSku = newVariant.sku.trim();
+      const created: Variant[] = [];
+      for (let i = 0; i < sizes.length; i += 1) {
+        const sizeValue = sizes[i] ?? '';
+        const sku = baseSku
+          ? sizes.length > 1
+            ? `${baseSku}-${sizeValue.replace(/[^A-Za-z0-9]/g, '')}`
+            : baseSku
+          : undefined;
+        const body = {
+          size: sizeValue || undefined,
+          color: newVariant.color || undefined,
+          colorHex: newVariant.colorHex.trim() || undefined,
+          stock,
+          price,
+          sku,
+        };
+        const v = await adminFetch<Variant>(
+          `/products/${productId}/variants`,
+          token,
+          { method: 'POST', body: JSON.stringify(body) },
+        );
+        created.push(v);
+      }
+      setVariants((prev) => [...prev, ...created]);
       setNewVariant({
         size: '',
         color: '',

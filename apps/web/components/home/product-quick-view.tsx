@@ -89,10 +89,10 @@ function colorsFromProduct(
   full: FullProduct | null,
   fallback: ProductData,
 ): ColorSwatch[] {
-  if (!full) {
-    // Single placeholder swatch using the card image while data loads.
-    return [{ name: '', image: fallback.image, hex: null }];
-  }
+  // Empty while loading so the COLOUR row hides entirely instead of
+  // rendering a card-image placeholder that flickers into the real hex
+  // swatch the moment the API response arrives.
+  if (!full) return [];
   const seen = new Set<string>();
   const out: ColorSwatch[] = [];
   for (const v of full.variants) {
@@ -150,6 +150,74 @@ function DesktopQuickView({ product, related, onClose }: ProductQuickViewProps) 
   );
   const eyebrow = eyebrowFromFlags(full) || 'New Arrival';
   const description = full?.description?.trim() || FALLBACK_DESCRIPTION;
+
+  // Same purchase flow as MobileQuickView. The desktop layout used to fall
+  // back to <Link href=PDP> for both CTAs, which surprised customers who
+  // expected the quick view to add inline. Re-uses the same selectedVariant
+  // resolver and cart wiring so behaviour matches across breakpoints.
+  const addItem = useCart((s) => s.addItem);
+  const openCart = useCart((s) => s.openCart);
+  const router = useRouter();
+
+  const selectedVariant = useMemo<FullVariant | null>(() => {
+    if (!full) return null;
+    const color = swatches[selectedColour]?.name;
+    if (color === undefined) return null;
+    if (sizes.length === 0) {
+      return full.variants.find((v) => v.color === color) ?? null;
+    }
+    if (!selectedSize) return null;
+    return (
+      full.variants.find(
+        (v) => v.color === color && v.size === selectedSize,
+      ) ?? null
+    );
+  }, [full, swatches, selectedColour, selectedSize, sizes]);
+
+  const needsSize = sizes.length > 0 && !selectedSize;
+  const outOfStock =
+    selectedVariant !== null && selectedVariant.stock === 0;
+  const canPurchase =
+    full !== null && selectedVariant !== null && !needsSize && !outOfStock;
+
+  const buildCartItem = () => {
+    if (!full || !selectedVariant) return null;
+    return {
+      variantId: selectedVariant.id,
+      productId: full.id,
+      productName: product.name,
+      productSlug: product.slug,
+      image: selectedVariant.images[0] ?? product.image,
+      color: selectedVariant.color,
+      size: selectedVariant.size,
+      price: Number(selectedVariant.price ?? product.price),
+      qty: 1,
+    };
+  };
+
+  const handleAddToCart = () => {
+    const item = buildCartItem();
+    if (!item) return;
+    addItem(item);
+    openCart();
+    onClose();
+  };
+
+  const handleBuyNow = () => {
+    const item = buildCartItem();
+    if (!item) return;
+    addItem(item);
+    onClose();
+    router.push('/checkout');
+  };
+
+  const primaryLabel = !full
+    ? 'Loading…'
+    : outOfStock
+      ? 'Out of Stock'
+      : needsSize
+        ? 'Select a Size'
+        : 'Add to Cart';
 
   const easing = 'cubic-bezier(0.22, 1, 0.36, 1)';
   const animFor = (delay: number, duration = 900) =>
@@ -270,6 +338,7 @@ function DesktopQuickView({ product, related, onClose }: ProductQuickViewProps) 
             {description}
           </p>
 
+          {swatches.length > 0 && (
           <div className="flex flex-col gap-2.5 pt-1">
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-bold uppercase tracking-[0.3em] text-ink">
@@ -310,6 +379,7 @@ function DesktopQuickView({ product, related, onClose }: ProductQuickViewProps) 
               ))}
             </div>
           </div>
+          )}
 
           {sizes.length > 0 && (
             <div className="flex flex-col gap-2.5">
@@ -348,17 +418,27 @@ function DesktopQuickView({ product, related, onClose }: ProductQuickViewProps) 
           )}
 
           <div className="mt-1.5 flex flex-col gap-2.5 sm:flex-row">
+            <button
+              type="button"
+              onClick={handleAddToCart}
+              disabled={!canPurchase}
+              className="inline-flex flex-1 items-center justify-center bg-ink px-7 py-3.5 text-[11px] font-medium uppercase tracking-[0.3em] text-paper transition-opacity hover:opacity-85 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {primaryLabel}
+            </button>
+            <button
+              type="button"
+              onClick={handleBuyNow}
+              disabled={!canPurchase}
+              className="inline-flex flex-1 items-center justify-center border border-ink/15 bg-paper px-7 py-3.5 text-[11px] font-medium uppercase tracking-[0.3em] text-ink transition-colors hover:border-ink/40 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-ink/15"
+            >
+              Buy Now
+            </button>
             <Link
               href={`/products/${product.slug}`}
-              className="inline-flex flex-1 items-center justify-center bg-ink px-7 py-3.5 text-[11px] font-medium uppercase tracking-[0.3em] text-paper transition-opacity hover:opacity-85"
+              className="inline-flex items-center justify-center border border-ink/15 bg-paper px-5 py-3.5 text-[11px] font-medium uppercase tracking-[0.3em] text-ink transition-colors hover:border-ink/40"
             >
-              Add to Cart
-            </Link>
-            <Link
-              href={`/products/${product.slug}`}
-              className="inline-flex flex-1 items-center justify-center border border-ink/15 bg-paper px-7 py-3.5 text-[11px] font-medium uppercase tracking-[0.3em] text-ink transition-colors hover:border-ink/40"
-            >
-              View Full Details
+              Details
             </Link>
           </div>
         </div>
