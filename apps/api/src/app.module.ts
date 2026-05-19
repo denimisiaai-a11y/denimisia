@@ -17,6 +17,7 @@ import { CollectionsModule } from './modules/collections/collections.module';
 import { CartModule } from './modules/cart/cart.module';
 import { WishlistModule } from './modules/wishlist/wishlist.module';
 import { OrdersModule } from './modules/orders/orders.module';
+import { ReturnsModule } from './modules/returns/returns.module';
 import { InventoryModule } from './modules/inventory/inventory.module';
 import { ReviewsModule } from './modules/reviews/reviews.module';
 import { DiscountsModule } from './modules/discounts/discounts.module';
@@ -53,6 +54,7 @@ import { EmailModule } from './modules/email/email.module';
     CartModule,
     WishlistModule,
     OrdersModule,
+    ReturnsModule,
     InventoryModule,
     ReviewsModule,
     DiscountsModule,
