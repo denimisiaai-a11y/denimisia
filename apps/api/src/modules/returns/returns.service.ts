@@ -5,7 +5,7 @@ import {
   ForbiddenException,
   InternalServerErrorException,
 } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Prisma, ReturnStatus } from '@prisma/client';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '../prisma/prisma.service';
 import { RtnIdService } from './rtn-id.service';
@@ -234,6 +234,176 @@ export class ReturnsService {
     });
     if (!isOwner) throw new ForbiddenException();
     return ret;
+  }
+
+  async listForAdmin(args: {
+    status?: ReturnStatus[];
+    slaOverdue?: boolean;
+    page: number;
+    limit: number;
+  }) {
+    const where: Prisma.ReturnWhereInput = {};
+    if (args.slaOverdue) {
+      where.slaDeadline = { lt: new Date() };
+      where.status = { in: ['REQUESTED', 'UNDER_REVIEW'] };
+    } else if (args.status?.length) {
+      where.status = { in: args.status };
+    }
+    const [items, total] = await Promise.all([
+      this.prisma.return.findMany({
+        where,
+        orderBy: { requestedAt: 'desc' },
+        skip: (args.page - 1) * args.limit,
+        take: args.limit,
+        include: {
+          items: true,
+          order: { select: { id: true, total: true } },
+          refundTxn: true,
+        },
+      }),
+      this.prisma.return.count({ where }),
+    ]);
+    return { items, total, page: args.page, limit: args.limit };
+  }
+
+  async getForAdmin(id: string) {
+    const ret = await this.prisma.return.findUnique({
+      where: { id },
+      include: {
+        items: {
+          include: {
+            orderItem: { include: { product: true, variant: true } },
+          },
+        },
+        order: { include: { items: true } },
+        refundTxn: true,
+        reviewer: {
+          select: { id: true, firstName: true, lastName: true, email: true },
+        },
+      },
+    });
+    if (!ret) throw new NotFoundException();
+    return ret;
+  }
+
+  async transition(args: {
+    id: string;
+    to: ReturnStatus;
+    adminId: string;
+    patch?: Prisma.ReturnUpdateInput;
+  }) {
+    const current = await this.prisma.return.findUnique({
+      where: { id: args.id },
+      select: { status: true, rtnNumber: true },
+    });
+    if (!current) throw new NotFoundException();
+    if (!canTransition(current.status, args.to)) {
+      throw new BadRequestException(
+        `Cannot transition ${current.status} -> ${args.to}`,
+      );
+    }
+    const now = new Date();
+    const timestampField = this.timestampForStatus(args.to);
+    const updated = await this.prisma.return.update({
+      where: { id: args.id },
+      data: {
+        status: args.to,
+        ...(timestampField ? { [timestampField]: now } : {}),
+        ...(args.patch ?? {}),
+      },
+    });
+    this.events.emit(`return.${args.to.toLowerCase()}`, {
+      returnId: updated.id,
+      rtnNumber: updated.rtnNumber,
+      adminId: args.adminId,
+    });
+    return updated;
+  }
+
+  private timestampForStatus(status: ReturnStatus): string | null {
+    switch (status) {
+      case 'UNDER_REVIEW':
+        return 'reviewedAt';
+      case 'APPROVED':
+        return 'approvedAt';
+      case 'RECEIVED':
+        return 'receivedAt';
+      case 'INSPECTED_PASS':
+      case 'INSPECTED_FAIL':
+        return 'inspectedAt';
+      case 'REFUNDED':
+        return 'refundedAt';
+      case 'CLOSED':
+      case 'CANCELLED':
+      case 'RETURNED_TO_CUSTOMER':
+      case 'REJECTED':
+        return 'closedAt';
+      default:
+        return null;
+    }
+  }
+
+  async recordInspection(args: {
+    id: string;
+    adminId: string;
+    itemResults: {
+      returnItemId: string;
+      inspectionResult: 'PASS' | 'FAIL';
+      restock: boolean;
+    }[];
+    inspectionNotes?: string;
+  }) {
+    const ret = await this.prisma.return.findUnique({
+      where: { id: args.id },
+      include: { items: true },
+    });
+    if (!ret) throw new NotFoundException();
+    if (ret.status !== 'INSPECTING') {
+      throw new BadRequestException('Return is not in INSPECTING state');
+    }
+
+    // Validate every reported item belongs to this return
+    const validIds = new Set(ret.items.map((i) => i.id));
+    for (const r of args.itemResults) {
+      if (!validIds.has(r.returnItemId)) {
+        throw new BadRequestException(
+          `ReturnItem ${r.returnItemId} does not belong to this return`,
+        );
+      }
+    }
+
+    const allPass = args.itemResults.every(
+      (r) => r.inspectionResult === 'PASS',
+    );
+    const nextStatus: ReturnStatus = allPass
+      ? 'INSPECTED_PASS'
+      : 'INSPECTED_FAIL';
+
+    await this.prisma.$transaction([
+      ...args.itemResults.map((r) =>
+        this.prisma.returnItem.update({
+          where: { id: r.returnItemId },
+          data: {
+            inspectionResult: r.inspectionResult,
+            restock: r.restock,
+          },
+        }),
+      ),
+      this.prisma.return.update({
+        where: { id: args.id },
+        data: {
+          status: nextStatus,
+          inspectedAt: new Date(),
+          inspectionNotes: args.inspectionNotes,
+        },
+      }),
+    ]);
+    this.events.emit(`return.${nextStatus.toLowerCase()}`, {
+      returnId: ret.id,
+      rtnNumber: ret.rtnNumber,
+      adminId: args.adminId,
+    });
+    return { status: nextStatus };
   }
 
   private matchesOrderOwnership(args: {

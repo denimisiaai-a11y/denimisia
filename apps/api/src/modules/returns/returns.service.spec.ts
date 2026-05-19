@@ -283,6 +283,182 @@ describe('ReturnsService', () => {
     });
   });
 
+  describe('listForAdmin', () => {
+    beforeEach(() => {
+      prisma.return.findMany = jest.fn().mockResolvedValue([]);
+      prisma.return.count = jest.fn().mockResolvedValue(0);
+    });
+
+    it('filters by status array when no slaOverdue', async () => {
+      await service.listForAdmin({
+        status: ['REQUESTED'],
+        page: 1,
+        limit: 20,
+      });
+      expect(prisma.return.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { status: { in: ['REQUESTED'] } },
+        }),
+      );
+    });
+
+    it('slaOverdue mode overrides status filter and pins to REQUESTED+UNDER_REVIEW', async () => {
+      await service.listForAdmin({
+        status: ['REJECTED'],
+        slaOverdue: true,
+        page: 1,
+        limit: 20,
+      });
+      expect(prisma.return.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            slaDeadline: { lt: expect.any(Date) },
+            status: { in: ['REQUESTED', 'UNDER_REVIEW'] },
+          }),
+        }),
+      );
+    });
+
+    it('paginates with skip/take', async () => {
+      await service.listForAdmin({ page: 3, limit: 25 });
+      expect(prisma.return.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ skip: 50, take: 25 }),
+      );
+    });
+  });
+
+  describe('transition', () => {
+    it('rejects illegal transitions', async () => {
+      prisma.return.findUnique.mockResolvedValue({
+        status: 'REQUESTED',
+        rtnNumber: 'RTN-1',
+      });
+      await expect(
+        service.transition({
+          id: 'r1',
+          to: 'REFUNDED',
+          adminId: 'admin1',
+        }),
+      ).rejects.toThrow(/Cannot transition/);
+    });
+
+    it('allows legal transitions and stamps timestamp', async () => {
+      prisma.return.findUnique.mockResolvedValue({
+        status: 'REQUESTED',
+        rtnNumber: 'RTN-1',
+      });
+      prisma.return.update.mockResolvedValue({ id: 'r1', rtnNumber: 'RTN-1' });
+      await service.transition({
+        id: 'r1',
+        to: 'UNDER_REVIEW',
+        adminId: 'admin1',
+      });
+      expect(prisma.return.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            status: 'UNDER_REVIEW',
+            reviewedAt: expect.any(Date),
+          }),
+        }),
+      );
+      expect(events.emit).toHaveBeenCalledWith(
+        'return.under_review',
+        expect.objectContaining({ rtnNumber: 'RTN-1' }),
+      );
+    });
+
+    it('throws NotFoundException for missing return', async () => {
+      prisma.return.findUnique.mockResolvedValue(null);
+      await expect(
+        service.transition({ id: 'r1', to: 'UNDER_REVIEW', adminId: 'a' }),
+      ).rejects.toThrow(/Not Found/i);
+    });
+  });
+
+  describe('recordInspection', () => {
+    beforeEach(() => {
+      prisma.returnItem.update = jest.fn().mockResolvedValue({});
+    });
+
+    it('rejects if return not in INSPECTING state', async () => {
+      prisma.return.findUnique.mockResolvedValue({
+        id: 'r1',
+        status: 'APPROVED',
+        rtnNumber: 'RTN-1',
+        items: [{ id: 'ri1' }],
+      });
+      await expect(
+        service.recordInspection({
+          id: 'r1',
+          adminId: 'a',
+          itemResults: [
+            { returnItemId: 'ri1', inspectionResult: 'PASS', restock: true },
+          ],
+        }),
+      ).rejects.toThrow(/INSPECTING/);
+    });
+
+    it('rejects unknown returnItemId', async () => {
+      prisma.return.findUnique.mockResolvedValue({
+        id: 'r1',
+        status: 'INSPECTING',
+        rtnNumber: 'RTN-1',
+        items: [{ id: 'ri1' }],
+      });
+      await expect(
+        service.recordInspection({
+          id: 'r1',
+          adminId: 'a',
+          itemResults: [
+            { returnItemId: 'rogue', inspectionResult: 'PASS', restock: true },
+          ],
+        }),
+      ).rejects.toThrow(/does not belong/);
+    });
+
+    it('sets INSPECTED_PASS when all items pass', async () => {
+      prisma.return.findUnique.mockResolvedValue({
+        id: 'r1',
+        status: 'INSPECTING',
+        rtnNumber: 'RTN-1',
+        items: [{ id: 'ri1' }, { id: 'ri2' }],
+      });
+      prisma.$transaction = jest.fn().mockResolvedValue([]);
+      const result = await service.recordInspection({
+        id: 'r1',
+        adminId: 'a',
+        itemResults: [
+          { returnItemId: 'ri1', inspectionResult: 'PASS', restock: true },
+          { returnItemId: 'ri2', inspectionResult: 'PASS', restock: false },
+        ],
+      });
+      expect(result.status).toBe('INSPECTED_PASS');
+      expect(events.emit).toHaveBeenCalledWith(
+        'return.inspected_pass',
+        expect.any(Object),
+      );
+    });
+
+    it('sets INSPECTED_FAIL when any item fails', async () => {
+      prisma.return.findUnique.mockResolvedValue({
+        id: 'r1',
+        status: 'INSPECTING',
+        rtnNumber: 'RTN-1',
+        items: [{ id: 'ri1' }, { id: 'ri2' }],
+      });
+      prisma.$transaction = jest.fn().mockResolvedValue([]);
+      const result = await service.recordInspection({
+        id: 'r1',
+        adminId: 'a',
+        itemResults: [
+          { returnItemId: 'ri1', inspectionResult: 'PASS', restock: true },
+          { returnItemId: 'ri2', inspectionResult: 'FAIL', restock: false },
+        ],
+      });
+      expect(result.status).toBe('INSPECTED_FAIL');
+    });
+  });
+
   describe('matchesReturnOwnership (regression: auth-bypass via guest creds)', () => {
     it("does NOT allow a logged-in user to access another user's return by supplying guest creds", async () => {
       prisma.return.findUnique.mockResolvedValue({
