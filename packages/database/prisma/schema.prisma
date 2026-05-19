@@ -54,6 +54,46 @@ enum InventoryType {
   RETURN
 }
 
+enum ReturnStatus {
+  REQUESTED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  IN_TRANSIT
+  RECEIVED
+  INSPECTING
+  INSPECTED_PASS
+  INSPECTED_FAIL
+  RETURNED_TO_CUSTOMER
+  REFUNDED
+  CLOSED
+  CANCELLED
+}
+
+enum ReturnReason {
+  DEFECTIVE
+  DAMAGED_IN_TRANSIT
+  NOT_AS_DESCRIBED
+  WRONG_ITEM_SENT
+  WRONG_SIZE
+  CHANGED_MIND
+}
+
+enum ReturnFault {
+  US
+  CUSTOMER
+}
+
+enum RefundMethod {
+  CASH
+  BANK_TRANSFER
+}
+
+enum InspectionResult {
+  PASS
+  FAIL
+}
+
 // ─── User ─────────────────────────────────────────────────────────────────────
 
 model User {
@@ -79,6 +119,9 @@ model User {
   auditLogs      AuditLog[]
   blogPosts      BlogPost[]
   mediaAssets    MediaAsset[] @relation("MediaUploader")
+  returns         Return[]
+  reviewedReturns Return[]            @relation("ReturnReviewer")
+  issuedRefunds   RefundTransaction[] @relation("RefundIssuer")
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
   deletedAt    DateTime?
@@ -177,6 +220,7 @@ model Product {
   compareAtPrice Decimal?
   images         String[]
   tags           String[]
+  returnable     Boolean            @default(true)
   isActive       Boolean            @default(true)
   isFeatured     Boolean            @default(false)
   isTrending     Boolean            @default(false)
@@ -317,6 +361,7 @@ model Order {
   discountId      String?
   discountRel     Discount?   @relation(fields: [discountId], references: [id], onDelete: SetNull)
   statusHistory   OrderStatusHistory[]
+  returns         Return[]
   campaignUsages  CampaignUsage[]
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
@@ -345,6 +390,7 @@ model OrderItem {
   unitPrice  Decimal
   total      Decimal
   snapshot   Json
+  returnItems ReturnItem[]
   createdAt  DateTime        @default(now())
 
   @@index([orderId])
@@ -785,4 +831,91 @@ enum BulkOperationOutboxState {
   APPLIED
   UNDONE
   EXPIRED
+}
+
+// ─── Returns & Refunds ────────────────────────────────────────────────────────
+
+model Return {
+  id              String       @id @default(cuid())
+  rtnNumber       String       @unique
+  orderId         String?
+  order           Order?       @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  userId          String?
+  user            User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  guestEmail      String?
+  guestName       String?
+  guestPhone      String?
+  status          ReturnStatus @default(REQUESTED)
+  reason          ReturnReason
+  fault           ReturnFault
+  description     String?
+  photos          String[]     @default([])
+  isManual        Boolean      @default(false)
+  customerShipsBack Boolean
+  pickupAddress   Json?
+  carrier         String?
+  trackingNumber  String?
+  refundAmount    Decimal?     @db.Decimal(10, 2)
+  refundMethod    RefundMethod?
+  refundReference String?
+  reviewerId      String?
+  reviewer        User?        @relation("ReturnReviewer", fields: [reviewerId], references: [id], onDelete: SetNull)
+  reviewerNotes   String?
+  inspectionNotes String?
+  rejectionReason String?
+  slaDeadline     DateTime
+  requestedAt     DateTime     @default(now())
+  reviewedAt      DateTime?
+  approvedAt      DateTime?
+  receivedAt      DateTime?
+  inspectedAt     DateTime?
+  refundedAt      DateTime?
+  closedAt        DateTime?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  items           ReturnItem[]
+  refundTxn       RefundTransaction?
+
+  @@index([orderId])
+  @@index([userId])
+  @@index([status])
+  @@index([status, slaDeadline])
+  @@index([guestEmail])
+  @@index([requestedAt])
+}
+
+model ReturnItem {
+  id                String           @id @default(cuid())
+  returnId          String
+  return            Return           @relation(fields: [returnId], references: [id], onDelete: Cascade)
+  orderItemId       String?
+  orderItem         OrderItem?       @relation(fields: [orderItemId], references: [id], onDelete: SetNull)
+  manualProductName String?
+  manualSku         String?
+  manualSize        String?
+  manualColor       String?
+  manualUnitPrice   Decimal?         @db.Decimal(10, 2)
+  quantity          Int
+  inspectionResult  InspectionResult?
+  restock           Boolean          @default(false)
+  itemRefundAmount  Decimal          @default(0) @db.Decimal(10, 2)
+  createdAt         DateTime         @default(now())
+
+  @@index([returnId])
+  @@index([orderItemId])
+}
+
+model RefundTransaction {
+  id          String       @id @default(cuid())
+  returnId    String       @unique
+  return      Return       @relation(fields: [returnId], references: [id], onDelete: Restrict)
+  amount      Decimal      @db.Decimal(10, 2)
+  method      RefundMethod
+  reference   String
+  issuedById  String?
+  issuedBy    User?        @relation("RefundIssuer", fields: [issuedById], references: [id], onDelete: SetNull)
+  issuedAt    DateTime     @default(now())
+  notes       String?
+
+  @@index([issuedAt])
 }
