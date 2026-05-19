@@ -18,6 +18,8 @@ export const ALLOWED_TRANSITIONS = {
 
 export function canTransition(from: ReturnStatus, to: ReturnStatus): boolean {
   const allowed = ALLOWED_TRANSITIONS[from];
+  // `as never` is needed because `as const satisfies` narrows array elements
+  // to literal types — ReadonlyArray<X>.includes(Y) requires Y extends X.
   return allowed?.includes(to as never) ?? false;
 }
 

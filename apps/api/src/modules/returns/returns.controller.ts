@@ -4,7 +4,6 @@ import {
   Get,
   Param,
   Post,
-  Query,
   UseGuards,
   UsePipes,
 } from '@nestjs/common';
@@ -17,6 +16,8 @@ import { createReturnSchema } from './dto/create-return.dto';
 import type { CreateReturnDto } from './dto/create-return.dto';
 import { cancelReturnSchema } from './dto/cancel-return.dto';
 import type { CancelReturnDto } from './dto/cancel-return.dto';
+import { guestLookupSchema } from './dto/guest-lookup.dto';
+import type { GuestLookupDto } from './dto/guest-lookup.dto';
 
 @Controller('returns')
 export class ReturnsController {
@@ -39,18 +40,28 @@ export class ReturnsController {
   }
 
   @Get(':rtnNumber')
-  @UseGuards(OptionalJwtAuthGuard)
-  async lookup(
+  @UseGuards(JwtAuthGuard)
+  async lookupAuth(
     @Param('rtnNumber') rtnNumber: string,
-    @CurrentUser() user: { id: string } | null,
-    @Query('email') email?: string,
-    @Query('phone') phone?: string,
+    @CurrentUser() user: { id: string },
   ) {
     return this.returns.getByRtnNumber({
       rtnNumber,
-      userId: user?.id ?? null,
-      guestEmail: email,
-      guestPhone: phone,
+      userId: user.id,
+    });
+  }
+
+  @Post(':rtnNumber/lookup')
+  @UsePipes(new ZodValidationPipe(guestLookupSchema))
+  async lookupGuest(
+    @Param('rtnNumber') rtnNumber: string,
+    @Body() body: GuestLookupDto,
+  ) {
+    return this.returns.getByRtnNumber({
+      rtnNumber,
+      userId: null,
+      guestEmail: body.email,
+      guestPhone: body.phone,
     });
   }
 

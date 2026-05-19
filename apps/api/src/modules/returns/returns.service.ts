@@ -3,6 +3,7 @@ import {
   BadRequestException,
   NotFoundException,
   ForbiddenException,
+  InternalServerErrorException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { EventEmitter2 } from '@nestjs/event-emitter';
@@ -47,7 +48,11 @@ export class ReturnsService {
       where: { id: dto.orderId },
       include: {
         items: { include: { product: true } },
-        statusHistory: { orderBy: { createdAt: 'desc' } },
+        statusHistory: {
+          where: { toStatus: 'DELIVERED' },
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+        },
       },
     });
     if (!order) throw new NotFoundException('Order not found');
@@ -74,52 +79,11 @@ export class ReturnsService {
       );
     }
 
-    const deliveredEntry = order.statusHistory.find(
-      (h) => h.toStatus === 'DELIVERED',
-    );
+    const deliveredEntry = order.statusHistory[0];
     if (!isWithinWindow(deliveredEntry?.createdAt ?? null)) {
       throw new BadRequestException(
         `Return window of ${RETURN_WINDOW_DAYS} days has expired`,
       );
-    }
-
-    const orderItemIds = dto.items.map((i) => i.orderItemId);
-    const existingQuantities = await this.prisma.returnItem.groupBy({
-      by: ['orderItemId'],
-      where: {
-        orderItemId: { in: orderItemIds },
-        return: {
-          status: { notIn: ['REJECTED', 'CANCELLED', 'CLOSED'] },
-        },
-      },
-      _sum: { quantity: true },
-    });
-    const alreadyReturnedMap = new Map<string, number>(
-      existingQuantities
-        .filter(
-          (row): row is typeof row & { orderItemId: string } =>
-            row.orderItemId !== null,
-        )
-        .map((row) => [row.orderItemId, row._sum.quantity ?? 0]),
-    );
-
-    for (const item of dto.items) {
-      const orderItem = order.items.find((oi) => oi.id === item.orderItemId);
-      if (!orderItem) {
-        throw new BadRequestException(
-          `Order item ${item.orderItemId} not in order`,
-        );
-      }
-      const failure = checkItemEligibility({
-        orderItem,
-        requestedQty: item.quantity,
-        alreadyReturnedQty: alreadyReturnedMap.get(orderItem.id) ?? 0,
-      });
-      if (failure) {
-        throw new BadRequestException(
-          `Item ${orderItem.id} ineligible: ${failure}`,
-        );
-      }
     }
 
     const fault = defaultFault(dto.reason);
@@ -127,29 +91,75 @@ export class ReturnsService {
     const slaDeadline = new Date(Date.now() + SLA_HOURS * 60 * 60 * 1000);
 
     const created = await this.createWithRtnRetry(async (rtnNumber) =>
-      this.prisma.return.create({
-        data: {
-          rtnNumber,
-          orderId: order.id,
-          userId: order.userId,
-          guestEmail: order.guestEmail,
-          guestName: order.guestName,
-          guestPhone: order.guestPhone,
-          reason: dto.reason,
-          fault,
-          description: dto.description,
-          photos: dto.photos,
-          customerShipsBack,
-          slaDeadline,
-          items: {
-            create: dto.items.map((i) => ({
-              orderItemId: i.orderItemId,
-              quantity: i.quantity,
-            })),
-          },
+      this.prisma.$transaction(
+        async (tx) => {
+          const orderItemIds = dto.items.map((i) => i.orderItemId);
+          const existingQuantities = await tx.returnItem.groupBy({
+            by: ['orderItemId'],
+            where: {
+              orderItemId: { in: orderItemIds },
+              return: {
+                status: { notIn: ['REJECTED', 'CANCELLED', 'CLOSED'] },
+              },
+            },
+            _sum: { quantity: true },
+          });
+          const alreadyReturnedMap = new Map<string, number>(
+            existingQuantities
+              .filter(
+                (row): row is typeof row & { orderItemId: string } =>
+                  row.orderItemId !== null,
+              )
+              .map((row) => [row.orderItemId, row._sum.quantity ?? 0]),
+          );
+
+          for (const item of dto.items) {
+            const orderItem = order.items.find(
+              (oi) => oi.id === item.orderItemId,
+            );
+            if (!orderItem) {
+              throw new BadRequestException(
+                `Order item ${item.orderItemId} not in order`,
+              );
+            }
+            const failure = checkItemEligibility({
+              orderItem,
+              requestedQty: item.quantity,
+              alreadyReturnedQty: alreadyReturnedMap.get(orderItem.id) ?? 0,
+            });
+            if (failure) {
+              throw new BadRequestException(
+                `Item ${orderItem.id} ineligible: ${failure}`,
+              );
+            }
+          }
+
+          return tx.return.create({
+            data: {
+              rtnNumber,
+              orderId: order.id,
+              userId: order.userId,
+              guestEmail: order.guestEmail,
+              guestName: order.guestName,
+              guestPhone: order.guestPhone,
+              reason: dto.reason,
+              fault,
+              description: dto.description,
+              photos: dto.photos,
+              customerShipsBack,
+              slaDeadline,
+              items: {
+                create: dto.items.map((i) => ({
+                  orderItemId: i.orderItemId,
+                  quantity: i.quantity,
+                })),
+              },
+            },
+            select: { id: true, rtnNumber: true },
+          });
         },
-        select: { id: true, rtnNumber: true },
-      }),
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      ),
     );
 
     this.events.emit('return.requested', {
@@ -264,6 +274,7 @@ export class ReturnsService {
   }): boolean {
     if (args.userId && args.ret.userId === args.userId) return true;
     if (
+      !args.userId &&
       args.ret.guestEmail &&
       args.providedEmail &&
       args.ret.guestEmail.toLowerCase() === args.providedEmail.toLowerCase() &&
@@ -279,13 +290,11 @@ export class ReturnsService {
   private async createWithRtnRetry<T>(
     fn: (rtnNumber: string) => Promise<T>,
   ): Promise<T> {
-    let lastError: unknown;
     for (let i = 0; i < RTN_CREATE_MAX_RETRIES; i++) {
       const rtnNumber = await this.rtnIds.generate();
       try {
         return await fn(rtnNumber);
       } catch (err) {
-        lastError = err;
         if (
           err instanceof Prisma.PrismaClientKnownRequestError &&
           err.code === 'P2002'
@@ -295,6 +304,9 @@ export class ReturnsService {
         throw err;
       }
     }
-    throw lastError;
+    // All retries were P2002 collisions
+    throw new InternalServerErrorException(
+      'Could not generate a unique return number after multiple attempts',
+    );
   }
 }

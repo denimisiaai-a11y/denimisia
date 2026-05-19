@@ -19,6 +19,7 @@ describe('ReturnsService', () => {
         update: jest.fn(),
       },
       returnItem: { groupBy: jest.fn().mockResolvedValue([]) },
+      $transaction: jest.fn((cb: (tx: unknown) => unknown) => cb(prisma)),
     };
     rtnIds = { generate: jest.fn().mockResolvedValue('RTN-2026-000001') };
     events = { emit: jest.fn() };
@@ -279,6 +280,27 @@ describe('ReturnsService', () => {
       await expect(
         service.cancelReturn({ userId: 'u1', rtnNumber: 'RTN-2026-000001' }),
       ).rejects.toThrow(/Cannot cancel/);
+    });
+  });
+
+  describe('matchesReturnOwnership (regression: auth-bypass via guest creds)', () => {
+    it("does NOT allow a logged-in user to access another user's return by supplying guest creds", async () => {
+      prisma.return.findUnique.mockResolvedValue({
+        id: 'r2',
+        rtnNumber: 'RTN-2026-000002',
+        status: 'REQUESTED',
+        userId: null,
+        guestEmail: 'guest@example.com',
+        guestPhone: '+8801711111111',
+      });
+      await expect(
+        service.getByRtnNumber({
+          rtnNumber: 'RTN-2026-000002',
+          userId: 'attacker-user-id',
+          guestEmail: 'guest@example.com',
+          guestPhone: '+8801711111111',
+        }),
+      ).rejects.toThrow(/Forbidden/i);
     });
   });
 });
