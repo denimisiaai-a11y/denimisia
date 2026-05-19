@@ -835,6 +835,10 @@ enum BulkOperationOutboxState {
 
 // ─── Returns & Refunds ────────────────────────────────────────────────────────
 
+/// A return request initiated by a customer or created manually by an admin.
+/// Owner integrity: at least one of (orderId, userId, (guestEmail+guestPhone))
+/// must be non-null — enforced by Return_owner_check (see returns_owner_check
+/// migration). Service layer also validates ownership during create.
 model Return {
   id              String       @id @default(cuid())
   rtnNumber       String       @unique
@@ -851,7 +855,10 @@ model Return {
   description     String?
   photos          String[]     @default([])
   isManual        Boolean      @default(false)
+  /// Derived from fault by the service layer: CUSTOMER -> true, US -> false.
+  /// No DB default — service must always set this on insert.
   customerShipsBack Boolean
+  /// Only populated when customerShipsBack=false (we arrange pickup).
   pickupAddress   Json?
   carrier         String?
   trackingNumber  String?
@@ -911,6 +918,9 @@ model RefundTransaction {
   return      Return       @relation(fields: [returnId], references: [id], onDelete: Restrict)
   amount      Decimal      @db.Decimal(10, 2)
   method      RefundMethod
+  /// For BANK_TRANSFER: bank txn id / wire reference.
+  /// For CASH: admin-entered receipt or voucher number (e.g., "Cash voucher #2026-001").
+  /// Required for all refund methods — admin must record an audit trail.
   reference   String
   issuedById  String?
   issuedBy    User?        @relation("RefundIssuer", fields: [issuedById], references: [id], onDelete: SetNull)
