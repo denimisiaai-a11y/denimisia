@@ -1,6 +1,6 @@
 import { ReturnStatus, ReturnReason, ReturnFault } from '@prisma/client';
 
-export const ALLOWED_TRANSITIONS: Record<ReturnStatus, ReturnStatus[]> = {
+export const ALLOWED_TRANSITIONS = {
   REQUESTED: ['UNDER_REVIEW', 'CANCELLED'],
   UNDER_REVIEW: ['APPROVED', 'REJECTED'],
   APPROVED: ['IN_TRANSIT', 'RECEIVED'],
@@ -14,20 +14,21 @@ export const ALLOWED_TRANSITIONS: Record<ReturnStatus, ReturnStatus[]> = {
   REJECTED: ['CLOSED'],
   CANCELLED: ['CLOSED'],
   CLOSED: [],
-};
+} as const satisfies Record<ReturnStatus, readonly ReturnStatus[]>;
 
 export function canTransition(from: ReturnStatus, to: ReturnStatus): boolean {
-  return ALLOWED_TRANSITIONS[from]?.includes(to) ?? false;
+  const allowed = ALLOWED_TRANSITIONS[from];
+  return allowed?.includes(to as never) ?? false;
 }
 
-export const REASON_FAULT: Record<ReturnReason, ReturnFault> = {
+export const REASON_FAULT = {
   DEFECTIVE: 'US',
   DAMAGED_IN_TRANSIT: 'US',
   NOT_AS_DESCRIBED: 'US',
   WRONG_ITEM_SENT: 'US',
   WRONG_SIZE: 'CUSTOMER',
   CHANGED_MIND: 'CUSTOMER',
-};
+} as const satisfies Record<ReturnReason, ReturnFault>;
 
 export const PHOTOS_REQUIRED_REASONS: ReadonlySet<ReturnReason> = new Set([
   'DEFECTIVE',

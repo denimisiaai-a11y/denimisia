@@ -1,3 +1,4 @@
+import { ReturnStatus } from '@prisma/client';
 import {
   canTransition,
   defaultFault,
@@ -52,7 +53,9 @@ describe('returns state machine', () => {
     });
 
     it('allows INSPECTED_FAIL -> RETURNED_TO_CUSTOMER', () => {
-      expect(canTransition('INSPECTED_FAIL', 'RETURNED_TO_CUSTOMER')).toBe(true);
+      expect(canTransition('INSPECTED_FAIL', 'RETURNED_TO_CUSTOMER')).toBe(
+        true,
+      );
     });
 
     it('allows REFUNDED -> CLOSED', () => {
@@ -70,7 +73,9 @@ describe('returns state machine', () => {
     });
 
     it('returns false for any undefined source status', () => {
-      expect(canTransition('INVALID_STATUS' as never, 'REFUNDED')).toBe(false);
+      expect(
+        canTransition('INVALID_STATUS' as unknown as ReturnStatus, 'REFUNDED'),
+      ).toBe(false);
     });
   });
 

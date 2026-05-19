@@ -6,11 +6,12 @@ export type EligibilityFailure =
   | 'WINDOW_EXPIRED'
   | 'PRODUCT_NOT_RETURNABLE'
   | 'ITEM_ALREADY_RETURNED'
-  | 'QUANTITY_EXCEEDS_ORDERED';
+  | 'QUANTITY_EXCEEDS_ORDERED'
+  | 'INVALID_QUANTITY';
 
 export const RETURN_WINDOW_DAYS = 7;
 
-type DeliveryTimestamp = Date | null | undefined;
+export type DeliveryTimestamp = Date | null | undefined;
 
 export function isWithinWindow(
   deliveredAt: DeliveryTimestamp,
@@ -34,12 +35,12 @@ export interface ItemEligibilityInput {
 export function checkItemEligibility(
   input: ItemEligibilityInput,
 ): EligibilityFailure | null {
+  if (input.requestedQty <= 0) return 'INVALID_QUANTITY';
   if (input.orderItem.product && !input.orderItem.product.returnable) {
     return 'PRODUCT_NOT_RETURNABLE';
   }
   const remaining = input.orderItem.quantity - input.alreadyReturnedQty;
   if (remaining <= 0) return 'ITEM_ALREADY_RETURNED';
   if (input.requestedQty > remaining) return 'QUANTITY_EXCEEDS_ORDERED';
-  if (input.requestedQty <= 0) return 'QUANTITY_EXCEEDS_ORDERED';
   return null;
 }

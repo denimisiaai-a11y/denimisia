@@ -101,7 +101,17 @@ describe('returns eligibility', () => {
           requestedQty: 0,
           alreadyReturnedQty: 0,
         }),
-      ).toBe('QUANTITY_EXCEEDS_ORDERED');
+      ).toBe('INVALID_QUANTITY');
+    });
+
+    it('blocks negative quantity with INVALID_QUANTITY', () => {
+      expect(
+        checkItemEligibility({
+          orderItem: baseItem,
+          requestedQty: -1,
+          alreadyReturnedQty: 0,
+        }),
+      ).toBe('INVALID_QUANTITY');
     });
 
     it('allows null product (manual return) when quantity OK', () => {
