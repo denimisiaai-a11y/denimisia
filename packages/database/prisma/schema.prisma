@@ -913,6 +913,23 @@ model ReturnItem {
   inspectionResult  InspectionResult?
   restock           Boolean          @default(false)
   itemRefundAmount  Decimal          @default(0) @db.Decimal(10, 2)
+  /// When the source OrderItem is a bundle line (`OrderItem.bundleId IS NOT NULL`),
+  /// these four columns identify and snapshot ONE constituent of that bundle
+  /// being returned. The bundle's constituents are denormalized into
+  /// `OrderItem.snapshot.items[]` at order time; we cannot FK to BundleItem
+  /// because that is the catalog template, not the per-order constituent.
+  ///
+  /// Invariants (enforced in the service layer — no DB CHECK):
+  ///   - If `orderItem.bundleId IS NULL`, all four bundleComponent* fields MUST be NULL.
+  ///   - If `orderItem.bundleId IS NOT NULL`, `bundleComponentVariantId` MUST be set
+  ///     and MUST match one of `orderItem.snapshot.items[].variantId`.
+  ///
+  /// Already-returned tracking groups by (orderItemId, bundleComponentVariantId ?? '')
+  /// so component A and component B of the same bundle are tracked independently.
+  bundleComponentVariantId String?
+  bundleComponentName      String?
+  bundleComponentSize      String?
+  bundleComponentColor     String?
   createdAt         DateTime         @default(now())
 
   @@index([returnId])
