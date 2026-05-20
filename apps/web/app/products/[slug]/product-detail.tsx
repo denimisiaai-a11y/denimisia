@@ -9,6 +9,7 @@ import { useCart } from '@/stores/cart';
 import { formatPrice, cn } from '@/lib/utils';
 import { ImageWithFallback } from '@/components/ui/image-with-fallback';
 import { SizeGuideModal } from '@/components/product/size-guide-modal';
+import { SizeChartModal } from '@/components/products/size-chart-modal';
 import { WishlistButton } from '@/components/ui/wishlist-button';
 import { pickCategory, detectRise, detectGender } from '@/lib/size-charts';
 
@@ -30,6 +31,7 @@ export function ProductDetail({ product }: ProductDetailProps) {
   const [selectedSize, setSelectedSize] = useState('');
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [sizeGuideOpen, setSizeGuideOpen] = useState(false);
+  const [sizeChartOpen, setSizeChartOpen] = useState(false);
 
   const sizeGuideCategory = useMemo(() => pickCategory(product), [product]);
   const sizeGuideRise = useMemo(() => detectRise(product), [product]);
@@ -246,13 +248,22 @@ export function ProductDetail({ product }: ProductDetailProps) {
               <p className="text-xs font-semibold uppercase tracking-[0.15em] text-ink">
                 Select Size
               </p>
-              <button
-                type="button"
-                onClick={() => setSizeGuideOpen(true)}
-                className="rounded-full bg-muted-bg px-3 py-1 text-[11px] font-medium text-ink underline underline-offset-[3px] decoration-ink/30 transition-colors hover:decoration-ink"
-              >
-                Find Your Size
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSizeChartOpen(true)}
+                  className="text-[11px] font-medium uppercase tracking-[0.1em] text-muted underline underline-offset-[3px] decoration-ink/20 transition-colors hover:text-ink hover:decoration-ink"
+                >
+                  Size chart
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSizeGuideOpen(true)}
+                  className="rounded-full bg-muted-bg px-3 py-1 text-[11px] font-medium text-ink underline underline-offset-[3px] decoration-ink/30 transition-colors hover:decoration-ink"
+                >
+                  Find Your Size
+                </button>
+              </div>
             </div>
             <div className="flex w-full border border-border">
               {availableSizes.map(({ size, stock }, i) => {
@@ -380,6 +391,12 @@ export function ProductDetail({ product }: ProductDetailProps) {
         category={sizeGuideCategory}
         rise={sizeGuideRise}
         gender={sizeGuideGender}
+      />
+
+      <SizeChartModal
+        productId={product.id}
+        open={sizeChartOpen}
+        onClose={() => setSizeChartOpen(false)}
       />
     </div>
   );
