@@ -131,6 +131,7 @@ model User {
   // Authoritative JWT revocation counter. Incremented on password reset,
   // deactivate, or explicit forced-logout. Redis mirrors this for fast reads.
   tokenVersion Int       @default(0)
+  fitProfile   Json?
   addresses    Address[]
   orders       Order[]
   reviews      Review[]
@@ -1001,4 +1002,25 @@ model RefundTransaction {
   notes       String?
 
   @@index([issuedAt])
+}
+
+model BotSynonym {
+  id        String   @id @default(cuid())
+  dimension String
+  canonical String
+  aliases   String[]
+  updatedAt DateTime @updatedAt
+
+  @@unique([dimension, canonical])
+  @@index([dimension])
+}
+
+model BotUnrecognizedQuery {
+  id        String   @id @default(cuid())
+  text      String
+  sessionId String
+  gender    String?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
 }
