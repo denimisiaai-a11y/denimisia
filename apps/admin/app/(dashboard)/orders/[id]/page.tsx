@@ -496,6 +496,12 @@ export default function OrderDetailPage() {
           <p className="mt-2 font-body text-sm tracking-wide text-secondary">
             Placed {formatDate(order.createdAt)}
           </p>
+          {/* Internal CUID kept visible on the admin detail page so ops
+              can match it against logs / DB queries. The customer never
+              sees this. */}
+          <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.15em] text-secondary/70">
+            ID: {order.id}
+          </p>
         </div>
         <div className="flex items-center gap-3">
           <span
