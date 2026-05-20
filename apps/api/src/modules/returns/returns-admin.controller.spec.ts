@@ -8,6 +8,9 @@ describe('ReturnsAdminController', () => {
     transition: jest.Mock;
     recordInspection: jest.Mock;
   };
+  let refunds: {
+    issueRefund: jest.Mock;
+  };
 
   const adminUser = { id: 'admin-1' };
 
@@ -25,7 +28,10 @@ describe('ReturnsAdminController', () => {
         .fn()
         .mockResolvedValue({ status: 'INSPECTED_PASS' }),
     };
-    controller = new ReturnsAdminController(service as never);
+    refunds = {
+      issueRefund: jest.fn().mockResolvedValue({ id: 'txn1' }),
+    };
+    controller = new ReturnsAdminController(service as never, refunds as never);
   });
 
   describe('list', () => {
@@ -161,6 +167,29 @@ describe('ReturnsAdminController', () => {
       await controller.returnToCustomer('r1', adminUser);
       expect(service.transition).toHaveBeenCalledWith(
         expect.objectContaining({ to: 'RETURNED_TO_CUSTOMER' }),
+      );
+    });
+  });
+
+  describe('issueRefund', () => {
+    it('delegates to refunds.issueRefund with admin id + dto fields', async () => {
+      await controller.issueRefund('r1', adminUser, {
+        amount: 500,
+        method: 'CASH',
+        reference: 'Voucher-1',
+        notes: 'paid in store',
+        overrideFromFail: false,
+      });
+      expect(refunds.issueRefund).toHaveBeenCalledWith(
+        expect.objectContaining({
+          returnId: 'r1',
+          adminId: 'admin-1',
+          amount: 500,
+          method: 'CASH',
+          reference: 'Voucher-1',
+          notes: 'paid in store',
+          overrideFromFail: false,
+        }),
       );
     });
   });

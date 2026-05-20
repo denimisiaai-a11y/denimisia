@@ -4,6 +4,7 @@ import {
   Get,
   Param,
   Patch,
+  Post,
   Query,
   UseGuards,
   UsePipes,
@@ -15,24 +16,30 @@ import { Roles, Role } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
 import { ReturnsService } from './returns.service';
+import { ReturnsRefundService } from './returns.refund.service';
 import { reviewReturnSchema } from './dto/review-return.dto';
 import { approveReturnSchema } from './dto/approve-return.dto';
 import { rejectReturnSchema } from './dto/reject-return.dto';
 import { markReceivedSchema } from './dto/mark-received.dto';
 import { inspectReturnSchema } from './dto/inspect-return.dto';
 import { listReturnsSchema } from './dto/list-returns.dto';
+import { issueRefundSchema } from './dto/issue-refund.dto';
 import type { ReviewReturnDto } from './dto/review-return.dto';
 import type { ApproveReturnDto } from './dto/approve-return.dto';
 import type { RejectReturnDto } from './dto/reject-return.dto';
 import type { MarkReceivedDto } from './dto/mark-received.dto';
 import type { InspectReturnDto } from './dto/inspect-return.dto';
 import type { ListReturnsDto } from './dto/list-returns.dto';
+import type { IssueRefundDto } from './dto/issue-refund.dto';
 
 @Controller('admin/returns')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(Role.ADMIN, Role.SUPER_ADMIN)
 export class ReturnsAdminController {
-  constructor(private readonly returns: ReturnsService) {}
+  constructor(
+    private readonly returns: ReturnsService,
+    private readonly refunds: ReturnsRefundService,
+  ) {}
 
   @Get()
   @UsePipes(new ZodValidationPipe(listReturnsSchema))
@@ -165,6 +172,24 @@ export class ReturnsAdminController {
       to: 'RETURNED_TO_CUSTOMER',
       adminId: user.id,
       patch: { closedAt: new Date() },
+    });
+  }
+
+  @Post(':id/issue-refund')
+  @UsePipes(new ZodValidationPipe(issueRefundSchema))
+  async issueRefund(
+    @Param('id') id: string,
+    @CurrentUser() user: { id: string },
+    @Body() dto: IssueRefundDto,
+  ) {
+    return this.refunds.issueRefund({
+      returnId: id,
+      adminId: user.id,
+      amount: dto.amount,
+      method: dto.method,
+      reference: dto.reference,
+      notes: dto.notes,
+      overrideFromFail: dto.overrideFromFail,
     });
   }
 }
