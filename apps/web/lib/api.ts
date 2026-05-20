@@ -383,3 +383,153 @@ export function getBlogPosts(page = 1, limit = 9): Promise<BlogListResponse> {
 export function getBlogPostBySlug(slug: string): Promise<BlogPost> {
   return apiFetch<BlogPost>(`/cms/blog/${slug}`);
 }
+
+// ─── Returns ─────────────────────────────────────────────────────────────────
+
+export type ReturnStatus =
+  | 'REQUESTED'
+  | 'UNDER_REVIEW'
+  | 'APPROVED'
+  | 'REJECTED'
+  | 'IN_TRANSIT'
+  | 'RECEIVED'
+  | 'INSPECTING'
+  | 'INSPECTED_PASS'
+  | 'INSPECTED_FAIL'
+  | 'RETURNED_TO_CUSTOMER'
+  | 'REFUNDED'
+  | 'CLOSED'
+  | 'CANCELLED';
+
+export type ReturnReason =
+  | 'DEFECTIVE'
+  | 'DAMAGED_IN_TRANSIT'
+  | 'NOT_AS_DESCRIBED'
+  | 'WRONG_ITEM_SENT'
+  | 'WRONG_SIZE'
+  | 'CHANGED_MIND';
+
+export interface ReturnLineItem {
+  id: string;
+  quantity: number;
+  inspectionResult: 'PASS' | 'FAIL' | null;
+  orderItem: {
+    id: string;
+    quantity: number;
+    unitPrice: string;
+    product: { id: string; name: string; slug: string; images: string[] } | null;
+  } | null;
+}
+
+export interface ReturnRecord {
+  id: string;
+  rtnNumber: string;
+  status: ReturnStatus;
+  reason: ReturnReason;
+  fault: 'US' | 'CUSTOMER';
+  description: string | null;
+  photos: string[];
+  refundAmount: string | null;
+  refundMethod: 'CASH' | 'BANK_TRANSFER' | null;
+  refundReference: string | null;
+  customerShipsBack: boolean;
+  slaDeadline: string;
+  requestedAt: string;
+  reviewedAt: string | null;
+  approvedAt: string | null;
+  receivedAt: string | null;
+  inspectedAt: string | null;
+  refundedAt: string | null;
+  closedAt: string | null;
+  items: ReturnLineItem[];
+  order: { id: string; total: string; status: string } | null;
+}
+
+export interface CreateReturnPayload {
+  orderId: string;
+  guestEmail?: string;
+  guestPhone?: string;
+  reason: ReturnReason;
+  description?: string;
+  photos: string[];
+  items: { orderItemId: string; quantity: number }[];
+}
+
+// Returns-specific fetch: surfaces server validation messages
+// (`json.message`) on 4xx/5xx instead of the generic "API N: path" used
+// by `apiFetch`. Bypasses Next.js cache (returns are mutable and
+// user-scoped). Keeps the same `{ success, data }` envelope.
+async function returnsFetch<T>(
+  path: string,
+  options?: RequestInit,
+): Promise<T> {
+  const res = await fetch(`${API}${path}`, {
+    ...options,
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    cache: 'no-store',
+    signal: AbortSignal.timeout(8000),
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const message =
+      (json && typeof json.message === 'string' && json.message) ||
+      (json && typeof json.error === 'string' && json.error) ||
+      `Request failed (${res.status})`;
+    throw new Error(message);
+  }
+  return (json.data ?? json) as T;
+}
+
+export function createReturn(
+  payload: CreateReturnPayload,
+  accessToken?: string,
+): Promise<{ id: string; rtnNumber: string }> {
+  return returnsFetch<{ id: string; rtnNumber: string }>('/returns', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+    headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
+  });
+}
+
+export function getMyReturns(accessToken: string): Promise<ReturnRecord[]> {
+  return returnsFetch<ReturnRecord[]>('/returns/me', {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+}
+
+export function getReturnByRtn(
+  rtnNumber: string,
+  accessToken: string,
+): Promise<ReturnRecord> {
+  return returnsFetch<ReturnRecord>(`/returns/${rtnNumber}`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+}
+
+export function lookupReturnAsGuest(
+  rtnNumber: string,
+  email: string,
+  phone: string,
+): Promise<ReturnRecord> {
+  return returnsFetch<ReturnRecord>(`/returns/${rtnNumber}/lookup`, {
+    method: 'POST',
+    body: JSON.stringify({ email, phone }),
+  });
+}
+
+export function cancelReturn(
+  rtnNumber: string,
+  opts: { accessToken?: string; email?: string; phone?: string; reason?: string },
+): Promise<{ success: boolean }> {
+  return returnsFetch<{ success: boolean }>(`/returns/${rtnNumber}/cancel`, {
+    method: 'POST',
+    body: JSON.stringify({
+      email: opts.email,
+      phone: opts.phone,
+      reason: opts.reason,
+    }),
+    headers: opts.accessToken
+      ? { Authorization: `Bearer ${opts.accessToken}` }
+      : undefined,
+  });
+}
