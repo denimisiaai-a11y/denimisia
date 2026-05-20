@@ -243,7 +243,7 @@ All under `/api/v1/bot/*` (NestJS controllers).
 | POST | `/bot/recommend-size` | `{ type, measurements, fitPref }` | `{ recommendedSize, alternativeSize?, products[] }` |
 | GET | `/bot/synonyms` | — | Active synonym dictionary, cached 5 min |
 | GET | `/products/:id/size-chart` | — | `{ dimensions[], rows: { sizeKey, dimension, bodyValueIn, garmentValueIn }[] }` |
-| POST | `/customers/me/fit-profile` | `{ type, measurements, fitPref }` | Updated `Customer.fitProfile` |
+| POST | `/users/me/fit-profile` | `{ type, measurements, fitPref }` | Updated `Customer.fitProfile` |
 
 Server is stateless per request. Conversation state lives on the client and is sent in the `context` blob with every `/bot/message` call.
 
