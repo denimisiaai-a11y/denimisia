@@ -32,6 +32,7 @@ const NAV_GROUPS: readonly NavGroup[] = [
     label: 'Sales',
     items: [
       { href: '/orders', label: 'Orders', icon: 'shopping_cart' },
+      { href: '/returns', label: 'Returns', icon: 'assignment_return' },
       { href: '/discounts', label: 'Discounts', icon: 'sell' },
       { href: '/pos', label: 'Point of Sale', icon: 'point_of_sale' },
     ],
