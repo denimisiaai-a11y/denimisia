@@ -263,3 +263,60 @@ export async function issueRefund(
 ): Promise<ReturnDetail> {
   return postJson<ReturnDetail>(`/admin/returns/${id}/issue-refund`, token, body);
 }
+
+// ---------------------------------------------------------------------------
+// Manual entry + metrics dashboard
+// ---------------------------------------------------------------------------
+
+export interface ManualReturnItemPayload {
+  orderItemId: string | null;
+  manualProductName?: string;
+  manualSku?: string;
+  manualSize?: string;
+  manualColor?: string;
+  manualUnitPrice?: number;
+  quantity: number;
+}
+
+export interface ManualReturnPayload {
+  orderId: string | null;
+  customerName: string;
+  customerEmail?: string;
+  customerPhone: string;
+  reason: ReturnReason;
+  faultOverride?: ReturnFault;
+  description?: string;
+  photos: string[];
+  items: ManualReturnItemPayload[];
+}
+
+export async function createManualReturn(
+  token: string,
+  body: ManualReturnPayload,
+): Promise<{ id: string; rtnNumber: string }> {
+  return postJson<{ id: string; rtnNumber: string }>(
+    '/admin/returns/manual',
+    token,
+    body as unknown as Record<string, unknown>,
+  );
+}
+
+export interface ReturnsMetrics {
+  rangeDays: number;
+  returnsCount: number;
+  ordersCount: number;
+  returnRate: number;
+  topReasons: { reason: ReturnReason; count: number }[];
+  pendingRefundValue: number;
+  averageResolutionHours: number | null;
+}
+
+export async function getReturnsMetrics(
+  token: string,
+  rangeDays = 30,
+): Promise<ReturnsMetrics> {
+  return adminFetch<ReturnsMetrics>(
+    `/admin/returns/metrics/dashboard?rangeDays=${rangeDays}`,
+    token,
+  );
+}
