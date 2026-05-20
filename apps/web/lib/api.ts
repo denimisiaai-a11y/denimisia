@@ -413,6 +413,13 @@ export interface ReturnLineItem {
   id: string;
   quantity: number;
   inspectionResult: 'PASS' | 'FAIL' | null;
+  // Bundle-component fields are populated only when this row represents
+  // a returned constituent of a bundle order line. For regular variant
+  // lines all four are null. See packages/database schema, ReturnItem.
+  bundleComponentVariantId: string | null;
+  bundleComponentName: string | null;
+  bundleComponentSize: string | null;
+  bundleComponentColor: string | null;
   orderItem: {
     id: string;
     quantity: number;
@@ -452,7 +459,14 @@ export interface CreateReturnPayload {
   reason: ReturnReason;
   description?: string;
   photos: string[];
-  items: { orderItemId: string; quantity: number }[];
+  items: {
+    orderItemId: string;
+    quantity: number;
+    // For bundle order lines, the customer must identify which
+    // constituent is being returned. Matches the variantId stored in
+    // OrderItem.snapshot.items[] at order time.
+    bundleComponentVariantId?: string;
+  }[];
 }
 
 // Returns-specific fetch: surfaces server validation messages

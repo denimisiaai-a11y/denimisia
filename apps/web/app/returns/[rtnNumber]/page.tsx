@@ -484,8 +484,20 @@ export default function ReturnTrackingPage() {
         <ul className="space-y-2">
           {data.items.map((item) => {
             const oi = item.orderItem;
-            const productName = oi?.product?.name ?? 'Item';
+            // Bundle-component lines override the display so the
+            // customer sees the actual tee / piece they're returning,
+            // not the parent bundle's name.
+            const isBundleComponent = !!item.bundleComponentVariantId;
+            const productName = isBundleComponent
+              ? item.bundleComponentName ?? 'Bundle item'
+              : oi?.product?.name ?? 'Item';
             const image = oi?.product?.images?.[0];
+            const sizeColor = [
+              isBundleComponent ? item.bundleComponentColor : null,
+              isBundleComponent ? item.bundleComponentSize : null,
+            ]
+              .filter(Boolean)
+              .join(' / ');
             const unitPrice = oi?.unitPrice ? Number(oi.unitPrice) : null;
             return (
               <li
@@ -506,7 +518,15 @@ export default function ReturnTrackingPage() {
                   <div className="h-14 w-14 flex-shrink-0 rounded-sm bg-muted-bg" />
                 )}
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm text-ink">{productName}</p>
+                  <p className="truncate text-sm text-ink">
+                    {productName}
+                    {sizeColor ? ` (${sizeColor})` : ''}
+                  </p>
+                  {isBundleComponent && (
+                    <p className="mt-0.5 text-[10px] uppercase tracking-[0.1em] text-muted">
+                      Bundle component
+                    </p>
+                  )}
                   <p className="mt-0.5 text-xs text-muted">
                     Qty: {item.quantity}
                     {unitPrice !== null

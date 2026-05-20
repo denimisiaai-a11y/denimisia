@@ -42,9 +42,113 @@ interface OrderItemView {
   quantity: number;
   unitPrice: string | number;
   total: string | number;
+  bundleId?: string | null;
   product?: { name?: string | null; slug?: string | null; images?: string[] } | null;
   variant?: { size?: string | null; color?: string | null } | null;
+  bundle?: {
+    id?: string;
+    name?: string;
+    slug?: string;
+    image?: string | null;
+  } | null;
   snapshot?: unknown;
+}
+
+// One "virtual line" rendered in the returns picker. For non-bundle
+// order items this is 1:1 with the OrderItem. For bundle order items
+// this is 1:N — one VirtualLine per constituent recorded in the bundle
+// snapshot. The unique `key` is the React key AND the
+// `itemSelections` Map key; `orderItemId + bundleComponentVariantId`
+// is the canonical (orderItemId, componentVariantId) tuple sent on
+// submit.
+interface VirtualLine {
+  key: string;
+  orderItemId: string;
+  bundleComponentVariantId: string | null;
+  displayName: string;
+  imageUrl: string | null;
+  size: string | null;
+  color: string | null;
+  unitPriceLabel: string | number;
+  maxQuantity: number;
+  isBundleComponent: boolean;
+  bundleName: string | null;
+}
+
+// Shape of a constituent inside OrderItem.snapshot.items[] for bundle
+// lines. Mirrored from BundleSnapshotItem in apps/api orders.service.ts.
+// Only the fields we read are required; extra fields are tolerated.
+interface BundleSnapshotConstituentView {
+  productId?: string;
+  variantId: string;
+  productName?: string;
+  color?: string;
+  size?: string;
+  image?: string | null;
+}
+
+function readBundleSnapshot(
+  snapshot: unknown,
+): { items: BundleSnapshotConstituentView[] } | null {
+  if (!snapshot || typeof snapshot !== 'object') return null;
+  const items = (snapshot as { items?: unknown }).items;
+  if (!Array.isArray(items)) return null;
+  // Defensive filter: drop entries that aren't recognizable (e.g. legacy
+  // bundle snapshots predating the items[] shape). The form will then
+  // fall back to whole-line return for that order, which the API may
+  // reject with the "snapshot is missing constituents" error.
+  const valid = items.filter(
+    (c): c is BundleSnapshotConstituentView =>
+      !!c && typeof c === 'object' && typeof (c as { variantId?: unknown }).variantId === 'string',
+  );
+  if (valid.length === 0) return null;
+  return { items: valid };
+}
+
+function buildVirtualLines(items: OrderItemView[]): VirtualLine[] {
+  const out: VirtualLine[] = [];
+  for (const item of items) {
+    const isBundleLine = !!item.bundleId;
+    const snapshot = isBundleLine ? readBundleSnapshot(item.snapshot) : null;
+    if (isBundleLine && snapshot) {
+      for (const c of snapshot.items) {
+        const sizeColor = [c.color, c.size].filter(Boolean).join(' / ');
+        const displayName = c.productName ?? 'Bundle item';
+        out.push({
+          key: `${item.id}:${c.variantId}`,
+          orderItemId: item.id,
+          bundleComponentVariantId: c.variantId,
+          displayName: sizeColor ? `${displayName} (${sizeColor})` : displayName,
+          imageUrl: c.image ?? item.bundle?.image ?? null,
+          size: c.size ?? null,
+          color: c.color ?? null,
+          unitPriceLabel: item.unitPrice,
+          // A customer who bought 3 of the same bundle has 3 of each
+          // component available individually.
+          maxQuantity: item.quantity,
+          isBundleComponent: true,
+          bundleName: item.bundle?.name ?? null,
+        });
+      }
+      continue;
+    }
+    // Regular variant line — or a bundle line we cannot expand. In both
+    // cases we render a single row pointing at the order item itself.
+    out.push({
+      key: item.id,
+      orderItemId: item.id,
+      bundleComponentVariantId: null,
+      displayName: itemDisplayName(item),
+      imageUrl: item.product?.images?.[0] ?? null,
+      size: item.variant?.size ?? null,
+      color: item.variant?.color ?? null,
+      unitPriceLabel: item.unitPrice,
+      maxQuantity: item.quantity,
+      isBundleComponent: false,
+      bundleName: null,
+    });
+  }
+  return out;
 }
 
 interface OrderView {
@@ -115,6 +219,8 @@ function NewReturnPageInner() {
   // The uploader hands us clean fileUrl strings — no parsing or URL
   // validation needed here, in contrast to the old textarea flow.
   const [photos, setPhotos] = useState<string[]>([]);
+  // Keyed by VirtualLine.key (orderItemId for non-bundle, or
+  // `${orderItemId}:${componentVariantId}` for bundle constituents).
   const [itemSelections, setItemSelections] = useState<
     Record<string, { selected: boolean; quantity: number }>
   >({});
@@ -234,12 +340,45 @@ function NewReturnPageInner() {
     });
   };
 
+  // Flatten OrderItems into the customer-facing virtual lines:
+  // each bundle line expands into one row per constituent so the
+  // customer can pick exactly which tee out of a 3-tee bundle they
+  // want to return.
+  const virtualLines = useMemo<VirtualLine[]>(
+    () => (order ? buildVirtualLines(order.items) : []),
+    [order],
+  );
+
+  const virtualLineByKey = useMemo(
+    () => new Map(virtualLines.map((v) => [v.key, v])),
+    [virtualLines],
+  );
+
   const selectedItems = useMemo(
     () =>
       Object.entries(itemSelections)
         .filter(([, v]) => v.selected && v.quantity >= 1)
-        .map(([orderItemId, v]) => ({ orderItemId, quantity: v.quantity })),
-    [itemSelections],
+        .map(([key, v]) => {
+          const vl = virtualLineByKey.get(key);
+          if (!vl) return null;
+          return {
+            orderItemId: vl.orderItemId,
+            quantity: v.quantity,
+            ...(vl.bundleComponentVariantId
+              ? { bundleComponentVariantId: vl.bundleComponentVariantId }
+              : {}),
+          };
+        })
+        .filter(
+          (
+            x,
+          ): x is {
+            orderItemId: string;
+            quantity: number;
+            bundleComponentVariantId?: string;
+          } => x !== null,
+        ),
+    [itemSelections, virtualLineByKey],
   );
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -480,22 +619,22 @@ function NewReturnPageInner() {
               Items to return
             </h2>
             <ul className="space-y-2">
-              {order.items.map((item) => {
-                const sel = itemSelections[item.id] ?? {
+              {virtualLines.map((line) => {
+                const sel = itemSelections[line.key] ?? {
                   selected: false,
                   quantity: 1,
                 };
-                const image = item.product?.images?.[0];
+                const image = line.imageUrl;
                 return (
                   <li
-                    key={item.id}
+                    key={line.key}
                     className="flex items-start gap-3 rounded-sm border border-border p-3"
                   >
                     <label className="flex flex-1 cursor-pointer items-start gap-3">
                       <input
                         type="checkbox"
                         checked={sel.selected}
-                        onChange={() => toggleItem(item.id)}
+                        onChange={() => toggleItem(line.key)}
                         className="mt-1 h-4 w-4 accent-ink"
                       />
                       {image ? (
@@ -513,11 +652,17 @@ function NewReturnPageInner() {
                       )}
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm text-ink">
-                          {itemDisplayName(item)}
+                          {line.displayName}
                         </p>
+                        {line.isBundleComponent && line.bundleName && (
+                          <p className="mt-0.5 text-[10px] uppercase tracking-[0.1em] text-muted">
+                            From bundle: {line.bundleName}
+                          </p>
+                        )}
                         <p className="mt-0.5 text-xs text-muted">
-                          Ordered: {item.quantity} •{' '}
-                          {formatPrice(Number(item.unitPrice))} each
+                          Ordered: {line.maxQuantity} •{' '}
+                          {formatPrice(Number(line.unitPriceLabel))}{' '}
+                          {line.isBundleComponent ? 'bundle each' : 'each'}
                         </p>
                       </div>
                     </label>
@@ -527,13 +672,13 @@ function NewReturnPageInner() {
                         <input
                           type="number"
                           min={1}
-                          max={item.quantity}
+                          max={line.maxQuantity}
                           value={sel.quantity}
                           onChange={(e) =>
                             setItemQty(
-                              item.id,
+                              line.key,
                               Number(e.target.value),
-                              item.quantity,
+                              line.maxQuantity,
                             )
                           }
                           className="w-16 rounded-sm border border-border bg-paper px-2 py-1 text-sm text-ink focus:border-ink focus:outline-none"

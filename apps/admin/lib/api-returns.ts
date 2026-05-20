@@ -86,16 +86,28 @@ export interface ReturnItemDetail {
   inspectionResult: 'PASS' | 'FAIL' | null;
   restock: boolean;
   itemRefundAmount: string;
+  // Bundle-component fields are populated only when this row represents
+  // a returned constituent of a bundle order line. For regular variant
+  // and manual lines all four are null. See ReturnItem schema in
+  // packages/database/prisma/schema.prisma.
+  bundleComponentVariantId: string | null;
+  bundleComponentName: string | null;
+  bundleComponentSize: string | null;
+  bundleComponentColor: string | null;
   orderItem: {
     id: string;
     quantity: number;
     unitPrice: string;
+    bundleId: string | null;
     snapshot: Record<string, unknown>;
     product:
       | { id: string; name: string; slug: string; images: string[]; price: string }
       | null;
     variant:
       | { id: string; size: string | null; color: string | null; sku: string }
+      | null;
+    bundle:
+      | { id: string; slug: string; name: string; image: string | null }
       | null;
   } | null;
 }
@@ -276,6 +288,9 @@ export interface ManualReturnItemPayload {
   manualColor?: string;
   manualUnitPrice?: number;
   quantity: number;
+  // For bundle-line orderItemIds, the admin must name which constituent
+  // is being returned. Matches the variantId in OrderItem.snapshot.items[].
+  bundleComponentVariantId?: string;
 }
 
 export interface ManualReturnPayload {

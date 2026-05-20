@@ -151,26 +151,53 @@ const TERMINAL_STATUSES: ReturnStatus[] = [
 // Item display helpers
 // ---------------------------------------------------------------------------
 
+// Bundle-component lines bypass the OrderItem.product fallback so the
+// admin sees the actual constituent (e.g. "Crew Tee — Black / M") rather
+// than the parent bundle's metadata. Manual lines retain their existing
+// manual* override behavior.
+function isBundleComponent(item: ReturnItemDetail): boolean {
+  return !!item.bundleComponentVariantId;
+}
+
 function itemDisplayName(item: ReturnItemDetail): string {
+  if (isBundleComponent(item)) {
+    return item.bundleComponentName ?? 'Bundle component';
+  }
   if (item.orderItem?.product?.name) return item.orderItem.product.name;
   if (item.manualProductName) return item.manualProductName;
   return 'Item';
 }
 
 function itemDisplayImage(item: ReturnItemDetail): string | null {
-  const img = item.orderItem?.product?.images?.[0];
-  return img ?? null;
+  // For bundle components we still surface the parent bundle's image
+  // (constituents inherit the bundle hero in the snapshot). The bundle
+  // field on the order item carries it through.
+  if (isBundleComponent(item)) {
+    return (
+      item.orderItem?.bundle?.image ??
+      item.orderItem?.product?.images?.[0] ??
+      null
+    );
+  }
+  return item.orderItem?.product?.images?.[0] ?? null;
 }
 
 function itemSize(item: ReturnItemDetail): string | null {
+  if (isBundleComponent(item)) return item.bundleComponentSize;
   return item.orderItem?.variant?.size ?? item.manualSize ?? null;
 }
 
 function itemColor(item: ReturnItemDetail): string | null {
+  if (isBundleComponent(item)) return item.bundleComponentColor;
   return item.orderItem?.variant?.color ?? item.manualColor ?? null;
 }
 
 function itemSku(item: ReturnItemDetail): string | null {
+  // Bundle constituents are referenced by variantId, not SKU. We surface
+  // the variantId in the SKU column so the warehouse team has a unique
+  // identifier to scan/match against; the manual SKU fallback applies
+  // for manual lines only.
+  if (isBundleComponent(item)) return item.bundleComponentVariantId;
   return item.orderItem?.variant?.sku ?? item.manualSku ?? null;
 }
 
@@ -834,7 +861,15 @@ export default function ReturnDetailPage() {
                           <p className="text-sm font-semibold text-on-surface">
                             {itemDisplayName(it)}
                           </p>
-                          {it.orderItem?.product?.slug && (
+                          {isBundleComponent(it) && (
+                            <span className="mt-0.5 inline-block rounded-sm bg-primary/10 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.15em] text-primary">
+                              Bundle component
+                              {it.orderItem?.bundle?.name
+                                ? ` · ${it.orderItem.bundle.name}`
+                                : ''}
+                            </span>
+                          )}
+                          {it.orderItem?.product?.slug && !isBundleComponent(it) && (
                             <Link
                               href={`/catalog/products/${it.orderItem.product.slug}`}
                               className="text-[11px] text-secondary hover:text-on-surface"
