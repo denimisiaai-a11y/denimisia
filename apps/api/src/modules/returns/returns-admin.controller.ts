@@ -17,6 +17,7 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
 import { ReturnsService } from './returns.service';
 import { ReturnsRefundService } from './returns.refund.service';
+import { ReturnsMetricsService } from './returns.metrics.service';
 import { reviewReturnSchema } from './dto/review-return.dto';
 import { approveReturnSchema } from './dto/approve-return.dto';
 import { rejectReturnSchema } from './dto/reject-return.dto';
@@ -41,6 +42,7 @@ export class ReturnsAdminController {
   constructor(
     private readonly returns: ReturnsService,
     private readonly refunds: ReturnsRefundService,
+    private readonly metrics: ReturnsMetricsService,
   ) {}
 
   @Get()
@@ -66,6 +68,12 @@ export class ReturnsAdminController {
     @Body() dto: ManualReturnDto,
   ) {
     return this.returns.createManual({ adminId: user.id, dto });
+  }
+
+  @Get('metrics/dashboard')
+  async dashboardMetrics(@Query('rangeDays') rangeDays = '30') {
+    const parsed = parseInt(rangeDays, 10);
+    return this.metrics.getDashboard(Number.isFinite(parsed) ? parsed : 30);
   }
 
   @Get(':id')

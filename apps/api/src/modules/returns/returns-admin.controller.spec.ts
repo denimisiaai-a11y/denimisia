@@ -31,7 +31,14 @@ describe('ReturnsAdminController', () => {
     refunds = {
       issueRefund: jest.fn().mockResolvedValue({ id: 'txn1' }),
     };
-    controller = new ReturnsAdminController(service as never, refunds as never);
+    const metrics = {
+      getDashboard: jest.fn().mockResolvedValue({}),
+    };
+    controller = new ReturnsAdminController(
+      service as never,
+      refunds as never,
+      metrics as never,
+    );
   });
 
   describe('list', () => {
