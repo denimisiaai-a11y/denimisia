@@ -21,6 +21,10 @@ interface TrackedOrderItem {
 
 interface TrackedOrder {
   id: string;
+  // Customer-facing identifier (DEN-NNNNNN). Surface to the customer
+  // instead of the raw CUID tail. May be missing on very-old snapshots
+  // pre-dating the column.
+  orderNumber?: string;
   status: string;
   subtotal: string | number;
   discount: string | number;
@@ -50,8 +54,8 @@ const STATUS_LABEL: Record<string, string> = {
   PAYMENT_FAILED: 'Payment failed',
 };
 
-function shortRef(orderId: string): string {
-  return orderId.slice(-8).toUpperCase();
+function displayOrderRef(order: TrackedOrder): string {
+  return order.orderNumber ?? order.id.slice(-8).toUpperCase();
 }
 
 function itemLabel(item: TrackedOrderItem): string {
@@ -158,7 +162,7 @@ function TrackOrderForm() {
             Order
           </p>
           <h2 className="text-2xl font-semibold tracking-tight text-ink">
-            {shortRef(order.id)}
+            {displayOrderRef(order)}
           </h2>
           <p className="text-sm text-[var(--color-secondary)]">
             {STATUS_LABEL[order.status] ?? order.status}
@@ -260,11 +264,11 @@ function TrackOrderForm() {
           autoComplete="off"
           value={orderId}
           onChange={(e) => setOrderId(e.target.value)}
-          placeholder="Paste the order ID from your confirmation email"
+          placeholder="e.g. DEN-000142"
           className="w-full border border-ink/20 bg-transparent px-4 py-3 text-sm text-ink outline-none transition-colors focus:border-ink"
         />
         <p className="mt-1.5 text-[10px] uppercase tracking-[0.2em] text-[var(--color-secondary)]">
-          Found in the &quot;Track order&quot; link of your confirmation email
+          Found at the top of your order confirmation email
         </p>
       </div>
 

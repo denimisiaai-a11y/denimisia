@@ -6,11 +6,20 @@ const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api/v1';
 
 interface Order {
   id: string;
+  // Customer-facing identifier (DEN-NNNNNN). Stable, memorable. Falls
+  // back to the CUID's last 8 chars for orders pre-dating the
+  // orderNumber column on legacy/staging snapshots that haven't run
+  // the backfill yet.
+  orderNumber?: string;
   status: string;
   total: string;
   shippingCost: string;
   createdAt: string;
   items: { id: string; productName: string; quantity: number; price: string }[];
+}
+
+function displayOrderRef(order: Order): string {
+  return order.orderNumber ?? order.id.slice(-8).toUpperCase();
 }
 
 async function getOrders(accessToken: string): Promise<Order[]> {
@@ -64,7 +73,7 @@ export default async function OrdersPage() {
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
                   <p className="text-sm font-medium text-ink">
-                    Order #{order.id.slice(-8).toUpperCase()}
+                    Order #{displayOrderRef(order)}
                   </p>
                   <p className="mt-1 text-xs text-muted">
                     {new Date(order.createdAt).toLocaleDateString('en-GB', {

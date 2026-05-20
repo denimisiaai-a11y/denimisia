@@ -26,10 +26,14 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
   const order = await getOrder(id, session.accessToken);
   if (!order) notFound();
 
+  // Prefer the human-friendly DEN-NNNNNN. Fall back to the CUID tail
+  // for orders pre-dating the backfill (legacy snapshots).
+  const orderRef = order.orderNumber ?? order.id.slice(-8).toUpperCase();
+
   return (
     <div>
       <h2 className="mb-6 text-lg font-medium uppercase tracking-[0.1em] text-ink">
-        Order #{order.id.slice(-8).toUpperCase()}
+        Order #{orderRef}
       </h2>
 
       <div className="mb-6 grid gap-4 sm:grid-cols-3">
