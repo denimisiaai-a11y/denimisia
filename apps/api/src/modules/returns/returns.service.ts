@@ -26,6 +26,48 @@ import {
 const SLA_HOURS = 48;
 const RTN_CREATE_MAX_RETRIES = 3;
 
+// Shape of one constituent inside `OrderItem.snapshot.items[]` for bundle
+// order lines. Mirrored from BundleSnapshotItem in orders.service.ts.
+// Kept inline (not imported) to avoid a cross-module type coupling for a
+// 6-field denormalized read-only shape.
+interface BundleSnapshotConstituent {
+  productId: string;
+  variantId: string;
+  productName: string;
+  color: string;
+  size: string;
+  image: string | null;
+}
+
+interface BundleSnapshotShape {
+  items?: BundleSnapshotConstituent[];
+}
+
+// Composite key for tracking already-returned quantity per (orderItem,
+// optional bundle constituent). Non-bundle rows use the empty string so
+// the same Map can hold both kinds without collisions.
+function returnedKey(
+  orderItemId: string,
+  bundleComponentVariantId: string | null | undefined,
+): string {
+  return `${orderItemId}::${bundleComponentVariantId ?? ''}`;
+}
+
+// Pull a constituent out of an OrderItem.snapshot Json blob. Returns null
+// when the snapshot is malformed or the variantId is not found — callers
+// treat null as "no extra display metadata", not as an error, because
+// the variantId itself is the source of truth on the ReturnItem row.
+function findBundleConstituent(
+  snapshotJson: Prisma.JsonValue,
+  variantId: string | null | undefined,
+): BundleSnapshotConstituent | null {
+  if (!variantId) return null;
+  if (!snapshotJson || typeof snapshotJson !== 'object') return null;
+  const snapshot = snapshotJson as unknown as BundleSnapshotShape;
+  if (!Array.isArray(snapshot.items)) return null;
+  return snapshot.items.find((c) => c.variantId === variantId) ?? null;
+}
+
 @Injectable()
 export class ReturnsService {
   constructor(
@@ -98,12 +140,30 @@ export class ReturnsService {
     const customerShipsBack = fault === 'CUSTOMER';
     const slaDeadline = new Date(Date.now() + SLA_HOURS * 60 * 60 * 1000);
 
+    // Validate bundle-component semantics up-front (before the txn) so
+    // the customer sees a clear 400 rather than a generic txn rollback.
+    // For bundle order items the DTO MUST identify which constituent is
+    // being returned; for non-bundle items the field MUST be absent.
+    for (const item of dto.items) {
+      const orderItem = order.items.find((oi) => oi.id === item.orderItemId);
+      if (!orderItem) continue; // checked again inside the txn
+      this.validateBundleComponentRequest({
+        orderItemId: item.orderItemId,
+        isBundleLine: !!orderItem.bundleId,
+        snapshot: orderItem.snapshot,
+        bundleComponentVariantId: item.bundleComponentVariantId,
+      });
+    }
+
     const created = await this.createWithRtnRetry(async (rtnNumber) =>
       this.prisma.$transaction(
         async (tx) => {
           const orderItemIds = dto.items.map((i) => i.orderItemId);
+          // Group existing return quantities by (orderItemId,
+          // bundleComponentVariantId) — bundle constituents are tracked
+          // independently of each other and of any whole-bundle line.
           const existingQuantities = await tx.returnItem.groupBy({
-            by: ['orderItemId'],
+            by: ['orderItemId', 'bundleComponentVariantId'],
             where: {
               orderItemId: { in: orderItemIds },
               return: {
@@ -118,7 +178,10 @@ export class ReturnsService {
                 (row): row is typeof row & { orderItemId: string } =>
                   row.orderItemId !== null,
               )
-              .map((row) => [row.orderItemId, row._sum.quantity ?? 0]),
+              .map((row) => [
+                returnedKey(row.orderItemId, row.bundleComponentVariantId),
+                row._sum.quantity ?? 0,
+              ]),
           );
 
           for (const item of dto.items) {
@@ -133,7 +196,10 @@ export class ReturnsService {
             const failure = checkItemEligibility({
               orderItem,
               requestedQty: item.quantity,
-              alreadyReturnedQty: alreadyReturnedMap.get(orderItem.id) ?? 0,
+              alreadyReturnedQty:
+                alreadyReturnedMap.get(
+                  returnedKey(orderItem.id, item.bundleComponentVariantId),
+                ) ?? 0,
             });
             if (failure) {
               throw new BadRequestException(
@@ -157,10 +223,29 @@ export class ReturnsService {
               customerShipsBack,
               slaDeadline,
               items: {
-                create: dto.items.map((i) => ({
-                  orderItemId: i.orderItemId,
-                  quantity: i.quantity,
-                })),
+                create: dto.items.map((i) => {
+                  const orderItem = order.items.find(
+                    (oi) => oi.id === i.orderItemId,
+                  )!;
+                  if (!orderItem.bundleId) {
+                    return {
+                      orderItemId: i.orderItemId,
+                      quantity: i.quantity,
+                    };
+                  }
+                  const constituent = findBundleConstituent(
+                    orderItem.snapshot,
+                    i.bundleComponentVariantId,
+                  );
+                  return {
+                    orderItemId: i.orderItemId,
+                    quantity: i.quantity,
+                    bundleComponentVariantId: i.bundleComponentVariantId,
+                    bundleComponentName: constituent?.productName ?? null,
+                    bundleComponentSize: constituent?.size ?? null,
+                    bundleComponentColor: constituent?.color ?? null,
+                  };
+                }),
               },
             },
             select: { id: true, rtnNumber: true },
@@ -202,7 +287,9 @@ export class ReturnsService {
       }
     }
 
-    // For order-linked items, verify orderItemId is in the order
+    // For order-linked items, verify orderItemId is in the order +
+    // enforce the bundle-component invariant (must name a constituent
+    // when the source line is a bundle, must NOT name one otherwise).
     for (const item of dto.items) {
       if (item.orderItemId) {
         if (!order) {
@@ -210,12 +297,24 @@ export class ReturnsService {
             'Cannot reference orderItemId when orderId is null',
           );
         }
-        const found = order.items.some((oi) => oi.id === item.orderItemId);
-        if (!found) {
+        const orderItem = order.items.find((oi) => oi.id === item.orderItemId);
+        if (!orderItem) {
           throw new BadRequestException(
             `Order item ${item.orderItemId} not in order ${dto.orderId}`,
           );
         }
+        this.validateBundleComponentRequest({
+          orderItemId: item.orderItemId,
+          isBundleLine: !!orderItem.bundleId,
+          snapshot: orderItem.snapshot,
+          bundleComponentVariantId: item.bundleComponentVariantId,
+        });
+      } else if (item.bundleComponentVariantId) {
+        // Manual-entry items without an orderItem can't reference a
+        // bundle constituent — there is no snapshot to validate against.
+        throw new BadRequestException(
+          'bundleComponentVariantId requires orderItemId on manual returns',
+        );
       }
     }
 
@@ -240,18 +339,38 @@ export class ReturnsService {
           customerShipsBack,
           slaDeadline,
           items: {
-            create: dto.items.map((i) => ({
-              orderItemId: i.orderItemId,
-              manualProductName: i.manualProductName,
-              manualSku: i.manualSku,
-              manualSize: i.manualSize,
-              manualColor: i.manualColor,
-              manualUnitPrice:
-                i.manualUnitPrice !== undefined
-                  ? new Prisma.Decimal(i.manualUnitPrice)
-                  : undefined,
-              quantity: i.quantity,
-            })),
+            create: dto.items.map((i) => {
+              const orderItem = i.orderItemId
+                ? order?.items.find((oi) => oi.id === i.orderItemId)
+                : null;
+              const isBundle = !!orderItem?.bundleId;
+              const constituent = isBundle
+                ? findBundleConstituent(
+                    orderItem!.snapshot,
+                    i.bundleComponentVariantId,
+                  )
+                : null;
+              return {
+                orderItemId: i.orderItemId,
+                manualProductName: i.manualProductName,
+                manualSku: i.manualSku,
+                manualSize: i.manualSize,
+                manualColor: i.manualColor,
+                manualUnitPrice:
+                  i.manualUnitPrice !== undefined
+                    ? new Prisma.Decimal(i.manualUnitPrice)
+                    : undefined,
+                quantity: i.quantity,
+                ...(isBundle
+                  ? {
+                      bundleComponentVariantId: i.bundleComponentVariantId,
+                      bundleComponentName: constituent?.productName ?? null,
+                      bundleComponentSize: constituent?.size ?? null,
+                      bundleComponentColor: constituent?.color ?? null,
+                    }
+                  : {}),
+              };
+            }),
           },
         },
         select: { id: true, rtnNumber: true },
@@ -371,7 +490,14 @@ export class ReturnsService {
       include: {
         items: {
           include: {
-            orderItem: { include: { product: true, variant: true } },
+            // Include bundle so the admin UI can render constituent
+            // returns with their parent-bundle metadata (name, image).
+            // ReturnItem also carries denormalized
+            // bundleComponentName/Size/Color from snapshot, but the
+            // bundle relation is what links back to the catalog.
+            orderItem: {
+              include: { product: true, variant: true, bundle: true },
+            },
           },
         },
         order: { include: { items: true } },
@@ -520,6 +646,61 @@ export class ReturnsService {
       adminId: args.adminId,
     });
     return { status: nextStatus };
+  }
+
+  /**
+   * Bundle-component invariant guard. Throws BadRequestException when:
+   *   - A bundle order line is referenced without `bundleComponentVariantId`.
+   *   - A non-bundle order line is referenced WITH `bundleComponentVariantId`.
+   *   - The provided variantId is not one of the constituents recorded
+   *     in `OrderItem.snapshot.items[]`.
+   *
+   * Defensive: if a legacy bundle order has a snapshot that does not
+   * contain an `items[]` array, we block per-component returns entirely
+   * (the customer would need to use a manual return path). This guards
+   * against snapshot drift from before the bundle order schema settled.
+   */
+  private validateBundleComponentRequest(args: {
+    orderItemId: string;
+    isBundleLine: boolean;
+    snapshot: Prisma.JsonValue;
+    bundleComponentVariantId: string | undefined;
+  }): void {
+    if (!args.isBundleLine) {
+      if (args.bundleComponentVariantId) {
+        throw new BadRequestException(
+          `Order item ${args.orderItemId} is not a bundle line; ` +
+            `bundleComponentVariantId is not allowed`,
+        );
+      }
+      return;
+    }
+    if (!args.bundleComponentVariantId) {
+      throw new BadRequestException(
+        `Order item ${args.orderItemId} is a bundle line; ` +
+          `bundleComponentVariantId is required`,
+      );
+    }
+    const snapshot =
+      args.snapshot && typeof args.snapshot === 'object'
+        ? (args.snapshot as unknown as BundleSnapshotShape)
+        : null;
+    const items = snapshot?.items;
+    if (!Array.isArray(items) || items.length === 0) {
+      throw new BadRequestException(
+        `Order item ${args.orderItemId} bundle snapshot is missing constituents; ` +
+          `per-component returns are not available for this order`,
+      );
+    }
+    const found = items.some(
+      (c) => c.variantId === args.bundleComponentVariantId,
+    );
+    if (!found) {
+      throw new BadRequestException(
+        `bundleComponentVariantId ${args.bundleComponentVariantId} ` +
+          `is not a constituent of order item ${args.orderItemId}`,
+      );
+    }
   }
 
   private matchesOrderOwnership(args: {

@@ -27,6 +27,10 @@ export const manualReturnSchema = z.object({
           manualColor: z.string().max(80).optional(),
           manualUnitPrice: z.number().nonnegative().optional(),
           quantity: z.number().int().positive(),
+          // For bundle-line referenced order items, the admin must
+          // identify which constituent is being returned. See the
+          // matching field in CreateReturnDto for semantics.
+          bundleComponentVariantId: z.string().cuid().optional(),
         })
         .refine(
           (i) =>

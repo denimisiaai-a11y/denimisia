@@ -72,19 +72,39 @@ export class ReturnsRefundService {
       );
     }
 
+    // Restock policy:
+    //   * PASS + restock=true is the gate.
+    //   * Bundle component lines restock the constituent variant
+    //     (recorded at return time as bundleComponentVariantId — see
+    //     ReturnItem schema). The whole-bundle OrderItem has no variant.
+    //   * Regular order lines restock the OrderItem.variantId.
+    //   * Manual lines without an orderItem AND without a component id
+    //     have nothing to restock — skipped.
     const restockOps: Prisma.PrismaPromise<unknown>[] = [];
     for (const item of ret.items) {
-      const shouldRestock =
-        item.inspectionResult === 'PASS' &&
-        item.restock &&
-        item.orderItem?.variantId;
-      if (!shouldRestock || !item.orderItem?.variantId) continue;
-      restockOps.push(
-        this.prisma.productVariant.update({
-          where: { id: item.orderItem.variantId },
-          data: { stock: { increment: item.quantity } },
-        }),
-      );
+      const shouldRestock = item.inspectionResult === 'PASS' && item.restock;
+      if (!shouldRestock) continue;
+
+      // Bundle constituent: restock the variant captured at return time.
+      if (item.bundleComponentVariantId) {
+        restockOps.push(
+          this.prisma.productVariant.update({
+            where: { id: item.bundleComponentVariantId },
+            data: { stock: { increment: item.quantity } },
+          }),
+        );
+        continue;
+      }
+
+      // Regular variant line.
+      if (item.orderItem?.variantId) {
+        restockOps.push(
+          this.prisma.productVariant.update({
+            where: { id: item.orderItem.variantId },
+            data: { stock: { increment: item.quantity } },
+          }),
+        );
+      }
     }
 
     const now = new Date();

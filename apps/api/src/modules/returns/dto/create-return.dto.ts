@@ -19,6 +19,14 @@ export const createReturnSchema = z.object({
       z.object({
         orderItemId: z.string().cuid(),
         quantity: z.number().int().positive(),
+        // Bundle order items carry multiple constituents inside their
+        // snapshot.items[] array; per-component returns must name WHICH
+        // constituent is being returned. This is the constituent's
+        // ProductVariant.id (the canonical key stored at order time —
+        // see BundleSnapshotItem.variantId in orders.service.ts).
+        // Required on bundle-line items, forbidden on regular variant
+        // lines — enforced in returns.service.ts.
+        bundleComponentVariantId: z.string().cuid().optional(),
       }),
     )
     .min(1),

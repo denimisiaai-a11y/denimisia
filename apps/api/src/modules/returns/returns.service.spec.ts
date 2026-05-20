@@ -459,6 +459,309 @@ describe('ReturnsService', () => {
     });
   });
 
+  describe('bundle-component returns', () => {
+    // Bundle orders carry their constituents inside OrderItem.snapshot
+    // as `{ items: [{ variantId, productName, size, color, ... }] }`.
+    // The returns API requires the customer to name which constituent
+    // is being returned and tracks already-returned quantity per
+    // (orderItemId, bundleComponentVariantId) tuple so component A and
+    // component B can be returned independently.
+    const BUNDLE_SNAPSHOT = {
+      bundleSlug: 'tee-3-pack',
+      bundleName: 'Tee 3-Pack',
+      bundleSize: 'M',
+      bundlePrice: 900,
+      items: [
+        {
+          productId: 'p-a',
+          variantId: 'v-a',
+          productName: 'Crew Tee',
+          color: 'Black',
+          size: 'M',
+          image: null,
+        },
+        {
+          productId: 'p-b',
+          variantId: 'v-b',
+          productName: 'Crew Tee',
+          color: 'White',
+          size: 'M',
+          image: null,
+        },
+        {
+          productId: 'p-c',
+          variantId: 'v-c',
+          productName: 'Crew Tee',
+          color: 'Olive',
+          size: 'M',
+          image: null,
+        },
+      ],
+    };
+
+    const bundleOrder = {
+      id: 'o-bundle',
+      userId: 'u1',
+      guestEmail: null,
+      guestName: null,
+      guestPhone: null,
+      status: 'DELIVERED',
+      items: [
+        {
+          id: 'oi-bundle',
+          quantity: 1,
+          bundleId: 'b1',
+          snapshot: BUNDLE_SNAPSHOT,
+          product: null,
+        },
+      ],
+      statusHistory: [{ toStatus: 'DELIVERED', createdAt: FRESH_DELIVERY }],
+    };
+
+    it('rejects a bundle item request without bundleComponentVariantId', async () => {
+      prisma.order.findFirst.mockResolvedValue(bundleOrder);
+      await expect(
+        service.createReturn({
+          userId: 'u1',
+          dto: {
+            orderId: 'o-bundle',
+            reason: 'CHANGED_MIND',
+            photos: [],
+            items: [{ orderItemId: 'oi-bundle', quantity: 1 }],
+          } as never,
+        }),
+      ).rejects.toThrow(/bundleComponentVariantId is required/);
+    });
+
+    it('rejects a non-bundle item request that supplies bundleComponentVariantId', async () => {
+      prisma.order.findFirst.mockResolvedValue({
+        id: 'o1',
+        userId: 'u1',
+        guestEmail: null,
+        guestName: null,
+        guestPhone: null,
+        status: 'DELIVERED',
+        statusHistory: [{ toStatus: 'DELIVERED', createdAt: FRESH_DELIVERY }],
+        items: [
+          {
+            id: 'oi1',
+            quantity: 2,
+            bundleId: null,
+            snapshot: null,
+            product: { returnable: true },
+          },
+        ],
+      });
+      await expect(
+        service.createReturn({
+          userId: 'u1',
+          dto: {
+            orderId: 'o1',
+            reason: 'CHANGED_MIND',
+            photos: [],
+            items: [
+              {
+                orderItemId: 'oi1',
+                quantity: 1,
+                bundleComponentVariantId: 'v-a',
+              },
+            ],
+          } as never,
+        }),
+      ).rejects.toThrow(/is not a bundle line/);
+    });
+
+    it('rejects bundleComponentVariantId that is not a constituent of the bundle', async () => {
+      prisma.order.findFirst.mockResolvedValue(bundleOrder);
+      await expect(
+        service.createReturn({
+          userId: 'u1',
+          dto: {
+            orderId: 'o-bundle',
+            reason: 'CHANGED_MIND',
+            photos: [],
+            items: [
+              {
+                orderItemId: 'oi-bundle',
+                quantity: 1,
+                bundleComponentVariantId: 'v-rogue',
+              },
+            ],
+          } as never,
+        }),
+      ).rejects.toThrow(/not a constituent/);
+    });
+
+    it('creates a ReturnItem with snapshot fields populated for a valid component', async () => {
+      prisma.order.findFirst.mockResolvedValue(bundleOrder);
+      prisma.return.create.mockResolvedValue({
+        id: 'r-bundle',
+        rtnNumber: 'RTN-2026-000010',
+      });
+      await service.createReturn({
+        userId: 'u1',
+        dto: {
+          orderId: 'o-bundle',
+          reason: 'CHANGED_MIND',
+          photos: [],
+          items: [
+            {
+              orderItemId: 'oi-bundle',
+              quantity: 1,
+              bundleComponentVariantId: 'v-b',
+            },
+          ],
+        } as never,
+      });
+      expect(prisma.return.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            items: {
+              create: [
+                expect.objectContaining({
+                  orderItemId: 'oi-bundle',
+                  quantity: 1,
+                  bundleComponentVariantId: 'v-b',
+                  bundleComponentName: 'Crew Tee',
+                  bundleComponentSize: 'M',
+                  bundleComponentColor: 'White',
+                }),
+              ],
+            },
+          }),
+        }),
+      );
+    });
+
+    it('allows components A and B to be returned in the same request', async () => {
+      prisma.order.findFirst.mockResolvedValue(bundleOrder);
+      prisma.return.create.mockResolvedValue({
+        id: 'r-bundle',
+        rtnNumber: 'RTN-2026-000011',
+      });
+      await service.createReturn({
+        userId: 'u1',
+        dto: {
+          orderId: 'o-bundle',
+          reason: 'CHANGED_MIND',
+          photos: [],
+          items: [
+            {
+              orderItemId: 'oi-bundle',
+              quantity: 1,
+              bundleComponentVariantId: 'v-a',
+            },
+            {
+              orderItemId: 'oi-bundle',
+              quantity: 1,
+              bundleComponentVariantId: 'v-c',
+            },
+          ],
+        } as never,
+      });
+      const createCall = (prisma.return.create as jest.Mock).mock.calls[0][0];
+      const createdItems = createCall.data.items.create;
+      expect(createdItems).toHaveLength(2);
+      expect(createdItems.map((i: { bundleComponentVariantId: string }) => i.bundleComponentVariantId)).toEqual([
+        'v-a',
+        'v-c',
+      ]);
+    });
+
+    it('blocks returning component A twice (already-returned tracked per component)', async () => {
+      prisma.order.findFirst.mockResolvedValue(bundleOrder);
+      // groupBy now returns rows keyed by (orderItemId, bundleComponentVariantId)
+      prisma.returnItem.groupBy.mockResolvedValue([
+        {
+          orderItemId: 'oi-bundle',
+          bundleComponentVariantId: 'v-a',
+          _sum: { quantity: 1 },
+        },
+      ]);
+      await expect(
+        service.createReturn({
+          userId: 'u1',
+          dto: {
+            orderId: 'o-bundle',
+            reason: 'CHANGED_MIND',
+            photos: [],
+            items: [
+              {
+                orderItemId: 'oi-bundle',
+                quantity: 1,
+                bundleComponentVariantId: 'v-a',
+              },
+            ],
+          } as never,
+        }),
+      ).rejects.toThrow(/ITEM_ALREADY_RETURNED/);
+    });
+
+    it('returning component A does NOT block returning component B independently', async () => {
+      prisma.order.findFirst.mockResolvedValue(bundleOrder);
+      prisma.returnItem.groupBy.mockResolvedValue([
+        {
+          orderItemId: 'oi-bundle',
+          bundleComponentVariantId: 'v-a',
+          _sum: { quantity: 1 },
+        },
+      ]);
+      prisma.return.create.mockResolvedValue({
+        id: 'r-bundle-b',
+        rtnNumber: 'RTN-2026-000012',
+      });
+      await expect(
+        service.createReturn({
+          userId: 'u1',
+          dto: {
+            orderId: 'o-bundle',
+            reason: 'CHANGED_MIND',
+            photos: [],
+            items: [
+              {
+                orderItemId: 'oi-bundle',
+                quantity: 1,
+                bundleComponentVariantId: 'v-b',
+              },
+            ],
+          } as never,
+        }),
+      ).resolves.toBeDefined();
+    });
+
+    it('rejects a bundle line whose snapshot is missing items[] (legacy snapshot drift)', async () => {
+      prisma.order.findFirst.mockResolvedValue({
+        ...bundleOrder,
+        items: [
+          {
+            id: 'oi-legacy',
+            quantity: 1,
+            bundleId: 'b1',
+            snapshot: { bundleSlug: 'legacy-pack' }, // no `items` array
+            product: null,
+          },
+        ],
+      });
+      await expect(
+        service.createReturn({
+          userId: 'u1',
+          dto: {
+            orderId: 'o-bundle',
+            reason: 'CHANGED_MIND',
+            photos: [],
+            items: [
+              {
+                orderItemId: 'oi-legacy',
+                quantity: 1,
+                bundleComponentVariantId: 'v-a',
+              },
+            ],
+          } as never,
+        }),
+      ).rejects.toThrow(/missing constituents/);
+    });
+  });
+
   describe('matchesReturnOwnership (regression: auth-bypass via guest creds)', () => {
     it("does NOT allow a logged-in user to access another user's return by supplying guest creds", async () => {
       prisma.return.findUnique.mockResolvedValue({

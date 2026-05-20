@@ -183,6 +183,86 @@ describe('ReturnsRefundService', () => {
         overrideFromFail: false,
       });
     });
+
+    it('restocks bundle component by bundleComponentVariantId (not parent line)', async () => {
+      // Parent OrderItem on a bundle line has no variantId — restock
+      // must target the constituent recorded on the ReturnItem itself.
+      prisma.return.findUnique.mockResolvedValue({
+        id: 'r-bundle',
+        rtnNumber: 'RTN-BC',
+        status: 'INSPECTED_PASS',
+        items: [
+          {
+            id: 'ri-bc',
+            inspectionResult: 'PASS',
+            restock: true,
+            quantity: 1,
+            bundleComponentVariantId: 'v-b',
+            orderItem: { variantId: null, variant: null },
+          },
+        ],
+        refundTxn: null,
+      });
+      let observedRestockWhere: { id: string } | null = null;
+      prisma.productVariant.update.mockImplementation(
+        (args: { where: { id: string }; data: unknown }) => {
+          observedRestockWhere = args.where;
+          return args;
+        },
+      );
+      prisma.$transaction.mockImplementation(async (ops: unknown[]) => {
+        expect(ops.length).toBe(3); // refundTxn + return.update + 1 restock
+        return [{ id: 'txn-bc' }];
+      });
+      await service.issueRefund({
+        returnId: 'r-bundle',
+        adminId: 'a',
+        amount: 300,
+        method: 'CASH',
+        reference: 'Voucher-2',
+        overrideFromFail: false,
+      });
+      expect(observedRestockWhere).toEqual({ id: 'v-b' });
+    });
+
+    it('non-bundle item still restocks by orderItem.variantId', async () => {
+      prisma.return.findUnique.mockResolvedValue({
+        id: 'r-mix',
+        rtnNumber: 'RTN-MIX',
+        status: 'INSPECTED_PASS',
+        items: [
+          {
+            id: 'ri-regular',
+            inspectionResult: 'PASS',
+            restock: true,
+            quantity: 2,
+            bundleComponentVariantId: null,
+            orderItem: { variantId: 'v-regular', variant: { id: 'v-regular' } },
+          },
+        ],
+        refundTxn: null,
+      });
+      let observedRestockWhere: { id: string } | null = null;
+      prisma.productVariant.update.mockImplementation(
+        (args: { where: { id: string }; data: unknown }) => {
+          observedRestockWhere = args.where;
+          return args;
+        },
+      );
+      prisma.$transaction.mockImplementation(async (ops: unknown[]) => {
+        expect(ops.length).toBe(3);
+        return [{ id: 'txn-mix' }];
+      });
+      await service.issueRefund({
+        returnId: 'r-mix',
+        adminId: 'a',
+        amount: 200,
+        method: 'CASH',
+        reference: 'Voucher-3',
+        overrideFromFail: false,
+      });
+      expect(observedRestockWhere).toEqual({ id: 'v-regular' });
+    });
   });
 
   describe('computeBundleItemRefund', () => {
