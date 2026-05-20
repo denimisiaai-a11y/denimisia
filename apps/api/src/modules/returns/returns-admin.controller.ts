@@ -7,7 +7,6 @@ import {
   Post,
   Query,
   UseGuards,
-  UsePipes,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -46,8 +45,7 @@ export class ReturnsAdminController {
   ) {}
 
   @Get()
-  @UsePipes(new ZodValidationPipe(listReturnsSchema))
-  async list(@Query() query: ListReturnsDto) {
+  async list(@Query(new ZodValidationPipe(listReturnsSchema)) query: ListReturnsDto) {
     const status = Array.isArray(query.status)
       ? query.status
       : query.status
@@ -62,10 +60,9 @@ export class ReturnsAdminController {
   }
 
   @Post('manual')
-  @UsePipes(new ZodValidationPipe(manualReturnSchema))
   async createManual(
     @CurrentUser() user: { id: string },
-    @Body() dto: ManualReturnDto,
+    @Body(new ZodValidationPipe(manualReturnSchema)) dto: ManualReturnDto,
   ) {
     return this.returns.createManual({ adminId: user.id, dto });
   }
@@ -82,11 +79,10 @@ export class ReturnsAdminController {
   }
 
   @Patch(':id/review')
-  @UsePipes(new ZodValidationPipe(reviewReturnSchema))
   async review(
     @Param('id') id: string,
     @CurrentUser() user: { id: string },
-    @Body() dto: ReviewReturnDto,
+    @Body(new ZodValidationPipe(reviewReturnSchema)) dto: ReviewReturnDto,
   ) {
     return this.returns.transition({
       id,
@@ -100,11 +96,10 @@ export class ReturnsAdminController {
   }
 
   @Patch(':id/approve')
-  @UsePipes(new ZodValidationPipe(approveReturnSchema))
   async approve(
     @Param('id') id: string,
     @CurrentUser() user: { id: string },
-    @Body() dto: ApproveReturnDto,
+    @Body(new ZodValidationPipe(approveReturnSchema)) dto: ApproveReturnDto,
   ) {
     const pickupAddress =
       dto.pickupAddress === undefined
@@ -125,11 +120,10 @@ export class ReturnsAdminController {
   }
 
   @Patch(':id/reject')
-  @UsePipes(new ZodValidationPipe(rejectReturnSchema))
   async reject(
     @Param('id') id: string,
     @CurrentUser() user: { id: string },
-    @Body() dto: RejectReturnDto,
+    @Body(new ZodValidationPipe(rejectReturnSchema)) dto: RejectReturnDto,
   ) {
     return this.returns.transition({
       id,
@@ -140,11 +134,10 @@ export class ReturnsAdminController {
   }
 
   @Patch(':id/mark-received')
-  @UsePipes(new ZodValidationPipe(markReceivedSchema))
   async markReceived(
     @Param('id') id: string,
     @CurrentUser() user: { id: string },
-    @Body() dto: MarkReceivedDto,
+    @Body(new ZodValidationPipe(markReceivedSchema)) dto: MarkReceivedDto,
   ) {
     return this.returns.transition({
       id,
@@ -167,11 +160,10 @@ export class ReturnsAdminController {
   }
 
   @Patch(':id/inspect')
-  @UsePipes(new ZodValidationPipe(inspectReturnSchema))
   async inspect(
     @Param('id') id: string,
     @CurrentUser() user: { id: string },
-    @Body() dto: InspectReturnDto,
+    @Body(new ZodValidationPipe(inspectReturnSchema)) dto: InspectReturnDto,
   ) {
     return this.returns.recordInspection({
       id,
@@ -195,11 +187,10 @@ export class ReturnsAdminController {
   }
 
   @Post(':id/issue-refund')
-  @UsePipes(new ZodValidationPipe(issueRefundSchema))
   async issueRefund(
     @Param('id') id: string,
     @CurrentUser() user: { id: string },
-    @Body() dto: IssueRefundDto,
+    @Body(new ZodValidationPipe(issueRefundSchema)) dto: IssueRefundDto,
   ) {
     return this.refunds.issueRefund({
       returnId: id,

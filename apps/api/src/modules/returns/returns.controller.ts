@@ -5,7 +5,6 @@ import {
   Param,
   Post,
   UseGuards,
-  UsePipes,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { OptionalJwtAuthGuard } from '../../common/guards/optional-jwt-auth.guard';
@@ -25,10 +24,9 @@ export class ReturnsController {
 
   @Post()
   @UseGuards(OptionalJwtAuthGuard)
-  @UsePipes(new ZodValidationPipe(createReturnSchema))
   async create(
     @CurrentUser() user: { id: string } | null,
-    @Body() dto: CreateReturnDto,
+    @Body(new ZodValidationPipe(createReturnSchema)) dto: CreateReturnDto,
   ) {
     return this.returns.createReturn({ userId: user?.id ?? null, dto });
   }
@@ -52,10 +50,9 @@ export class ReturnsController {
   }
 
   @Post(':rtnNumber/lookup')
-  @UsePipes(new ZodValidationPipe(guestLookupSchema))
   async lookupGuest(
     @Param('rtnNumber') rtnNumber: string,
-    @Body() body: GuestLookupDto,
+    @Body(new ZodValidationPipe(guestLookupSchema)) body: GuestLookupDto,
   ) {
     return this.returns.getByRtnNumber({
       rtnNumber,
@@ -67,11 +64,10 @@ export class ReturnsController {
 
   @Post(':rtnNumber/cancel')
   @UseGuards(OptionalJwtAuthGuard)
-  @UsePipes(new ZodValidationPipe(cancelReturnSchema))
   async cancel(
     @Param('rtnNumber') rtnNumber: string,
     @CurrentUser() user: { id: string } | null,
-    @Body() body: CancelReturnDto,
+    @Body(new ZodValidationPipe(cancelReturnSchema)) body: CancelReturnDto,
   ) {
     await this.returns.cancelReturn({
       userId: user?.id ?? null,

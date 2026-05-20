@@ -11,5 +11,9 @@
         "tsconfig": "<rootDir>/../tsconfig.json"
       }
     ]
+  },
+  "moduleNameMapper": {
+    "^isomorphic-dompurify$": "<rootDir>/stubs/isomorphic-dompurify.js",
+    "^file-type$": "<rootDir>/stubs/file-type.js"
   }
 }

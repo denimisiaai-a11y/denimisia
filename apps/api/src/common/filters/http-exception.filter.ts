@@ -86,7 +86,11 @@ export class HttpExceptionFilter implements ExceptionFilter {
           message: res,
         };
       }
-      const obj = res as { message?: string | string[]; error?: string };
+      const obj = res as {
+        message?: string | string[];
+        error?: string;
+        issues?: unknown;
+      };
       const msg = Array.isArray(obj.message)
         ? obj.message.join(', ')
         : (obj.message ?? exception.message);
@@ -94,7 +98,11 @@ export class HttpExceptionFilter implements ExceptionFilter {
         status: exception.getStatus(),
         error: obj.error ?? this.httpErrorName(exception.getStatus()),
         message: msg,
-        details: Array.isArray(obj.message) ? obj.message : undefined,
+        details: Array.isArray(obj.message)
+          ? obj.message
+          : obj.issues !== undefined
+            ? obj.issues
+            : undefined,
       };
     }
 
