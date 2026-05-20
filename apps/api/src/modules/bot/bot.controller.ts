@@ -1,4 +1,13 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { ProductType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { BotMessageDto, RecommendSizeDto } from './bot.dto';
@@ -8,6 +17,9 @@ import { BotSizingService } from './bot.sizing.service';
 import { BotSynonymsService } from './bot.synonyms.service';
 import { SIZING_FLOW_STEPS, VALID_FIT_PREFS } from './bot.constants';
 import { BotMessageReply, BotContext } from './bot.types';
+import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../../common/guards/roles.guard';
+import { Roles, Role } from '../../common/decorators/roles.decorator';
 
 @Controller('bot')
 export class BotController {
@@ -123,6 +135,88 @@ export class BotController {
       colors: await this.synonyms.allForDimension('color'),
       silhouettes: await this.synonyms.allForDimension('silhouette'),
     };
+  }
+
+  // ── Admin: synonym CRUD ──────────────────────────────────────────────
+  // Authenticated admin/super-admin only. Mutations invalidate the
+  // in-memory synonym cache so the parser picks up changes on the next
+  // request without a process restart.
+
+  @Get('admin/synonyms')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  async listAllSynonyms() {
+    return this.prisma.botSynonym.findMany({
+      orderBy: [{ dimension: 'asc' }, { canonical: 'asc' }],
+    });
+  }
+
+  @Post('admin/synonyms')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  async createSynonym(
+    @Body() body: { dimension: string; canonical: string; aliases: string[] },
+  ) {
+    const row = await this.prisma.botSynonym.upsert({
+      where: {
+        dimension_canonical: {
+          dimension: body.dimension,
+          canonical: body.canonical,
+        },
+      },
+      create: body,
+      update: { aliases: body.aliases },
+    });
+    this.synonyms.invalidate();
+    return row;
+  }
+
+  @Delete('admin/synonyms/:id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  async deleteSynonym(@Param('id') id: string) {
+    await this.prisma.botSynonym.delete({ where: { id } });
+    this.synonyms.invalidate();
+    return { ok: true };
+  }
+
+  // ── Admin: unrecognized-query log + fit-data coverage ────────────────
+
+  @Get('admin/unrecognized')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  async listUnrecognized(@Query('limit') limit?: string) {
+    const take = Math.min(Math.max(Number(limit ?? 50), 1), 500);
+    return this.prisma.botUnrecognizedQuery.findMany({
+      orderBy: { createdAt: 'desc' },
+      take,
+    });
+  }
+
+  @Get('admin/fit-data-coverage')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  async fitDataCoverage() {
+    const baseWhere = { isActive: true, deletedAt: null } as const;
+    const total = await this.prisma.product.count({ where: baseWhere });
+    const missingType = await this.prisma.product.count({
+      where: { ...baseWhere, type: null },
+    });
+    const missingTags = await this.prisma.product.count({
+      where: {
+        ...baseWhere,
+        type: { not: null },
+        productTags: { none: {} },
+      },
+    });
+    const missingCharts = await this.prisma.product.count({
+      where: {
+        ...baseWhere,
+        type: { not: null },
+        sizeCharts: { none: {} },
+      },
+    });
+    return { total, missingType, missingTags, missingCharts };
   }
 
   private startSizingFlow(context: BotContext): BotMessageReply {

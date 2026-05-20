@@ -59,6 +59,13 @@ const NAV_GROUPS: readonly NavGroup[] = [
     ],
   },
   {
+    label: 'Chat Bot',
+    items: [
+      { href: '/bot/synonyms', label: 'Synonyms', icon: 'spellcheck' },
+      { href: '/bot/unrecognized', label: 'Unrecognized', icon: 'help' },
+    ],
+  },
+  {
     label: 'Customers',
     items: [{ href: '/customers', label: 'Customers', icon: 'group' }],
   },

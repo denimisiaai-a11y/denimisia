@@ -20,7 +20,15 @@ describe('BotController', () => {
     allForDimension: jest.fn(),
     invalidate: jest.fn(),
   };
-  const prisma = { botUnrecognizedQuery: { create: jest.fn() } };
+  const prisma = {
+    botUnrecognizedQuery: { create: jest.fn(), findMany: jest.fn() },
+    botSynonym: {
+      findMany: jest.fn(),
+      upsert: jest.fn(),
+      delete: jest.fn(),
+    },
+    product: { count: jest.fn() },
+  };
 
   beforeEach(async () => {
     Object.values({ parser, search, sizing, synonyms, prisma }).forEach((m) =>
@@ -102,5 +110,63 @@ describe('BotController', () => {
     } as any);
     expect(r.message).toMatch(/didn't catch/i);
     expect(prisma.botUnrecognizedQuery.create).toHaveBeenCalled();
+  });
+
+  describe('admin endpoints', () => {
+    it('listAllSynonyms returns all rows ordered', async () => {
+      const rows = [{ id: 'a', dimension: 'color', canonical: 'black', aliases: [] }];
+      prisma.botSynonym.findMany.mockResolvedValue(rows);
+      const r = await controller.listAllSynonyms();
+      expect(r).toBe(rows);
+      expect(prisma.botSynonym.findMany).toHaveBeenCalledWith({
+        orderBy: [{ dimension: 'asc' }, { canonical: 'asc' }],
+      });
+    });
+
+    it('createSynonym upserts and invalidates cache', async () => {
+      const row = { id: 'a', dimension: 'color', canonical: 'black', aliases: ['noir'] };
+      prisma.botSynonym.upsert.mockResolvedValue(row);
+      const r = await controller.createSynonym({
+        dimension: 'color',
+        canonical: 'black',
+        aliases: ['noir'],
+      });
+      expect(r).toBe(row);
+      expect(synonyms.invalidate).toHaveBeenCalled();
+    });
+
+    it('deleteSynonym removes the row and invalidates cache', async () => {
+      prisma.botSynonym.delete.mockResolvedValue({ id: 'a' });
+      const r = await controller.deleteSynonym('a');
+      expect(r).toEqual({ ok: true });
+      expect(prisma.botSynonym.delete).toHaveBeenCalledWith({ where: { id: 'a' } });
+      expect(synonyms.invalidate).toHaveBeenCalled();
+    });
+
+    it('listUnrecognized clamps limit and returns rows', async () => {
+      const rows = [{ id: 'q1', text: 'foo' }];
+      prisma.botUnrecognizedQuery.findMany.mockResolvedValue(rows);
+      const r = await controller.listUnrecognized('10');
+      expect(r).toBe(rows);
+      expect(prisma.botUnrecognizedQuery.findMany).toHaveBeenCalledWith({
+        orderBy: { createdAt: 'desc' },
+        take: 10,
+      });
+    });
+
+    it('fitDataCoverage returns total + missing counts', async () => {
+      prisma.product.count
+        .mockResolvedValueOnce(100) // total
+        .mockResolvedValueOnce(10) // missingType
+        .mockResolvedValueOnce(20) // missingTags
+        .mockResolvedValueOnce(30); // missingCharts
+      const r = await controller.fitDataCoverage();
+      expect(r).toEqual({
+        total: 100,
+        missingType: 10,
+        missingTags: 20,
+        missingCharts: 30,
+      });
+    });
   });
 });
