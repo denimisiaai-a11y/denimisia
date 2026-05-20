@@ -157,7 +157,10 @@ export interface OrderConfirmationAddress {
 
 export interface OrderConfirmationEmailInput {
   firstName: string;
-  orderId: string;
+  // Customer-facing identifier (`DEN-NNNNNN`). Used in subject + body.
+  // The internal CUID is no longer surfaced in emails — see commit
+  // adding Order.orderNumber.
+  orderNumber: string;
   items: OrderConfirmationItem[];
   subtotal: number;
   discount: number;
@@ -193,16 +196,12 @@ function formatAddressHtml(addr: OrderConfirmationAddress): string {
     : '<span style="color:#999;">Address on file</span>';
 }
 
-function shortOrderRef(orderId: string): string {
-  return orderId.slice(-8).toUpperCase();
-}
-
 export function buildOrderConfirmationEmail(
   input: OrderConfirmationEmailInput,
 ): RenderedEmail {
   const name = escapeHtml(input.firstName || 'there');
-  const ref = shortOrderRef(input.orderId);
-  const subject = `Order ${ref} confirmed — ${BRAND_NAME}`;
+  const ref = escapeHtml(input.orderNumber);
+  const subject = `Order ${input.orderNumber} confirmed — ${BRAND_NAME}`;
 
   const itemsText = input.items
     .map(
@@ -213,7 +212,7 @@ export function buildOrderConfirmationEmail(
 
   const text = `Hi ${input.firstName || 'there'},
 
-Thanks for your order. Your order reference is ${ref}.
+Thanks for your order. Your order reference is ${input.orderNumber}.
 
 This order is cash on delivery. Please keep the exact total ready when our courier arrives.
 

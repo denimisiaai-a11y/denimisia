@@ -126,13 +126,16 @@ export class OrderEmailListener {
       lineTotal: Number(item.total),
     }));
 
+    // Guests are sent to the public track-order form prefilled with the
+    // human-friendly orderNumber. Logged-in users go to their account
+    // detail page which is still keyed by the CUID in the URL.
     const trackOrderUrl = order.userId
       ? `${env.STOREFRONT_URL}/account/orders/${order.id}`
-      : `${env.STOREFRONT_URL}/track-order?order=${order.id}`;
+      : `${env.STOREFRONT_URL}/track-order?order=${encodeURIComponent(order.orderNumber)}`;
 
     const rendered = buildOrderConfirmationEmail({
       firstName: recipientName,
-      orderId: order.id,
+      orderNumber: order.orderNumber,
       items,
       subtotal: Number(order.subtotal),
       discount: Number(order.discount),
