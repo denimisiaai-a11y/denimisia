@@ -5,13 +5,13 @@ import { FIT_PREF_PENALTY, SIZE_TIE_TOLERANCE, MAX_PRODUCTS_RETURNED } from './b
 
 type FitPref = 'slim' | 'regular' | 'baggy' | 'fitted' | 'oversized';
 
-interface RecommendInput {
+export interface RecommendInput {
   type: ProductType;
   measurements: Record<string, number>;
   fitPref: FitPref;
 }
 
-interface RecommendResult {
+export interface RecommendResult {
   recommendedSize: string | null;
   alternativeSize?: string;
   products: unknown[];

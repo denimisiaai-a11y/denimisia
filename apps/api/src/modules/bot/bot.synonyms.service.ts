@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { SYNONYM_CACHE_TTL_MS } from './bot.constants';
 
-interface SynonymRow {
+export interface SynonymRow {
   dimension: string;
   canonical: string;
   aliases: string[];

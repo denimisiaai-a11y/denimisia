@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Prisma, TagDimension } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { MAX_PRODUCTS_RETURNED } from './bot.constants';
 import { ParsedSlots } from './bot.types';
@@ -21,10 +21,10 @@ export class BotSearchService {
     if (slots.type) where.type = slots.type;
     if (slots.tags.length === 1) {
       const t = slots.tags[0];
-      where.productTags = { some: { dimension: t.dimension, value: t.value } };
+      where.productTags = { some: { dimension: t.dimension as TagDimension, value: t.value } };
     } else if (slots.tags.length > 1) {
       where.AND = slots.tags.map((t) => ({
-        productTags: { some: { dimension: t.dimension, value: t.value } },
+        productTags: { some: { dimension: t.dimension as TagDimension, value: t.value } },
       }));
     }
     if (slots.color || slots.size) {
