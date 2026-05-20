@@ -46,8 +46,14 @@ export class ReturnsService {
       );
     }
 
-    const order = await this.prisma.order.findUnique({
-      where: { id: dto.orderId },
+    // `dto.orderId` accepts EITHER the raw CUID OR the customer-facing
+    // orderNumber (DEN-NNNNNN). The DTO field keeps its historical name
+    // to avoid churning every downstream caller; the storefront form is
+    // free to pass whichever it has on hand.
+    const order = await this.prisma.order.findFirst({
+      where: {
+        OR: [{ id: dto.orderId }, { orderNumber: dto.orderId }],
+      },
       include: {
         items: { include: { product: true } },
         statusHistory: {
@@ -182,8 +188,13 @@ export class ReturnsService {
     }>;
     let order: OrderWithItems | null = null;
     if (dto.orderId) {
-      order = await this.prisma.order.findUnique({
-        where: { id: dto.orderId },
+      // Admin manual entry also accepts either the CUID or the
+      // DEN-NNNNNN orderNumber — they may be reading the number off a
+      // printed invoice or a customer's confirmation email.
+      order = await this.prisma.order.findFirst({
+        where: {
+          OR: [{ id: dto.orderId }, { orderNumber: dto.orderId }],
+        },
         include: { items: { include: { product: true } } },
       });
       if (!order) {

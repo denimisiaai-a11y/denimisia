@@ -11,7 +11,7 @@ describe('ReturnsService', () => {
 
   beforeEach(() => {
     prisma = {
-      order: { findUnique: jest.fn() },
+      order: { findUnique: jest.fn(), findFirst: jest.fn() },
       return: {
         create: jest.fn(),
         findUnique: jest.fn(),
@@ -45,7 +45,7 @@ describe('ReturnsService', () => {
     };
 
     it('rejects when order not found', async () => {
-      prisma.order.findUnique.mockResolvedValue(null);
+      prisma.order.findFirst.mockResolvedValue(null);
       await expect(
         service.createReturn({
           userId: 'u1',
@@ -60,7 +60,7 @@ describe('ReturnsService', () => {
     });
 
     it('rejects when user is not the owner', async () => {
-      prisma.order.findUnique.mockResolvedValue({
+      prisma.order.findFirst.mockResolvedValue({
         ...validOrder,
         userId: 'someone-else',
       });
@@ -78,7 +78,7 @@ describe('ReturnsService', () => {
     });
 
     it('rejects when order not DELIVERED', async () => {
-      prisma.order.findUnique.mockResolvedValue({
+      prisma.order.findFirst.mockResolvedValue({
         ...validOrder,
         status: 'SHIPPED',
       });
@@ -96,7 +96,7 @@ describe('ReturnsService', () => {
     });
 
     it('rejects when photos missing for fault reason', async () => {
-      prisma.order.findUnique.mockResolvedValue(validOrder);
+      prisma.order.findFirst.mockResolvedValue(validOrder);
       await expect(
         service.createReturn({
           userId: 'u1',
@@ -111,7 +111,7 @@ describe('ReturnsService', () => {
     });
 
     it('rejects when 7-day window expired', async () => {
-      prisma.order.findUnique.mockResolvedValue({
+      prisma.order.findFirst.mockResolvedValue({
         ...validOrder,
         statusHistory: [{ toStatus: 'DELIVERED', createdAt: STALE_DELIVERY }],
       });
@@ -129,7 +129,7 @@ describe('ReturnsService', () => {
     });
 
     it('creates a return with auto-fault and emits event', async () => {
-      prisma.order.findUnique.mockResolvedValue(validOrder);
+      prisma.order.findFirst.mockResolvedValue(validOrder);
       prisma.return.create.mockResolvedValue({
         id: 'r1',
         rtnNumber: 'RTN-2026-000001',
@@ -159,7 +159,7 @@ describe('ReturnsService', () => {
     });
 
     it('blocks quantity exceeding ordered minus already-returned', async () => {
-      prisma.order.findUnique.mockResolvedValue(validOrder);
+      prisma.order.findFirst.mockResolvedValue(validOrder);
       prisma.returnItem.groupBy.mockResolvedValue([
         { orderItemId: 'oi1', _sum: { quantity: 2 } },
       ]);
@@ -177,7 +177,7 @@ describe('ReturnsService', () => {
     });
 
     it('blocks non-returnable products', async () => {
-      prisma.order.findUnique.mockResolvedValue({
+      prisma.order.findFirst.mockResolvedValue({
         ...validOrder,
         items: [
           {
@@ -201,7 +201,7 @@ describe('ReturnsService', () => {
     });
 
     it('accepts guest with matching email + phone', async () => {
-      prisma.order.findUnique.mockResolvedValue({
+      prisma.order.findFirst.mockResolvedValue({
         ...validOrder,
         userId: null,
         guestEmail: 'guest@example.com',
@@ -227,7 +227,7 @@ describe('ReturnsService', () => {
     });
 
     it('rejects guest with mismatched email', async () => {
-      prisma.order.findUnique.mockResolvedValue({
+      prisma.order.findFirst.mockResolvedValue({
         ...validOrder,
         userId: null,
         guestEmail: 'guest@example.com',
@@ -532,7 +532,7 @@ describe('ReturnsService', () => {
     });
 
     it('throws when orderId given but order not found', async () => {
-      prisma.order.findUnique.mockResolvedValue(null);
+      prisma.order.findFirst.mockResolvedValue(null);
       await expect(
         service.createManual({
           adminId: 'admin1',
@@ -556,7 +556,7 @@ describe('ReturnsService', () => {
     });
 
     it('throws when item references orderItemId not in the order', async () => {
-      prisma.order.findUnique.mockResolvedValue({
+      prisma.order.findFirst.mockResolvedValue({
         id: 'o1',
         userId: 'u1',
         guestEmail: null,
@@ -609,7 +609,7 @@ describe('ReturnsService', () => {
     });
 
     it('links to existing order when orderId provided + orderItemId valid', async () => {
-      prisma.order.findUnique.mockResolvedValue({
+      prisma.order.findFirst.mockResolvedValue({
         id: 'o1',
         userId: 'u1',
         guestEmail: 'guest@example.com',
