@@ -34,6 +34,7 @@ export class ReturnsRefundService {
     const ret = await this.prisma.return.findUnique({
       where: { id: args.returnId },
       include: {
+        order: { select: { total: true } },
         items: {
           include: {
             orderItem: { include: { variant: true } },
@@ -47,6 +48,16 @@ export class ReturnsRefundService {
       throw new BadRequestException(
         'Refund has already been issued for this return',
       );
+    }
+
+    if (ret.order) {
+      const orderTotal = new Prisma.Decimal(ret.order.total as unknown as string);
+      const requestedAmount = new Prisma.Decimal(args.amount);
+      if (requestedAmount.greaterThan(orderTotal)) {
+        throw new BadRequestException(
+          `Refund amount ${requestedAmount.toFixed(2)} exceeds order total ${orderTotal.toFixed(2)}`,
+        );
+      }
     }
 
     const validFromState =

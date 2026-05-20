@@ -1,6 +1,7 @@
 import {
   Injectable,
   BadRequestException,
+  ConflictException,
   NotFoundException,
   ForbiddenException,
   InternalServerErrorException,
@@ -391,14 +392,31 @@ export class ReturnsService {
     }
     const now = new Date();
     const timestampField = this.timestampForStatus(args.to);
-    const updated = await this.prisma.return.update({
-      where: { id: args.id },
-      data: {
-        status: args.to,
-        ...(timestampField ? { [timestampField]: now } : {}),
-        ...(args.patch ?? {}),
-      },
-    });
+    // Optimistic lock: only update if status hasn't changed since our read.
+    // Two concurrent admin actions on the same return will see the same
+    // current.status, but only one update will match — the second gets P2025
+    // which we surface as Conflict so neither admin proceeds blindly.
+    let updated;
+    try {
+      updated = await this.prisma.return.update({
+        where: { id: args.id, status: current.status },
+        data: {
+          status: args.to,
+          ...(timestampField ? { [timestampField]: now } : {}),
+          ...(args.patch ?? {}),
+        },
+      });
+    } catch (err) {
+      if (
+        err instanceof Prisma.PrismaClientKnownRequestError &&
+        err.code === 'P2025'
+      ) {
+        throw new ConflictException(
+          'Return was modified by another admin. Refresh and try again.',
+        );
+      }
+      throw err;
+    }
     this.events.emit(`return.${args.to.toLowerCase()}`, {
       returnId: updated.id,
       rtnNumber: updated.rtnNumber,
