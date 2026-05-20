@@ -41,6 +41,21 @@ enum ProductType {
   JACKETS
 }
 
+enum TagDimension {
+  silhouette
+  rise
+  length
+  wash
+  sleeve
+  neckline
+  closure
+  warmth
+  season
+  occasion
+  material
+  pattern
+}
+
 enum AddressType {
   HOME
   WORK
@@ -243,6 +258,7 @@ model Product {
   campaignProducts  CampaignProduct[]
   bundleItems       BundleItem[]
   sectionProducts   SectionProduct[]
+  productTags       ProductTag[]
   createdAt      DateTime           @default(now())
   updatedAt      DateTime           @updatedAt
   deletedAt      DateTime?
@@ -281,6 +297,17 @@ model ProductVariant {
 
   @@index([productId])
   @@index([deletedAt])
+}
+
+model ProductTag {
+  id        String       @id @default(cuid())
+  productId String
+  dimension TagDimension
+  value     String
+  product   Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, dimension, value])
+  @@index([dimension, value])
 }
 
 // ─── Cart ─────────────────────────────────────────────────────────────────────
