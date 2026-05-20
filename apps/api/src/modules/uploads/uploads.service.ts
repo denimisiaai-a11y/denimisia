@@ -68,7 +68,22 @@ const ALLOWED_KEY_PREFIXES: ReadonlyArray<string> = [
   'banners/',
   'bundles/',
   'sections/',
+  'returns/',
 ];
+
+/**
+ * Public (guest) presign accepts a narrower MIME allowlist than the admin
+ * endpoint. Animated/lossless formats add no value for damage photos and
+ * increase R2 storage cost; restrict to the three browsers actually emit
+ * from <input type="file">.
+ */
+const ALLOWED_RETURNS_MIMES = new Set<string>([
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+]);
+
+const MAX_RETURNS_FILENAME_LEN = 255;
 
 // Variant config (names + widths) is sourced from @repo/types so the
 // storefront's getImageVariant() helper picks up rename/add/remove changes
@@ -335,6 +350,83 @@ export class UploadsService {
   }
 
   /**
+   * Presign a PUT for a customer return photo.
+   *
+   * Differs from `getPresignedUrl` (admin) in three ways:
+   * - Folder is forced to `returns/`; caller cannot influence it.
+   * - MIME allowlist is JPEG/PNG/WebP only (no GIF/AVIF).
+   * - Object key embeds a sanitized form of the original filename for
+   *   ops/customer-support traceability (a UUID still anchors it so
+   *   filename collisions can't overwrite). The on-disk extension is still
+   *   driven by the signed Content-Type, not the filename, so a guest
+   *   cannot rename `script.html` → `script.jpg` and bypass the MIME map.
+   *
+   * No auth: guarded by the controller's `@Throttle` decorator, which keys
+   * on caller IP via the global ThrottlerGuard.
+   */
+  async presignForReturns(input: {
+    filename: string;
+    contentType: string;
+    contentLength: number;
+  }): Promise<{ uploadUrl: string; key: string; fileUrl: string }> {
+    if (!this.s3) {
+      throw new BadRequestException(
+        'Image uploads are not configured. Set R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, and R2_SECRET_ACCESS_KEY environment variables.',
+      );
+    }
+
+    if (
+      typeof input.filename !== 'string' ||
+      input.filename.length === 0 ||
+      input.filename.length > MAX_RETURNS_FILENAME_LEN
+    ) {
+      throw new BadRequestException('filename is required (max 255 chars)');
+    }
+
+    if (!ALLOWED_RETURNS_MIMES.has(input.contentType)) {
+      throw new BadRequestException(
+        `File type not allowed. Allowed: ${Array.from(ALLOWED_RETURNS_MIMES).join(', ')}`,
+      );
+    }
+
+    if (
+      !Number.isInteger(input.contentLength) ||
+      input.contentLength < MIN_SIZE_BYTES
+    ) {
+      throw new BadRequestException(
+        'contentLength must be a positive integer',
+      );
+    }
+    if (input.contentLength > MAX_SIZE_BYTES) {
+      throw new BadRequestException('File size exceeds 10MB limit');
+    }
+
+    const ext = MIME_TO_EXT[input.contentType];
+    if (!ext) {
+      throw new BadRequestException('Unsupported content type');
+    }
+
+    const safeFilename = sanitizeReturnsFilename(input.filename);
+    // UUID first ensures uniqueness even when two guests upload the same
+    // phone-camera default name (`IMG_1234.jpg`). The sanitized filename is
+    // appended for operator-side debugging only; extension is still derived
+    // from the signed Content-Type, not the filename.
+    const key = `returns/${randomUUID()}-${safeFilename}.${ext}`;
+
+    const command = new PutObjectCommand({
+      Bucket: this.bucket,
+      Key: key,
+      ContentType: input.contentType,
+      ContentLength: input.contentLength,
+    });
+
+    const uploadUrl = await getSignedUrl(this.s3, command, { expiresIn: 300 });
+    const fileUrl = `${this.publicUrl}/${key}`;
+
+    return { uploadUrl, key, fileUrl };
+  }
+
+  /**
    * Reject keys that escape our allowed prefixes, contain path-traversal
    * sequences, null bytes, or look like absolute URLs.
    */
@@ -378,6 +470,26 @@ export function buildVariantKey(
   const lastDot = filename.lastIndexOf('.');
   const baseName = lastDot === -1 ? filename : filename.slice(0, lastDot);
   return `${folder}/${baseName}-${variant}.webp`;
+}
+
+/**
+ * Sanitize a guest-supplied filename for inclusion in an R2 object key.
+ *
+ * Strips the extension (we drive that from MIME), then collapses to a
+ * conservative `[A-Za-z0-9._-]` set so the key stays URL-safe and can't
+ * inject path traversal, query strings, or shell metacharacters. Empty
+ * results fall back to `photo` so the key always has a stable shape.
+ */
+export function sanitizeReturnsFilename(raw: string): string {
+  const lastSlash = Math.max(raw.lastIndexOf('/'), raw.lastIndexOf('\\'));
+  const base = lastSlash === -1 ? raw : raw.slice(lastSlash + 1);
+  const lastDot = base.lastIndexOf('.');
+  const stem = lastDot === -1 ? base : base.slice(0, lastDot);
+  const cleaned = stem
+    .replace(/[^A-Za-z0-9._-]+/g, '-')
+    .replace(/^[-.]+|[-.]+$/g, '')
+    .slice(0, 64);
+  return cleaned.length > 0 ? cleaned : 'photo';
 }
 
 /**

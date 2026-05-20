@@ -12,6 +12,11 @@ import { UploadsService } from './uploads.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles, Role } from '../../common/decorators/roles.decorator';
+import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
+import {
+  returnsUploadPresignSchema,
+  type ReturnsUploadPresignDto,
+} from './dto/returns-upload-presign.dto';
 import {
   IsString,
   IsNotEmpty,
@@ -53,13 +58,12 @@ class ProcessImageDto {
   key!: string;
 }
 
-@UseGuards(JwtAuthGuard)
 @Controller('uploads')
 export class UploadsController {
   constructor(private uploadsService: UploadsService) {}
 
   @Post('presign')
-  @UseGuards(RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN, Role.SUPER_ADMIN)
   @Throttle({ default: { limit: 20, ttl: 60000 } })
   getPresignedUrl(@Body() dto: PresignedUrlDto) {
@@ -71,7 +75,7 @@ export class UploadsController {
   }
 
   @Post('process')
-  @UseGuards(RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN, Role.SUPER_ADMIN)
   @Throttle({ default: { limit: 30, ttl: 60000 } })
   processImage(@Body() dto: ProcessImageDto) {
@@ -79,11 +83,29 @@ export class UploadsController {
   }
 
   @Delete('file')
-  @UseGuards(RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN, Role.SUPER_ADMIN)
   @Throttle({ default: { limit: 20, ttl: 60000 } })
   @HttpCode(HttpStatus.NO_CONTENT)
   deleteFile(@Body() dto: DeleteFileDto) {
     return this.uploadsService.deleteFile(dto.key);
+  }
+
+  /**
+   * Public (no auth) presign for customer return photos. Rate-limited per
+   * IP by the global ThrottlerGuard: 20 uploads / 10 minutes is enough for
+   * a thorough damage report (5 photos × ~2 retries) but tight enough that
+   * a scraper or storage-attacker can't burn through R2 cheaply.
+   *
+   * Server forces the `returns/` folder; MIME/size are validated by the
+   * Zod schema AND by `presignForReturns` for defence-in-depth.
+   */
+  @Post('returns/presign')
+  @Throttle({ default: { limit: 20, ttl: 600_000 } })
+  async returnsPresign(
+    @Body(new ZodValidationPipe(returnsUploadPresignSchema))
+    dto: ReturnsUploadPresignDto,
+  ) {
+    return this.uploadsService.presignForReturns(dto);
   }
 }
