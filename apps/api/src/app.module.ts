@@ -35,6 +35,7 @@ import { CurationModule } from './modules/curation/curation.module';
 import { HealthModule } from './common/health/health.module';
 import { BulkModule } from './common/bulk/bulk.module';
 import { EmailModule } from './modules/email/email.module';
+import { BotModule } from './modules/bot/bot.module';
 
 @Module({
   imports: [
@@ -72,6 +73,7 @@ import { EmailModule } from './modules/email/email.module';
     HealthModule,
     BulkModule,
     EmailModule,
+    BotModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
