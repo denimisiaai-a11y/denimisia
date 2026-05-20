@@ -146,6 +146,10 @@ describe('Returns lifecycle happy path (e2e)', () => {
     const deliveredAt = new Date(Date.now() - 60 * 60 * 1000);
     const order = await prisma.order.create({
       data: {
+        // E2E seeds the row directly; bypasses OrderNumberService so we
+        // supply a synthetic test number well outside the production
+        // range. The unique index would catch any collision.
+        orderNumber: `DEN-TEST-${Date.now()}`,
         userId: customer.id,
         status: 'DELIVERED',
         shippingAddress: {
