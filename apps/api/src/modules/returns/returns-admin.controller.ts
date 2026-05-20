@@ -24,6 +24,7 @@ import { markReceivedSchema } from './dto/mark-received.dto';
 import { inspectReturnSchema } from './dto/inspect-return.dto';
 import { listReturnsSchema } from './dto/list-returns.dto';
 import { issueRefundSchema } from './dto/issue-refund.dto';
+import { manualReturnSchema } from './dto/manual-return.dto';
 import type { ReviewReturnDto } from './dto/review-return.dto';
 import type { ApproveReturnDto } from './dto/approve-return.dto';
 import type { RejectReturnDto } from './dto/reject-return.dto';
@@ -31,6 +32,7 @@ import type { MarkReceivedDto } from './dto/mark-received.dto';
 import type { InspectReturnDto } from './dto/inspect-return.dto';
 import type { ListReturnsDto } from './dto/list-returns.dto';
 import type { IssueRefundDto } from './dto/issue-refund.dto';
+import type { ManualReturnDto } from './dto/manual-return.dto';
 
 @Controller('admin/returns')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -55,6 +57,15 @@ export class ReturnsAdminController {
       page: query.page,
       limit: query.limit,
     });
+  }
+
+  @Post('manual')
+  @UsePipes(new ZodValidationPipe(manualReturnSchema))
+  async createManual(
+    @CurrentUser() user: { id: string },
+    @Body() dto: ManualReturnDto,
+  ) {
+    return this.returns.createManual({ adminId: user.id, dto });
   }
 
   @Get(':id')

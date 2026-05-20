@@ -479,4 +479,169 @@ describe('ReturnsService', () => {
       ).rejects.toThrow(/Forbidden/i);
     });
   });
+
+  describe('createManual', () => {
+    beforeEach(() => {
+      prisma.return.create.mockResolvedValue({
+        id: 'rm1',
+        rtnNumber: 'RTN-2026-000050',
+      });
+    });
+
+    it('creates a standalone manual return without orderId', async () => {
+      const result = await service.createManual({
+        adminId: 'admin1',
+        dto: {
+          orderId: null,
+          customerName: 'Walk-in Customer',
+          customerPhone: '+8801712345678',
+          reason: 'CHANGED_MIND',
+          photos: [],
+          items: [
+            {
+              orderItemId: null,
+              manualProductName: 'Standalone tee',
+              manualSku: 'TEE-001',
+              manualSize: 'M',
+              manualColor: 'Black',
+              manualUnitPrice: 1200,
+              quantity: 1,
+            },
+          ],
+        } as never,
+      });
+
+      expect(result.rtnNumber).toBe('RTN-2026-000050');
+      expect(prisma.return.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            isManual: true,
+            orderId: null,
+            userId: null,
+            guestName: 'Walk-in Customer',
+            guestPhone: '+8801712345678',
+            fault: 'CUSTOMER',
+            customerShipsBack: true,
+          }),
+        }),
+      );
+      expect(events.emit).toHaveBeenCalledWith(
+        'return.requested',
+        expect.objectContaining({ isManual: true, adminId: 'admin1' }),
+      );
+    });
+
+    it('throws when orderId given but order not found', async () => {
+      prisma.order.findUnique.mockResolvedValue(null);
+      await expect(
+        service.createManual({
+          adminId: 'admin1',
+          dto: {
+            orderId: 'nonexistent',
+            customerName: 'Customer',
+            customerPhone: '+8801712345678',
+            reason: 'DEFECTIVE',
+            photos: ['https://r2/p.jpg'],
+            items: [
+              {
+                orderItemId: null,
+                manualProductName: 'X',
+                manualUnitPrice: 100,
+                quantity: 1,
+              },
+            ],
+          } as never,
+        }),
+      ).rejects.toThrow(/not found/i);
+    });
+
+    it('throws when item references orderItemId not in the order', async () => {
+      prisma.order.findUnique.mockResolvedValue({
+        id: 'o1',
+        userId: 'u1',
+        guestEmail: null,
+        guestPhone: null,
+        items: [{ id: 'oi1', quantity: 1, product: { returnable: true } }],
+      });
+      await expect(
+        service.createManual({
+          adminId: 'admin1',
+          dto: {
+            orderId: 'o1',
+            customerName: 'Customer',
+            customerPhone: '+8801712345678',
+            reason: 'DEFECTIVE',
+            photos: ['https://r2/p.jpg'],
+            items: [{ orderItemId: 'rogue', quantity: 1 }],
+          } as never,
+        }),
+      ).rejects.toThrow(/not in order/i);
+    });
+
+    it('honors faultOverride for forced US fault on customer-fault reason', async () => {
+      await service.createManual({
+        adminId: 'admin1',
+        dto: {
+          orderId: null,
+          customerName: 'Customer',
+          customerPhone: '+8801712345678',
+          reason: 'CHANGED_MIND',
+          faultOverride: 'US',
+          photos: [],
+          items: [
+            {
+              orderItemId: null,
+              manualProductName: 'X',
+              manualUnitPrice: 100,
+              quantity: 1,
+            },
+          ],
+        } as never,
+      });
+      expect(prisma.return.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            fault: 'US',
+            customerShipsBack: false,
+          }),
+        }),
+      );
+    });
+
+    it('links to existing order when orderId provided + orderItemId valid', async () => {
+      prisma.order.findUnique.mockResolvedValue({
+        id: 'o1',
+        userId: 'u1',
+        guestEmail: 'guest@example.com',
+        guestPhone: '+8801711111111',
+        items: [{ id: 'oi1', quantity: 2, product: { returnable: true } }],
+      });
+      await service.createManual({
+        adminId: 'admin1',
+        dto: {
+          orderId: 'o1',
+          customerName: 'Customer Override',
+          customerPhone: '+8801712345678',
+          reason: 'DEFECTIVE',
+          photos: ['https://r2/p.jpg'],
+          items: [{ orderItemId: 'oi1', quantity: 1 }],
+        } as never,
+      });
+      expect(prisma.return.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            orderId: 'o1',
+            userId: 'u1',
+            // customer name override wins
+            guestName: 'Customer Override',
+            // phone override wins
+            guestPhone: '+8801712345678',
+            // email falls back to order's guestEmail since not provided
+            guestEmail: 'guest@example.com',
+            isManual: true,
+          }),
+        }),
+      );
+    });
+  });
 });

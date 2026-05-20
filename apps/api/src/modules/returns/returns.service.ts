@@ -10,6 +10,7 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '../prisma/prisma.service';
 import { RtnIdService } from './rtn-id.service';
 import { CreateReturnDto } from './dto/create-return.dto';
+import { ManualReturnDto } from './dto/manual-return.dto';
 import {
   isWithinWindow,
   checkItemEligibility,
@@ -166,6 +167,92 @@ export class ReturnsService {
       returnId: created.id,
       rtnNumber: created.rtnNumber,
     });
+    return created;
+  }
+
+  async createManual(input: {
+    adminId: string;
+    dto: ManualReturnDto;
+  }): Promise<{ id: string; rtnNumber: string }> {
+    const { adminId, dto } = input;
+
+    type OrderWithItems = Prisma.OrderGetPayload<{
+      include: { items: { include: { product: true } } };
+    }>;
+    let order: OrderWithItems | null = null;
+    if (dto.orderId) {
+      order = await this.prisma.order.findUnique({
+        where: { id: dto.orderId },
+        include: { items: { include: { product: true } } },
+      });
+      if (!order) {
+        throw new NotFoundException(`Order ${dto.orderId} not found`);
+      }
+    }
+
+    // For order-linked items, verify orderItemId is in the order
+    for (const item of dto.items) {
+      if (item.orderItemId) {
+        if (!order) {
+          throw new BadRequestException(
+            'Cannot reference orderItemId when orderId is null',
+          );
+        }
+        const found = order.items.some((oi) => oi.id === item.orderItemId);
+        if (!found) {
+          throw new BadRequestException(
+            `Order item ${item.orderItemId} not in order ${dto.orderId}`,
+          );
+        }
+      }
+    }
+
+    const fault = dto.faultOverride ?? defaultFault(dto.reason);
+    const customerShipsBack = fault === 'CUSTOMER';
+    const slaDeadline = new Date(Date.now() + SLA_HOURS * 60 * 60 * 1000);
+
+    const created = await this.createWithRtnRetry(async (rtnNumber) =>
+      this.prisma.return.create({
+        data: {
+          rtnNumber,
+          orderId: order?.id ?? null,
+          userId: order?.userId ?? null,
+          guestEmail: dto.customerEmail ?? order?.guestEmail ?? null,
+          guestName: dto.customerName,
+          guestPhone: dto.customerPhone,
+          reason: dto.reason,
+          fault,
+          description: dto.description,
+          photos: dto.photos,
+          isManual: true,
+          customerShipsBack,
+          slaDeadline,
+          items: {
+            create: dto.items.map((i) => ({
+              orderItemId: i.orderItemId,
+              manualProductName: i.manualProductName,
+              manualSku: i.manualSku,
+              manualSize: i.manualSize,
+              manualColor: i.manualColor,
+              manualUnitPrice:
+                i.manualUnitPrice !== undefined
+                  ? new Prisma.Decimal(i.manualUnitPrice)
+                  : undefined,
+              quantity: i.quantity,
+            })),
+          },
+        },
+        select: { id: true, rtnNumber: true },
+      }),
+    );
+
+    this.events.emit('return.requested', {
+      returnId: created.id,
+      rtnNumber: created.rtnNumber,
+      isManual: true,
+      adminId,
+    });
+
     return created;
   }
 
