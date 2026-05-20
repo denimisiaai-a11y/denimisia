@@ -12,6 +12,7 @@ import {
   type ReturnReason,
 } from '@/lib/api';
 import { formatPrice } from '@/lib/utils';
+import { PhotoUploader } from '@/components/photo-uploader';
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api/v1';
 
@@ -110,7 +111,10 @@ function NewReturnPageInner() {
   // Form fields.
   const [reason, setReason] = useState<ReturnReason | ''>('');
   const [description, setDescription] = useState('');
-  const [photosText, setPhotosText] = useState('');
+  // Public URLs of photos already uploaded to R2 via PhotoUploader.
+  // The uploader hands us clean fileUrl strings — no parsing or URL
+  // validation needed here, in contrast to the old textarea flow.
+  const [photos, setPhotos] = useState<string[]>([]);
   const [itemSelections, setItemSelections] = useState<
     Record<string, { selected: boolean; quantity: number }>
   >({});
@@ -230,29 +234,6 @@ function NewReturnPageInner() {
     });
   };
 
-  const parsedPhotos = useMemo(() => {
-    return photosText
-      .split(/\r?\n/)
-      .map((s) => s.trim())
-      .filter(Boolean)
-      .slice(0, MAX_PHOTOS);
-  }, [photosText]);
-
-  const photoValidationError = useMemo(() => {
-    if (parsedPhotos.length === 0) return null;
-    for (const url of parsedPhotos) {
-      try {
-        const u = new URL(url);
-        if (u.protocol !== 'https:' && u.protocol !== 'http:') {
-          return `Not a valid URL: ${url}`;
-        }
-      } catch {
-        return `Not a valid URL: ${url}`;
-      }
-    }
-    return null;
-  }, [parsedPhotos]);
-
   const selectedItems = useMemo(
     () =>
       Object.entries(itemSelections)
@@ -277,14 +258,16 @@ function NewReturnPageInner() {
       setSubmitError('Pick at least one item to return.');
       return;
     }
-    if (PHOTO_REQUIRED.has(reason) && parsedPhotos.length === 0) {
+    if (PHOTO_REQUIRED.has(reason) && photos.length === 0) {
       setSubmitError(
-        'Photos are required for this reason. Please add at least one photo URL.',
+        'Photos are required for this reason. Please upload at least one photo.',
       );
       return;
     }
-    if (photoValidationError) {
-      setSubmitError(photoValidationError);
+    if (photos.length > MAX_PHOTOS) {
+      // Defensive: the uploader caps at MAX_PHOTOS, but if a future
+      // refactor lets that slip the server enforces too.
+      setSubmitError(`No more than ${MAX_PHOTOS} photos are allowed.`);
       return;
     }
 
@@ -292,7 +275,7 @@ function NewReturnPageInner() {
       orderId: order.id,
       reason,
       description: description.trim() || undefined,
-      photos: parsedPhotos,
+      photos,
       items: selectedItems,
     };
     if (mode === 'guest') {
@@ -602,32 +585,20 @@ function NewReturnPageInner() {
           </section>
 
           <section>
-            <label className="block">
-              <span className="mb-1 block text-xs font-semibold uppercase tracking-[0.1em] text-ink">
-                Photos{' '}
-                {reason && PHOTO_REQUIRED.has(reason) ? (
-                  <span className="font-normal text-error">(required)</span>
-                ) : (
-                  <span className="font-normal text-muted">(optional)</span>
-                )}
-              </span>
-              <textarea
-                value={photosText}
-                onChange={(e) => setPhotosText(e.target.value)}
-                rows={3}
-                className="w-full rounded-sm border border-border bg-paper px-3 py-2 text-sm text-ink focus:border-ink focus:outline-none"
-                placeholder={`Paste up to ${MAX_PHOTOS} image URLs, one per line.\nExample: https://i.imgur.com/abc.jpg`}
-              />
-              <p className="mt-1 text-xs text-muted">
-                {parsedPhotos.length} of {MAX_PHOTOS} photos added.
-                {' '}
-                If you do not have a hosting URL, upload your photos to imgur.com
-                first and paste the direct image links here.
-              </p>
-              {photoValidationError && (
-                <p className="mt-1 text-xs text-error">{photoValidationError}</p>
+            <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.1em] text-ink">
+              Photos{' '}
+              {reason && PHOTO_REQUIRED.has(reason) ? (
+                <span className="font-normal text-error">(required)</span>
+              ) : (
+                <span className="font-normal text-muted">(optional)</span>
               )}
-            </label>
+            </span>
+            <PhotoUploader
+              value={photos}
+              onChange={setPhotos}
+              required={reason ? PHOTO_REQUIRED.has(reason) : false}
+              disabled={submitting}
+            />
           </section>
 
           {submitError && (

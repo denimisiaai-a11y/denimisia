@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { ReturnReason } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
-interface DashboardData {
+export interface DashboardData {
   rangeDays: number;
   returnsCount: number;
   ordersCount: number;
