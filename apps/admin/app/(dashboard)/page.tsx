@@ -12,6 +12,7 @@ import { TopProductsList } from './_components/dashboard/top-products';
 import { TopCustomersList } from './_components/dashboard/top-customers';
 import { LatestOrdersTable } from './_components/dashboard/latest-orders';
 import { StockThresholdList } from './_components/dashboard/stock-threshold';
+import { FitDataCoverageCard } from './_components/dashboard/fit-data-coverage-card';
 
 interface DashboardOverview {
   readonly range: { readonly from: string; readonly to: string };
@@ -344,7 +345,7 @@ export default function DashboardPage() {
       </section>
 
       {/* Latest orders + stock threshold */}
-      <section className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+      <section className="mb-8 grid grid-cols-1 gap-5 lg:grid-cols-3">
         <SectionCard
           className="lg:col-span-2"
           icon="receipt_long"
@@ -356,6 +357,12 @@ export default function DashboardPage() {
         <SectionCard icon="warning" title="Stock Threshold">
           <StockThresholdList rows={stock} />
         </SectionCard>
+      </section>
+
+      {/* Bot fit-data coverage — flags products that the product-finder can't
+          serve because Type / attribute tags / size charts are missing. */}
+      <section className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+        <FitDataCoverageCard token={token} />
       </section>
     </div>
   );
