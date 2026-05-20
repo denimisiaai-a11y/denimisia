@@ -35,6 +35,12 @@ enum OrderStatus {
   RETURNED
 }
 
+enum ProductType {
+  PANTS
+  SHIRTS
+  JACKETS
+}
+
 enum AddressType {
   HOME
   WORK
@@ -220,6 +226,7 @@ model Product {
   compareAtPrice Decimal?
   images         String[]
   tags           String[]
+  type           ProductType?       // nullable until backfilled; required by API DTOs going forward
   returnable     Boolean            @default(true)
   isActive       Boolean            @default(true)
   isFeatured     Boolean            @default(false)
@@ -246,6 +253,7 @@ model Product {
   @@index([isActive, isTrending])
   @@index([isActive, isNewArrival])
   @@index([createdAt])
+  @@index([type, isActive])
 }
 
 model ProductVariant {
