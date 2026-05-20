@@ -18,7 +18,8 @@
     "seed:media": "tsx prisma/media-seed.ts",
     "seed:curation": "tsx prisma/curation-seed.ts",
     "seed:bot": "tsx prisma/bot-synonym-seed.ts",
-    "prod:cleanup": "tsx prisma/prod-cleanup.ts"
+    "prod:cleanup": "tsx prisma/prod-cleanup.ts",
+    "audit:fit": "tsx prisma/audit-fit-data.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
