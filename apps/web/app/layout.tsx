@@ -9,6 +9,7 @@ import { Providers } from '@/components/providers';
 import { SplashProvider } from '@/components/splash/splash-provider';
 import { SplashGate } from '@/components/splash/splash-gate';
 import { SlotDraftListener } from '@/components/slot-draft-listener';
+import { ChatBubble } from '@/components/chat/chat-bubble';
 import { JsonLd } from '@/components/seo/json-ld';
 import { defaultMetadata } from '@/lib/seo/metadata';
 import { seoEnv } from '@/lib/seo/env';
@@ -63,6 +64,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <CartDrawer />
             <SignupSticker />
             <SlotDraftListener />
+            <ChatBubble />
           </SplashProvider>
         </Providers>
       </body>

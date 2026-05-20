@@ -1,3 +1,5 @@
+import type { BotContext } from '../components/chat/chat.types';
+
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api/v1';
 
 async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
@@ -546,4 +548,61 @@ export function cancelReturn(
       ? { Authorization: `Bearer ${opts.accessToken}` }
       : undefined,
   });
+}
+
+// ─── Bot / Product Finder ────────────────────────────────────────────────────
+//
+// Server wraps responses in { success, data }. We unwrap here so the chat
+// components see the BotMessageReply shape directly. The bot endpoints don't
+// use the 60s revalidate cache (conversational state must be fresh per call).
+
+export interface BotProductReply {
+  id: string;
+  name: string;
+  slug: string;
+  price: number | string;
+  images: string[];
+}
+
+export interface BotMessageReplyShape {
+  message: string;
+  products?: BotProductReply[];
+  chips?: string[];
+  input?: 'text' | 'numeric';
+  nextContext: BotContext;
+}
+
+export async function sendBotMessage(
+  text: string,
+  context: BotContext,
+): Promise<BotMessageReplyShape> {
+  const res = await fetch(`${API}/bot/message`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text, context }),
+  });
+  if (!res.ok) {
+    throw new Error(`Bot request failed: ${res.status}`);
+  }
+  const json = await res.json();
+  // Server uses TransformInterceptor → { success: true, data: BotMessageReply }
+  return (json.data ?? json) as BotMessageReplyShape;
+}
+
+export interface SizeChartRow {
+  sizeKey: string;
+  dimension: string;
+  bodyValueIn: number;
+  garmentValueIn: number;
+}
+
+export async function getProductSizeChart(
+  productId: string,
+): Promise<{ rows: SizeChartRow[] }> {
+  const res = await fetch(`${API}/products/${productId}/size-chart`);
+  if (!res.ok) {
+    throw new Error(`Size chart fetch failed: ${res.status}`);
+  }
+  const json = await res.json();
+  return (json.data ?? json) as { rows: SizeChartRow[] };
 }
