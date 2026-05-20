@@ -6,12 +6,51 @@ import {
   IsNumber,
   IsArray,
   IsPositive,
+  IsEnum,
   ValidateNested,
   Min,
   ArrayMaxSize,
   Matches,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import { ProductType } from '@prisma/client';
+
+/**
+ * Single (dimension, value) tag attached to a product — drives the bot's
+ * attribute-based product finder. `dimension` is a TagDimension enum value
+ * (kept as string here so this file doesn't import Prisma enums into the
+ * DTO surface; the service narrows it before insert).
+ */
+export class ProductTagDto {
+  @IsString()
+  @IsNotEmpty()
+  dimension!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  value!: string;
+}
+
+/**
+ * Single row of a product's size chart. `sizeKey` matches a variant `size`
+ * (e.g. "30", "M") so the bot can join from a recommended size back to the
+ * variant on the PDP. `dimension` is free-form ("waist", "chest", etc.).
+ */
+export class SizeChartEntryDto {
+  @IsString()
+  @IsNotEmpty()
+  sizeKey!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  dimension!: string;
+
+  @IsNumber()
+  bodyValueIn!: number;
+
+  @IsNumber()
+  garmentValueIn!: number;
+}
 
 // Same cuid shape used by CreateBundleDto. Duplicated here so the inline
 // bundle field on CreateProductDto stays self-contained — class-validator
@@ -164,6 +203,22 @@ export class CreateProductDto {
   @ValidateNested()
   @Type(() => InlineBundleDto)
   bundle?: InlineBundleDto;
+
+  @IsOptional()
+  @IsEnum(ProductType)
+  type?: ProductType;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ProductTagDto)
+  productTags?: ProductTagDto[];
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => SizeChartEntryDto)
+  sizeCharts?: SizeChartEntryDto[];
 }
 
 export class UpdateProductDto {
@@ -222,6 +277,22 @@ export class UpdateProductDto {
   @IsOptional()
   @IsString()
   categoryId?: string;
+
+  @IsOptional()
+  @IsEnum(ProductType)
+  type?: ProductType;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ProductTagDto)
+  productTags?: ProductTagDto[];
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => SizeChartEntryDto)
+  sizeCharts?: SizeChartEntryDto[];
 }
 
 export class UpdateVariantDto {
