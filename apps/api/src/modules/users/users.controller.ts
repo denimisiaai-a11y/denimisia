@@ -18,6 +18,7 @@ import {
   UpdateProfileDto,
   CreateAddressDto,
   UpdateAddressDto,
+  FitProfileDto,
 } from './users.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -66,6 +67,17 @@ export class UsersController {
   @HttpCode(HttpStatus.NO_CONTENT)
   deleteAddress(@CurrentUser() user: any, @Param('id') addressId: string) {
     return this.usersService.deleteAddress(user.id, addressId);
+  }
+
+  // ─── Fit profile ─────────────────────────────────────────────────────────
+
+  // Persists ONE product-type sub-profile (e.g. PANTS measurements +
+  // fitPref) under the caller's User.fitProfile JSON. Idempotent: posting
+  // the same type twice overwrites the prior sub-profile. The class-level
+  // JwtAuthGuard already covers auth, so no per-route guard is needed.
+  @Post('me/fit-profile')
+  saveFitProfile(@CurrentUser() user: any, @Body() dto: FitProfileDto) {
+    return this.usersService.saveFitProfile(user.id, dto);
   }
 
   // ─── Admin ────────────────────────────────────────────────────────────────

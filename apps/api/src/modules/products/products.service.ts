@@ -386,6 +386,19 @@ export class ProductsService {
   }
 
   /**
+   * Read-only size chart for a product. Rows ordered (sizeKey, dimension)
+   * so consumers (bot recommender + PDP) can render a stable table without
+   * extra sorting on the client.
+   */
+  async getSizeChart(productId: string) {
+    const rows = await this.prisma.productSizeChart.findMany({
+      where: { productId },
+      orderBy: [{ sizeKey: 'asc' }, { dimension: 'asc' }],
+    });
+    return { rows };
+  }
+
+  /**
    * Throws BadRequestException if `type` is set and one of its required
    * tag dimensions is missing from the provided `productTags`. Centralised
    * so create + update share the same rule.

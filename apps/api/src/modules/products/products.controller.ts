@@ -73,6 +73,14 @@ export class ProductsController {
     return this.productsService.findBySlug(slug);
   }
 
+  // Size-chart by product id (NOT slug). Powered by ProductSizeChart rows
+  // populated via the admin CRUD. Public so the bot + PDP size guide can
+  // both render it without auth.
+  @Get(':id/size-chart')
+  getSizeChart(@Param('id') id: string) {
+    return this.productsService.getSizeChart(id);
+  }
+
   // ─── Admin ────────────────────────────────────────────────────────────────
 
   // Admin-only list: returns active AND inactive products (Prisma middleware

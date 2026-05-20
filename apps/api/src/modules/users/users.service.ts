@@ -5,11 +5,13 @@ import {
 } from '@nestjs/common';
 import { InjectRedis } from '../redis/redis.decorator';
 import type Redis from 'ioredis';
+import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   UpdateProfileDto,
   CreateAddressDto,
   UpdateAddressDto,
+  FitProfileDto,
 } from './users.dto';
 
 // Redis keys mirror auth.service constants — keep in sync.
@@ -137,6 +139,37 @@ export class UsersService {
   async deleteAddress(userId: string, addressId: string) {
     await this.verifyAddressOwner(userId, addressId);
     await this.prisma.address.delete({ where: { id: addressId } });
+  }
+
+  // ─── Fit profile ─────────────────────────────────────────────────────────
+
+  /**
+   * Merge one product-type sub-profile into User.fitProfile. The column is a
+   * single JSON object keyed by lowercased type (`shirts`, `pants`,
+   * `jackets`), so saving SHIRTS leaves the user's PANTS sub-profile
+   * untouched. Each sub-profile carries its own `fitPref` + `updatedAt`
+   * timestamp.
+   */
+  async saveFitProfile(userId: string, payload: FitProfileDto) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { fitProfile: true },
+    });
+    const existing =
+      (user?.fitProfile as Prisma.JsonObject | null | undefined) ?? {};
+    const updated: Prisma.InputJsonValue = {
+      ...existing,
+      [payload.type.toLowerCase()]: {
+        ...payload.measurements,
+        fitPref: payload.fitPref,
+        updatedAt: new Date().toISOString(),
+      },
+    };
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { fitProfile: updated },
+      select: { fitProfile: true },
+    });
   }
 
   // ─── Admin ────────────────────────────────────────────────────────────────
