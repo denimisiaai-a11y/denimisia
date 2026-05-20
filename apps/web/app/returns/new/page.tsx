@@ -48,6 +48,9 @@ interface OrderItemView {
 
 interface OrderView {
   id: string;
+  // Customer-facing identifier (DEN-NNNNNN). Optional for back-
+  // compat with snapshots that haven't been backfilled yet.
+  orderNumber?: string;
   status: string;
   total: string | number;
   createdAt: string;
@@ -427,12 +430,13 @@ function NewReturnPageInner() {
         <form onSubmit={handleGuestLookup} className="mt-8 space-y-4">
           <label className="block">
             <span className="mb-1 block text-xs font-semibold uppercase tracking-[0.1em] text-ink">
-              Order number
+              Order number (e.g. DEN-000142)
             </span>
             <input
               type="text"
               value={guestOrderId}
               onChange={(e) => setGuestOrderId(e.target.value)}
+              placeholder="DEN-000142"
               className="w-full rounded-sm border border-border bg-paper px-3 py-2 text-sm text-ink focus:border-ink focus:outline-none"
               required
             />
@@ -483,7 +487,7 @@ function NewReturnPageInner() {
               Returning items from
             </p>
             <p className="mt-1 text-sm font-medium text-ink">
-              Order #{order.id.slice(-8).toUpperCase()} —{' '}
+              Order #{order.orderNumber ?? order.id.slice(-8).toUpperCase()} —{' '}
               {formatPrice(Number(order.total))}
             </p>
           </div>
