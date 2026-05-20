@@ -226,7 +226,7 @@ model Product {
   compareAtPrice Decimal?
   images         String[]
   tags           String[]
-  type           ProductType?       // nullable until backfilled; required by API DTOs going forward
+  type           ProductType?
   returnable     Boolean            @default(true)
   isActive       Boolean            @default(true)
   isFeatured     Boolean            @default(false)
