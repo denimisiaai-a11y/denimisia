@@ -69,3 +69,197 @@ export async function listAdminReturns(
   q.set('limit', String(params.limit ?? 20));
   return adminFetch<ReturnListResponse>(`/admin/returns?${q.toString()}`, token);
 }
+
+// ---------------------------------------------------------------------------
+// Detail + transition action helpers
+// ---------------------------------------------------------------------------
+
+export interface ReturnItemDetail {
+  id: string;
+  quantity: number;
+  orderItemId: string | null;
+  manualProductName: string | null;
+  manualSku: string | null;
+  manualSize: string | null;
+  manualColor: string | null;
+  manualUnitPrice: string | null;
+  inspectionResult: 'PASS' | 'FAIL' | null;
+  restock: boolean;
+  itemRefundAmount: string;
+  orderItem: {
+    id: string;
+    quantity: number;
+    unitPrice: string;
+    snapshot: Record<string, unknown>;
+    product:
+      | { id: string; name: string; slug: string; images: string[]; price: string }
+      | null;
+    variant:
+      | { id: string; size: string | null; color: string | null; sku: string }
+      | null;
+  } | null;
+}
+
+export interface ReturnDetail {
+  id: string;
+  rtnNumber: string;
+  status: ReturnStatus;
+  reason: ReturnReason;
+  fault: ReturnFault;
+  description: string | null;
+  photos: string[];
+  isManual: boolean;
+  customerShipsBack: boolean;
+  pickupAddress: Record<string, unknown> | null;
+  carrier: string | null;
+  trackingNumber: string | null;
+  rejectionReason: string | null;
+  reviewerNotes: string | null;
+  inspectionNotes: string | null;
+  refundAmount: string | null;
+  refundMethod: 'CASH' | 'BANK_TRANSFER' | null;
+  refundReference: string | null;
+  slaDeadline: string;
+  requestedAt: string;
+  reviewedAt: string | null;
+  approvedAt: string | null;
+  receivedAt: string | null;
+  inspectedAt: string | null;
+  refundedAt: string | null;
+  closedAt: string | null;
+  userId: string | null;
+  guestName: string | null;
+  guestEmail: string | null;
+  guestPhone: string | null;
+  order: {
+    id: string;
+    total: string;
+    status: string;
+    items: { id: string; quantity: number; unitPrice: string }[];
+  } | null;
+  refundTxn: {
+    id: string;
+    amount: string;
+    method: string;
+    reference: string;
+    issuedAt: string;
+  } | null;
+  reviewer: {
+    id: string;
+    firstName: string | null;
+    lastName: string | null;
+    email: string;
+  } | null;
+  items: ReturnItemDetail[];
+}
+
+// adminFetch is a thin wrapper around fetch() and forwards RequestInit
+// directly — bodies must be JSON-stringified by the caller. These helpers
+// accept plain JS objects and serialize them here so call sites stay clean.
+async function patchJson<T>(
+  path: string,
+  token: string,
+  body?: Record<string, unknown>,
+): Promise<T> {
+  return adminFetch<T>(path, token, {
+    method: 'PATCH',
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  });
+}
+
+async function postJson<T>(
+  path: string,
+  token: string,
+  body?: Record<string, unknown>,
+): Promise<T> {
+  return adminFetch<T>(path, token, {
+    method: 'POST',
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  });
+}
+
+export async function getAdminReturnDetail(
+  id: string,
+  token: string,
+): Promise<ReturnDetail> {
+  return adminFetch<ReturnDetail>(`/admin/returns/${id}`, token);
+}
+
+export async function reviewReturn(
+  id: string,
+  token: string,
+  body: { reviewerNotes?: string },
+): Promise<ReturnDetail> {
+  return patchJson<ReturnDetail>(`/admin/returns/${id}/review`, token, body);
+}
+
+export async function approveReturn(
+  id: string,
+  token: string,
+  body: {
+    carrier?: string;
+    pickupAddress?: Record<string, unknown> | null;
+    approvalNotes?: string;
+  },
+): Promise<ReturnDetail> {
+  return patchJson<ReturnDetail>(`/admin/returns/${id}/approve`, token, body);
+}
+
+export async function rejectReturn(
+  id: string,
+  token: string,
+  body: { rejectionReason: string },
+): Promise<ReturnDetail> {
+  return patchJson<ReturnDetail>(`/admin/returns/${id}/reject`, token, body);
+}
+
+export async function markReceivedReturn(
+  id: string,
+  token: string,
+  body: { trackingNumber?: string; receivedNotes?: string },
+): Promise<ReturnDetail> {
+  return patchJson<ReturnDetail>(`/admin/returns/${id}/mark-received`, token, body);
+}
+
+export async function startInspection(
+  id: string,
+  token: string,
+): Promise<ReturnDetail> {
+  return patchJson<ReturnDetail>(`/admin/returns/${id}/start-inspection`, token);
+}
+
+export async function inspectReturn(
+  id: string,
+  token: string,
+  body: {
+    itemResults: {
+      returnItemId: string;
+      inspectionResult: 'PASS' | 'FAIL';
+      restock: boolean;
+    }[];
+    inspectionNotes?: string;
+  },
+): Promise<ReturnDetail> {
+  return patchJson<ReturnDetail>(`/admin/returns/${id}/inspect`, token, body);
+}
+
+export async function returnToCustomer(
+  id: string,
+  token: string,
+): Promise<ReturnDetail> {
+  return patchJson<ReturnDetail>(`/admin/returns/${id}/return-to-customer`, token);
+}
+
+export async function issueRefund(
+  id: string,
+  token: string,
+  body: {
+    amount: number;
+    method: 'CASH' | 'BANK_TRANSFER';
+    reference: string;
+    notes?: string;
+    overrideFromFail?: boolean;
+  },
+): Promise<ReturnDetail> {
+  return postJson<ReturnDetail>(`/admin/returns/${id}/issue-refund`, token, body);
+}
