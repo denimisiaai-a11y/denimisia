@@ -3,8 +3,21 @@ import { ProductType } from '@prisma/client';
 import { BotSynonymsService } from './bot.synonyms.service';
 import { BotIntent, ParsedSlots } from './bot.types';
 
-const WHATS_NEW_TRIGGERS = ['new', 'new arrivals', 'latest', 'recent', "what's new", 'whats new'];
-const SIZING_TRIGGERS = ['my size', 'find my size', 'fit me', 'measurements', 'help me find my size', 'what size am i'];
+const WHATS_NEW_TRIGGERS = [
+  'new arrivals',
+  'latest',
+  'recent',
+  "what's new",
+  'whats new',
+];
+const SIZING_TRIGGERS = [
+  'my size',
+  'find my size',
+  'fit me',
+  'measurements',
+  'help me find my size',
+  'what size am i',
+];
 const SINGLE_SILHOUETTE_PAIRS: ReadonlyArray<readonly [string, string]> = [
   ['slim', 'baggy'],
   ['slim', 'relaxed'],
@@ -17,7 +30,7 @@ const SINGLE_SILHOUETTE_PAIRS: ReadonlyArray<readonly [string, string]> = [
 export class BotParserService {
   constructor(private readonly synonyms: BotSynonymsService) {}
 
-  async detectIntent(text: string): Promise<BotIntent> {
+  detectIntent(text: string): BotIntent {
     const lower = text.toLowerCase();
     if (SIZING_TRIGGERS.some((t) => lower.includes(t))) return 'sizing';
     if (WHATS_NEW_TRIGGERS.some((t) => lower.includes(t))) return 'whats_new';
@@ -61,7 +74,20 @@ export class BotParserService {
       }
 
       // Other tag dimensions
-      for (const dim of ['silhouette', 'sleeve', 'neckline', 'closure', 'warmth', 'rise', 'wash', 'season', 'occasion', 'material', 'pattern', 'length']) {
+      for (const dim of [
+        'silhouette',
+        'sleeve',
+        'neckline',
+        'closure',
+        'warmth',
+        'rise',
+        'wash',
+        'season',
+        'occasion',
+        'material',
+        'pattern',
+        'length',
+      ]) {
         const m = await this.matchWithFuzzy(dim, tok);
         if (m) {
           slots.tags.push({ dimension: dim, value: m.canonical });
@@ -73,9 +99,13 @@ export class BotParserService {
     return slots;
   }
 
-  async detectContradictions(slots: { tags: Array<{ dimension: string; value: string }> }): Promise<Array<{ dimension: string; values: string[] }>> {
+  detectContradictions(slots: {
+    tags: Array<{ dimension: string; value: string }>;
+  }): Array<{ dimension: string; values: string[] }> {
     const conflicts: Array<{ dimension: string; values: string[] }> = [];
-    const sil = slots.tags.filter((t) => t.dimension === 'silhouette').map((t) => t.value);
+    const sil = slots.tags
+      .filter((t) => t.dimension === 'silhouette')
+      .map((t) => t.value);
     for (const [a, b] of SINGLE_SILHOUETTE_PAIRS) {
       if (sil.includes(a) && sil.includes(b)) {
         conflicts.push({ dimension: 'silhouette', values: [a, b] });
@@ -94,7 +124,10 @@ export class BotParserService {
     for (const row of candidates) {
       const pool = [row.canonical, ...row.aliases];
       for (const candidate of pool) {
-        if (levenshtein(candidate.toLowerCase(), token) <= 1 && candidate.length >= 4) {
+        if (
+          levenshtein(candidate.toLowerCase(), token) <= 1 &&
+          candidate.length >= 4
+        ) {
           return { dimension: row.dimension, canonical: row.canonical };
         }
       }
@@ -120,7 +153,11 @@ function levenshtein(a: string, b: string): number {
   for (let i = 1; i <= m; i++) {
     for (let j = 1; j <= n; j++) {
       const cost = a[i - 1] === b[j - 1] ? 0 : 1;
-      d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + cost);
+      d[i][j] = Math.min(
+        d[i - 1][j] + 1,
+        d[i][j - 1] + 1,
+        d[i - 1][j - 1] + cost,
+      );
       if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) {
         d[i][j] = Math.min(d[i][j], d[i - 2][j - 2] + 1);
       }

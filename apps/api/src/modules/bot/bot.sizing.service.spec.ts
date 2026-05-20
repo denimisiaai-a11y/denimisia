@@ -20,7 +20,8 @@ describe('BotSizingService', () => {
   it('recommends size 30 for waist=32 hip=40 inseam=32', async () => {
     prisma.product.findMany.mockResolvedValue([
       {
-        id: 'p1', name: 'A',
+        id: 'p1',
+        name: 'A',
         sizeCharts: [
           { sizeKey: '28', dimension: 'waist', bodyValueIn: 30 },
           { sizeKey: '28', dimension: 'hip', bodyValueIn: 38 },
@@ -32,7 +33,11 @@ describe('BotSizingService', () => {
           { sizeKey: '32', dimension: 'hip', bodyValueIn: 42 },
           { sizeKey: '32', dimension: 'inseam', bodyValueIn: 32 },
         ],
-        variants: [{ size: '28', stock: 1 }, { size: '30', stock: 1 }, { size: '32', stock: 1 }],
+        variants: [
+          { size: '28', stock: 1 },
+          { size: '30', stock: 1 },
+          { size: '32', stock: 1 },
+        ],
       },
     ]);
     const r = await service.recommend({
@@ -47,12 +52,16 @@ describe('BotSizingService', () => {
   it('returns alternative size when next-best is within tolerance', async () => {
     prisma.product.findMany.mockResolvedValue([
       {
-        id: 'p1', name: 'A',
+        id: 'p1',
+        name: 'A',
         sizeCharts: [
           { sizeKey: '30', dimension: 'waist', bodyValueIn: 32 },
           { sizeKey: '32', dimension: 'waist', bodyValueIn: 32.5 },
         ],
-        variants: [{ size: '30', stock: 1 }, { size: '32', stock: 1 }],
+        variants: [
+          { size: '30', stock: 1 },
+          { size: '32', stock: 1 },
+        ],
       },
     ]);
     const r = await service.recommend({
@@ -83,7 +92,10 @@ describe('BotSizingService', () => {
           { sizeKey: '30', dimension: 'waist', bodyValueIn: 31 },
           { sizeKey: '32', dimension: 'waist', bodyValueIn: 32 },
         ],
-        variants: [{ size: '30', stock: 1 }, { size: '32', stock: 1 }],
+        variants: [
+          { size: '30', stock: 1 },
+          { size: '32', stock: 1 },
+        ],
       },
     ]);
     const slim = await service.recommend({

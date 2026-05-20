@@ -1,5 +1,13 @@
 import { Type } from 'class-transformer';
-import { IsEnum, IsIn, IsObject, IsOptional, IsString, MaxLength, ValidateNested } from 'class-validator';
+import {
+  IsEnum,
+  IsIn,
+  IsObject,
+  IsOptional,
+  IsString,
+  MaxLength,
+  ValidateNested,
+} from 'class-validator';
 import { ProductType } from '@prisma/client';
 
 export class BotContextFlowDto {
@@ -12,7 +20,10 @@ export class BotContextFlowDto {
 export class BotContextDto {
   @IsString() @MaxLength(64) sessionId!: string;
   @IsOptional() @IsIn(['M', 'F', null]) gender?: 'M' | 'F' | null;
-  @IsOptional() @ValidateNested() @Type(() => BotContextFlowDto) flow?: BotContextFlowDto;
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => BotContextFlowDto)
+  flow?: BotContextFlowDto;
 }
 
 export class BotMessageDto {

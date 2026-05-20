@@ -18,7 +18,13 @@ describe('BotSearchService', () => {
   });
 
   it('builds a query with type, tags, and in-stock variants', async () => {
-    prisma.product.findMany.mockResolvedValue([{ id: 'p1', name: 'X', variants: [{ stock: 2, color: 'black', size: '30' }] }]);
+    prisma.product.findMany.mockResolvedValue([
+      {
+        id: 'p1',
+        name: 'X',
+        variants: [{ stock: 2, color: 'black', size: '30' }],
+      },
+    ]);
     const result = await service.searchBySlots({
       type: 'PANTS',
       color: 'black',
@@ -32,7 +38,13 @@ describe('BotSearchService', () => {
           isActive: true,
           deletedAt: null,
           productTags: { some: { dimension: 'silhouette', value: 'baggy' } },
-          variants: { some: { color: { equals: 'black', mode: 'insensitive' }, size: '30', stock: { gt: 0 } } },
+          variants: {
+            some: {
+              color: { equals: 'black', mode: 'insensitive' },
+              size: '30',
+              stock: { gt: 0 },
+            },
+          },
         }),
         take: 6,
       }),
@@ -45,7 +57,11 @@ describe('BotSearchService', () => {
     await service.findWhatsNew();
     expect(prisma.product.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: expect.objectContaining({ isActive: true, isNewArrival: true, deletedAt: null }),
+        where: expect.objectContaining({
+          isActive: true,
+          isNewArrival: true,
+          deletedAt: null,
+        }),
         orderBy: { createdAt: 'desc' },
         take: 6,
       }),

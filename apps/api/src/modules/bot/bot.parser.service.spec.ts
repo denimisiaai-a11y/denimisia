@@ -21,18 +21,18 @@ describe('BotParserService', () => {
     service = mod.get(BotParserService);
   });
 
-  it('classifies intent="whats_new" on new arrivals trigger', async () => {
-    const res = await service.detectIntent('show me whats new');
+  it('classifies intent="whats_new" on new arrivals trigger', () => {
+    const res = service.detectIntent('show me whats new');
     expect(res).toBe('whats_new');
   });
 
-  it('classifies intent="sizing" on size trigger', async () => {
-    const res = await service.detectIntent('help me find my size');
+  it('classifies intent="sizing" on size trigger', () => {
+    const res = service.detectIntent('help me find my size');
     expect(res).toBe('sizing');
   });
 
-  it('classifies intent="find" by default', async () => {
-    const res = await service.detectIntent('black pants 30');
+  it('classifies intent="find" by default', () => {
+    const res = service.detectIntent('black pants 30');
     expect(res).toBe('find');
   });
 
@@ -43,7 +43,9 @@ describe('BotParserService', () => {
         color: { black: 'black' },
         silhouette: { baggy: 'baggy' },
       };
-      return map[dim]?.[tok] ? { dimension: dim, canonical: map[dim][tok] } : null;
+      return map[dim]?.[tok]
+        ? { dimension: dim, canonical: map[dim][tok] }
+        : null;
     });
     const slots = await service.extractSlots('black baggy pants in 30');
     expect(slots.type).toBe('PANTS');
@@ -56,25 +58,27 @@ describe('BotParserService', () => {
 
   it('fuzzy-matches one-edit typos via Levenshtein', async () => {
     fakeSyn.resolveToken.mockImplementation(async (dim, tok) => {
-      if (dim === 'color' && tok === 'black') return { dimension: 'color', canonical: 'black' };
+      if (dim === 'color' && tok === 'black')
+        return { dimension: 'color', canonical: 'black' };
       return null;
     });
     fakeSyn.allForDimension.mockImplementation(async (dim) => {
-      if (dim === 'color') return [{ dimension: 'color', canonical: 'black', aliases: [] }];
+      if (dim === 'color')
+        return [{ dimension: 'color', canonical: 'black', aliases: [] }];
       return [];
     });
     const slots = await service.extractSlots('blakc pants');
     expect(slots.color).toBe('black');
   });
 
-  it('detects a contradiction (slim + baggy)', async () => {
+  it('detects a contradiction (slim + baggy)', () => {
     fakeSyn.resolveToken.mockImplementation(async (dim, tok) => {
       if (dim === 'silhouette' && (tok === 'slim' || tok === 'baggy')) {
         return { dimension: 'silhouette', canonical: tok };
       }
       return null;
     });
-    const c = await service.detectContradictions({
+    const c = service.detectContradictions({
       tags: [
         { dimension: 'silhouette', value: 'slim' },
         { dimension: 'silhouette', value: 'baggy' },

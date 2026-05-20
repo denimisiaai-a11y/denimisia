@@ -6,7 +6,7 @@ import { BotParserService } from './bot.parser.service';
 import { BotSearchService } from './bot.search.service';
 import { BotSizingService } from './bot.sizing.service';
 import { BotSynonymsService } from './bot.synonyms.service';
-import { SIZING_FLOW_STEPS } from './bot.constants';
+import { SIZING_FLOW_STEPS, VALID_FIT_PREFS } from './bot.constants';
 import { BotMessageReply, BotContext } from './bot.types';
 
 @Controller('bot')
@@ -21,16 +21,17 @@ export class BotController {
 
   @Post('message')
   async message(@Body() dto: BotMessageDto): Promise<BotMessageReply> {
-    const { text, context } = dto;
+    const { text } = dto;
+    const ctx = dto.context as BotContext;
 
-    if (context.flow?.name === 'sizing') {
-      return this.advanceSizingFlow(text, context as BotContext);
+    if (ctx.flow?.name === 'sizing') {
+      return this.advanceSizingFlow(text, ctx);
     }
 
-    const intent = await this.parser.detectIntent(text);
+    const intent = this.parser.detectIntent(text);
 
     if (intent === 'sizing') {
-      return this.startSizingFlow(context as BotContext);
+      return this.startSizingFlow(ctx);
     }
 
     if (intent === 'whats_new') {
@@ -41,19 +42,19 @@ export class BotController {
           : 'No new arrivals right now.',
         products,
         chips: ['Pants', 'Shirts', 'Jackets'],
-        nextContext: context as BotContext,
+        nextContext: ctx,
       };
     }
 
     if (intent === 'find') {
       const slots = await this.parser.extractSlots(text);
-      const contradictions = (await this.parser.detectContradictions(slots)) ?? [];
+      const contradictions = this.parser.detectContradictions(slots);
       if (contradictions.length > 0) {
         const c = contradictions[0];
         return {
           message: `Did you mean ${c.values.join(' or ')}?`,
           chips: c.values,
-          nextContext: context as BotContext,
+          nextContext: ctx,
         };
       }
 
@@ -65,12 +66,18 @@ export class BotController {
 
       if (!hasAnySlot) {
         await this.prisma.botUnrecognizedQuery.create({
-          data: { text, sessionId: context.sessionId, gender: context.gender ?? null },
+          data: { text, sessionId: ctx.sessionId, gender: ctx.gender ?? null },
         });
         return {
           message: "I didn't catch that. Pick a category to start?",
-          chips: ['Pants', 'Shirts', 'Jackets', "What's new", 'Help me find my size'],
-          nextContext: context as BotContext,
+          chips: [
+            'Pants',
+            'Shirts',
+            'Jackets',
+            "What's new",
+            'Help me find my size',
+          ],
+          nextContext: ctx,
         };
       }
 
@@ -84,14 +91,14 @@ export class BotController {
         chips: products.length
           ? ['See all matches', 'Different color', 'Different size']
           : ['Try different colour', 'Try different size'],
-        nextContext: context as BotContext,
+        nextContext: ctx,
       };
     }
 
     return {
       message: 'I can help find products. For other questions, see contact.',
       chips: ['Pants', 'Shirts', 'Jackets'],
-      nextContext: context as BotContext,
+      nextContext: ctx,
     };
   }
 
@@ -100,7 +107,12 @@ export class BotController {
     return this.sizing.recommend({
       type: dto.type,
       measurements: dto.measurements,
-      fitPref: dto.fitPref as 'slim' | 'regular' | 'baggy' | 'fitted' | 'oversized',
+      fitPref: dto.fitPref as
+        | 'slim'
+        | 'regular'
+        | 'baggy'
+        | 'fitted'
+        | 'oversized',
     });
   }
 
@@ -124,7 +136,10 @@ export class BotController {
     };
   }
 
-  private async advanceSizingFlow(text: string, context: BotContext): Promise<BotMessageReply> {
+  private async advanceSizingFlow(
+    text: string,
+    context: BotContext,
+  ): Promise<BotMessageReply> {
     const flow = context.flow!;
     const step = flow.step;
     const newCollected = { ...flow.collected };
@@ -133,7 +148,11 @@ export class BotController {
       const t = text.trim().toUpperCase() as ProductType;
       const isValid = ['PANTS', 'SHIRTS', 'JACKETS'].includes(t);
       if (!isValid) {
-        return { message: 'Pick one: Pants, Shirts, or Jackets.', chips: ['Pants', 'Shirts', 'Jackets'], nextContext: context };
+        return {
+          message: 'Pick one: Pants, Shirts, or Jackets.',
+          chips: ['Pants', 'Shirts', 'Jackets'],
+          nextContext: context,
+        };
       }
       const steps = SIZING_FLOW_STEPS[t];
       const firstStep = steps[0];
@@ -141,7 +160,10 @@ export class BotController {
         message: this.promptForStep(firstStep),
         input: firstStep === 'fitPref' ? 'text' : 'numeric',
         chips: firstStep === 'fitPref' ? this.fitPrefChips(t) : ['Skip'],
-        nextContext: { ...context, flow: { name: 'sizing', step: firstStep, type: t, collected: {} } },
+        nextContext: {
+          ...context,
+          flow: { name: 'sizing', step: firstStep, type: t, collected: {} },
+        },
       };
     }
 
@@ -149,7 +171,8 @@ export class BotController {
       const num = Number(text.replace(/[^\d.]/g, ''));
       if (!Number.isNaN(num) && num > 0) newCollected[step] = num;
     } else {
-      newCollected.fitPref = text.toLowerCase();
+      const raw = text.toLowerCase();
+      newCollected.fitPref = VALID_FIT_PREFS.has(raw) ? raw : 'regular';
     }
 
     const steps = SIZING_FLOW_STEPS[flow.type];
@@ -161,7 +184,15 @@ export class BotController {
         message: this.promptForStep(nextStep),
         input: nextStep === 'fitPref' ? 'text' : 'numeric',
         chips: nextStep === 'fitPref' ? this.fitPrefChips(flow.type) : ['Skip'],
-        nextContext: { ...context, flow: { name: 'sizing', step: nextStep, type: flow.type, collected: newCollected } },
+        nextContext: {
+          ...context,
+          flow: {
+            name: 'sizing',
+            step: nextStep,
+            type: flow.type,
+            collected: newCollected,
+          },
+        },
       };
     }
 
@@ -193,7 +224,7 @@ export class BotController {
       : '';
     return {
       message: `You're likely a size **${result.recommendedSize}**.${altText} Here's what's available:`,
-      products: result.products as unknown[],
+      products: result.products,
       chips: ['See all matches', 'Start over'],
       nextContext: { ...context, flow: undefined },
     };
@@ -218,7 +249,12 @@ export class BotController {
   }
 }
 
-function formatSlotEcho(slots: { color?: string; size?: string; type?: string; tags: Array<{ value: string }> }): string {
+function formatSlotEcho(slots: {
+  color?: string;
+  size?: string;
+  type?: string;
+  tags: Array<{ value: string }>;
+}): string {
   const parts: string[] = [];
   if (slots.color) parts.push(slots.color);
   if (slots.tags.length) parts.push(...slots.tags.map((t) => t.value));

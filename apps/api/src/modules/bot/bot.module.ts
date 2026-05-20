@@ -9,7 +9,17 @@ import { BotSizingService } from './bot.sizing.service';
 @Module({
   imports: [PrismaModule],
   controllers: [BotController],
-  providers: [BotSynonymsService, BotParserService, BotSearchService, BotSizingService],
-  exports: [BotSynonymsService, BotParserService, BotSearchService, BotSizingService],
+  providers: [
+    BotSynonymsService,
+    BotParserService,
+    BotSearchService,
+    BotSizingService,
+  ],
+  exports: [
+    BotSynonymsService,
+    BotParserService,
+    BotSearchService,
+    BotSizingService,
+  ],
 })
 export class BotModule {}

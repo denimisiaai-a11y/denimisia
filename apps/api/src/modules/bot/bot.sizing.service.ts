@@ -1,7 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { ProductType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
-import { FIT_PREF_PENALTY, SIZE_TIE_TOLERANCE, MAX_PRODUCTS_RETURNED } from './bot.constants';
+import {
+  FIT_PREF_PENALTY,
+  SIZE_TIE_TOLERANCE,
+  MAX_PRODUCTS_RETURNED,
+  MAX_SIZING_CANDIDATES,
+} from './bot.constants';
 
 type FitPref = 'slim' | 'regular' | 'baggy' | 'fitted' | 'oversized';
 
@@ -41,16 +46,22 @@ export class BotSizingService {
     const products = (await this.prisma.product.findMany({
       where: { type: input.type, isActive: true, deletedAt: null },
       include: {
-        sizeCharts: { select: { sizeKey: true, dimension: true, bodyValueIn: true } },
+        sizeCharts: {
+          select: { sizeKey: true, dimension: true, bodyValueIn: true },
+        },
         variants: { select: { size: true, stock: true } },
       },
+      take: MAX_SIZING_CANDIDATES,
+      orderBy: { createdAt: 'desc' },
     })) as unknown as ProductWithCharts[];
 
     const scoresBySize = new Map<string, number>();
     const countBySize = new Map<string, number>();
 
     for (const p of products) {
-      const variantSizes = new Set(p.variants.filter((v) => v.stock > 0).map((v) => v.size));
+      const variantSizes = new Set(
+        p.variants.filter((v) => v.stock > 0).map((v) => v.size),
+      );
       if (variantSizes.size === 0 || p.sizeCharts.length === 0) continue;
 
       const sizeMap = new Map<string, Map<string, number>>();
@@ -103,7 +114,10 @@ export class BotSizingService {
     averaged.sort((a, b) => a[1] - b[1]);
     const [bestSize, bestScore] = averaged[0];
     let alternativeSize: string | undefined;
-    if (averaged.length > 1 && averaged[1][1] - bestScore <= SIZE_TIE_TOLERANCE) {
+    if (
+      averaged.length > 1 &&
+      averaged[1][1] - bestScore <= SIZE_TIE_TOLERANCE
+    ) {
       alternativeSize = averaged[1][0];
     }
 

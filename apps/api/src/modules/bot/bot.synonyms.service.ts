@@ -10,13 +10,13 @@ export interface SynonymRow {
 
 @Injectable()
 export class BotSynonymsService {
-  private cache: SynonymRow[] | null = null;
+  private cachePromise: Promise<SynonymRow[]> | null = null;
   private cacheLoadedAt = 0;
 
   constructor(private readonly prisma: PrismaService) {}
 
   invalidate(): void {
-    this.cache = null;
+    this.cachePromise = null;
     this.cacheLoadedAt = 0;
   }
 
@@ -43,15 +43,15 @@ export class BotSynonymsService {
     return rows.filter((r) => r.dimension === dimension);
   }
 
-  private async loadCache(): Promise<SynonymRow[]> {
+  private loadCache(): Promise<SynonymRow[]> {
     const now = Date.now();
-    if (this.cache !== null && now - this.cacheLoadedAt < SYNONYM_CACHE_TTL_MS) {
-      return this.cache;
+    if (this.cachePromise && now - this.cacheLoadedAt < SYNONYM_CACHE_TTL_MS) {
+      return this.cachePromise;
     }
-    this.cache = await this.prisma.botSynonym.findMany({
+    this.cacheLoadedAt = now;
+    this.cachePromise = this.prisma.botSynonym.findMany({
       select: { dimension: true, canonical: true, aliases: true },
     });
-    this.cacheLoadedAt = now;
-    return this.cache;
+    return this.cachePromise;
   }
 }

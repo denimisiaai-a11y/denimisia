@@ -5,7 +5,16 @@ import { MAX_PRODUCTS_RETURNED } from './bot.constants';
 import { ParsedSlots } from './bot.types';
 
 const INCLUDE = {
-  variants: { select: { id: true, sku: true, size: true, color: true, stock: true, images: true } },
+  variants: {
+    select: {
+      id: true,
+      sku: true,
+      size: true,
+      color: true,
+      stock: true,
+      images: true,
+    },
+  },
   productTags: { select: { dimension: true, value: true } },
 };
 
@@ -21,15 +30,22 @@ export class BotSearchService {
     if (slots.type) where.type = slots.type;
     if (slots.tags.length === 1) {
       const t = slots.tags[0];
-      where.productTags = { some: { dimension: t.dimension as TagDimension, value: t.value } };
+      where.productTags = {
+        some: { dimension: t.dimension as TagDimension, value: t.value },
+      };
     } else if (slots.tags.length > 1) {
       where.AND = slots.tags.map((t) => ({
-        productTags: { some: { dimension: t.dimension as TagDimension, value: t.value } },
+        productTags: {
+          some: { dimension: t.dimension as TagDimension, value: t.value },
+        },
       }));
     }
     if (slots.color || slots.size) {
-      const variantFilter: Prisma.ProductVariantWhereInput = { stock: { gt: 0 } };
-      if (slots.color) variantFilter.color = { equals: slots.color, mode: 'insensitive' };
+      const variantFilter: Prisma.ProductVariantWhereInput = {
+        stock: { gt: 0 },
+      };
+      if (slots.color)
+        variantFilter.color = { equals: slots.color, mode: 'insensitive' };
       if (slots.size) variantFilter.size = slots.size;
       where.variants = { some: variantFilter };
     }
