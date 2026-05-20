@@ -12,6 +12,10 @@ import {
   type TagPair,
 } from '@/components/products/type-attribute-fields';
 import {
+  SizeChartEditor,
+  type ChartRow,
+} from '@/components/products/size-chart-editor';
+import {
   PRODUCT_TYPES,
   TYPE_ATTRIBUTES,
   UNIVERSAL_ATTRIBUTES,
@@ -100,6 +104,7 @@ export default function EditProductPage() {
   // Hydrated from the API response in fetchProduct().
   const [type, setType] = useState<ProductType | null>(null);
   const [productTags, setProductTags] = useState<TagPair[]>([]);
+  const [sizeCharts, setSizeCharts] = useState<ChartRow[]>([]);
 
   // Variant state
   const [variants, setVariants] = useState<Variant[]>([]);
@@ -138,6 +143,14 @@ export default function EditProductPage() {
         (product.productTags ?? []).map((t) => ({
           dimension: t.dimension,
           value: t.value,
+        })),
+      );
+      setSizeCharts(
+        (product.sizeCharts ?? []).map((s) => ({
+          sizeKey: s.sizeKey,
+          dimension: s.dimension,
+          bodyValueIn: s.bodyValueIn,
+          garmentValueIn: s.garmentValueIn,
         })),
       );
     } catch (err: unknown) {
@@ -224,6 +237,7 @@ export default function EditProductPage() {
         images,
         type,
         productTags,
+        sizeCharts,
       };
 
       await adminFetch(`/products/${productId}`, token, {
@@ -499,6 +513,21 @@ export default function EditProductPage() {
                 selected={productTags}
                 onChange={setProductTags}
               />
+
+              <div className="border-t border-outline-variant/20 pt-6">
+                <SizeChartEditor
+                  type={type}
+                  variantSizes={Array.from(
+                    new Set(
+                      variants
+                        .map((v) => (v.size ?? '').trim())
+                        .filter((s) => s.length > 0),
+                    ),
+                  )}
+                  value={sizeCharts}
+                  onChange={setSizeCharts}
+                />
+              </div>
             </div>
           </section>
 

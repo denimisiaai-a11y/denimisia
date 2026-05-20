@@ -528,6 +528,18 @@ export class ProductsService {
             collection: { select: { id: true, name: true, slug: true } },
           },
         },
+        // Admin edit form hydrates type-attribute chips + the size-chart
+        // editor from these. Keep selection lean — `id`/`productId` are
+        // not needed by the form.
+        productTags: { select: { dimension: true, value: true } },
+        sizeCharts: {
+          select: {
+            sizeKey: true,
+            dimension: true,
+            bodyValueIn: true,
+            garmentValueIn: true,
+          },
+        },
       },
     });
     if (!product) throw new NotFoundException('Product not found');

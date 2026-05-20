@@ -18,6 +18,10 @@ import {
   type TagPair,
 } from '@/components/products/type-attribute-fields';
 import {
+  SizeChartEditor,
+  type ChartRow,
+} from '@/components/products/size-chart-editor';
+import {
   PRODUCT_TYPES,
   TYPE_ATTRIBUTES,
   UNIVERSAL_ATTRIBUTES,
@@ -76,6 +80,7 @@ export default function NewProductPage() {
   // can't be enforced, so the form gates submit on this.
   const [type, setType] = useState<ProductType | null>(null);
   const [productTags, setProductTags] = useState<TagPair[]>([]);
+  const [sizeCharts, setSizeCharts] = useState<ChartRow[]>([]);
 
   // Bundle composer: when enabled, the form also creates a ProductBundle on
   // submit, containing this product + the picked products.
@@ -272,6 +277,7 @@ export default function NewProductPage() {
         images,
         type,
         productTags,
+        ...(sizeCharts.length > 0 ? { sizeCharts } : {}),
         ...(generatedVariants.length > 0
           ? { variants: generatedVariants }
           : {}),
@@ -452,6 +458,24 @@ export default function NewProductPage() {
                 selected={productTags}
                 onChange={setProductTags}
               />
+
+              <div className="border-t border-outline-variant/20 pt-6">
+                <SizeChartEditor
+                  type={type}
+                  variantSizes={Array.from(
+                    new Set(
+                      [
+                        ...mainSizes.map((s) => s.label.trim()),
+                        ...variants.colors.flatMap((c) =>
+                          c.sizes.map((sz) => sz.label.trim()),
+                        ),
+                      ].filter((s): s is string => Boolean(s)),
+                    ),
+                  )}
+                  value={sizeCharts}
+                  onChange={setSizeCharts}
+                />
+              </div>
             </div>
           </section>
 
