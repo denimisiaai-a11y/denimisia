@@ -259,6 +259,7 @@ model Product {
   bundleItems       BundleItem[]
   sectionProducts   SectionProduct[]
   productTags       ProductTag[]
+  sizeCharts        ProductSizeChart[]
   createdAt      DateTime           @default(now())
   updatedAt      DateTime           @updatedAt
   deletedAt      DateTime?
@@ -308,6 +309,19 @@ model ProductTag {
 
   @@unique([productId, dimension, value])
   @@index([dimension, value])
+}
+
+model ProductSizeChart {
+  id              String  @id @default(cuid())
+  productId       String
+  sizeKey         String   // matches Variant.size, e.g. "30", "M"
+  dimension       String   // free-form: "waist" | "hip" | "inseam" | "thigh" | "chest" | "shoulder" | "length" | "sleeve"
+  bodyValueIn     Float
+  garmentValueIn  Float
+  product         Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, sizeKey, dimension])
+  @@index([productId])
 }
 
 // ─── Cart ─────────────────────────────────────────────────────────────────────
