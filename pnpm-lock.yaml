@@ -8,6 +8,9 @@ importers:
 
   .:
     devDependencies:
+      '@playwright/test':
+        specifier: ^1.59.1
+        version: 1.59.1
       prettier:
         specifier: ^3.7.4
         version: 3.7.4
@@ -7691,7 +7694,6 @@ snapshots:
   '@playwright/test@1.59.1':
     dependencies:
       playwright: 1.59.1
-    optional: true
 
   '@prisma/adapter-pg@7.6.0':
     dependencies:
@@ -11352,15 +11354,13 @@ snapshots:
     dependencies:
       find-up: 4.1.0
 
-  playwright-core@1.59.1:
-    optional: true
+  playwright-core@1.59.1: {}
 
   playwright@1.59.1:
     dependencies:
       playwright-core: 1.59.1
     optionalDependencies:
       fsevents: 2.3.2
-    optional: true
 
   pluralize@8.0.0: {}
 
