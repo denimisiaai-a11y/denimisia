@@ -18,9 +18,10 @@ import {
   type TagPair,
 } from '@/components/products/type-attribute-fields';
 import {
-  SizeChartEditor,
+  SizeAndFitEditor,
   type ChartRow,
-} from '@/components/products/size-chart-editor';
+} from '@/components/products/size-and-fit-editor';
+import type { FitLandmarks } from '@repo/fit-engine';
 import {
   PRODUCT_TYPES,
   TYPE_ATTRIBUTES,
@@ -81,6 +82,7 @@ export default function NewProductPage() {
   const [type, setType] = useState<ProductType | null>(null);
   const [productTags, setProductTags] = useState<TagPair[]>([]);
   const [sizeCharts, setSizeCharts] = useState<ChartRow[]>([]);
+  const [fitLandmarks, setFitLandmarks] = useState<FitLandmarks | null>(null);
 
   // Bundle composer: when enabled, the form also creates a ProductBundle on
   // submit, containing this product + the picked products.
@@ -278,6 +280,7 @@ export default function NewProductPage() {
         type,
         productTags,
         ...(sizeCharts.length > 0 ? { sizeCharts } : {}),
+        ...(fitLandmarks ? { fitLandmarks } : {}),
         ...(generatedVariants.length > 0
           ? { variants: generatedVariants }
           : {}),
@@ -460,7 +463,7 @@ export default function NewProductPage() {
               />
 
               <div className="border-t border-outline-variant/20 pt-6">
-                <SizeChartEditor
+                <SizeAndFitEditor
                   type={type}
                   variantSizes={Array.from(
                     new Set(
@@ -472,8 +475,10 @@ export default function NewProductPage() {
                       ].filter((s): s is string => Boolean(s)),
                     ),
                   )}
-                  value={sizeCharts}
-                  onChange={setSizeCharts}
+                  chartValue={sizeCharts}
+                  onChartChange={setSizeCharts}
+                  fitLandmarks={fitLandmarks}
+                  onFitChange={setFitLandmarks}
                 />
               </div>
             </div>
