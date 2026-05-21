@@ -277,6 +277,66 @@ describe('UsersService', () => {
     });
   });
 
+  describe('saveFitProfile', () => {
+    it('merges new type into existing fitProfile JSON', async () => {
+      prisma.user.findUnique.mockResolvedValue({
+        fitProfile: { shirts: { chest: 40, fitPref: 'regular' } },
+      });
+      prisma.user.update.mockResolvedValue({
+        fitProfile: {
+          shirts: { chest: 40, fitPref: 'regular' },
+          pants: { waist: 32, fitPref: 'slim' },
+        },
+      });
+
+      await service.saveFitProfile('user-1', {
+        type: 'PANTS' as never,
+        measurements: { waist: 32 },
+        fitPref: 'slim',
+      });
+
+      expect(prisma.user.findUnique).toHaveBeenCalledWith({
+        where: { id: 'user-1' },
+        select: { fitProfile: true },
+      });
+      const updateCall = prisma.user.update.mock.calls[0][0] as {
+        data: { fitProfile: Record<string, unknown> };
+      };
+      // Preserved existing sub-profile…
+      expect(updateCall.data.fitProfile).toEqual(
+        expect.objectContaining({
+          shirts: expect.any(Object),
+          pants: expect.objectContaining({ waist: 32, fitPref: 'slim' }),
+        }),
+      );
+      // …and stamped an updatedAt on the new one.
+      const pants = (updateCall.data.fitProfile as Record<string, any>).pants;
+      expect(pants.updatedAt).toEqual(expect.any(String));
+    });
+
+    it('initialises fitProfile when the user has none', async () => {
+      prisma.user.findUnique.mockResolvedValue({ fitProfile: null });
+      prisma.user.update.mockResolvedValue({
+        fitProfile: { shirts: { chest: 40, fitPref: 'regular' } },
+      });
+
+      await service.saveFitProfile('user-1', {
+        type: 'SHIRTS' as never,
+        measurements: { chest: 40 },
+        fitPref: 'regular',
+      });
+
+      const updateCall = prisma.user.update.mock.calls[0][0] as {
+        data: { fitProfile: Record<string, unknown> };
+      };
+      expect(updateCall.data.fitProfile).toEqual(
+        expect.objectContaining({
+          shirts: expect.objectContaining({ chest: 40, fitPref: 'regular' }),
+        }),
+      );
+    });
+  });
+
   describe('deactivateUser', () => {
     it('marks isVerified=false and bumps the Redis token version', async () => {
       prisma.user.update.mockResolvedValue(mockUser);

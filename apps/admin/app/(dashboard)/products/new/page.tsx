@@ -13,6 +13,20 @@ import {
   type SizeEntry,
   type VariantsBuilderValue,
 } from '@/components/variants-builder';
+import {
+  TypeAttributeFields,
+  type TagPair,
+} from '@/components/products/type-attribute-fields';
+import {
+  SizeChartEditor,
+  type ChartRow,
+} from '@/components/products/size-chart-editor';
+import {
+  PRODUCT_TYPES,
+  TYPE_ATTRIBUTES,
+  UNIVERSAL_ATTRIBUTES,
+  type ProductType,
+} from '@/lib/product-taxonomy';
 
 interface Category {
   id: string;
@@ -60,6 +74,13 @@ export default function NewProductPage() {
   const [isTrending, setIsTrending] = useState(false);
   const [isNewArrival, setIsNewArrival] = useState(false);
   const [showStarBadge, setShowStarBadge] = useState(false);
+
+  // Product type drives the conditional attribute panel below. Required —
+  // the API rejects products without `type` when required tag dimensions
+  // can't be enforced, so the form gates submit on this.
+  const [type, setType] = useState<ProductType | null>(null);
+  const [productTags, setProductTags] = useState<TagPair[]>([]);
+  const [sizeCharts, setSizeCharts] = useState<ChartRow[]>([]);
 
   // Bundle composer: when enabled, the form also creates a ProductBundle on
   // submit, containing this product + the picked products.
@@ -151,6 +172,35 @@ export default function NewProductPage() {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!token) return;
+
+    // Client-side check: required attribute dimensions must each have at
+    // least one selected value. The server enforces the same rule via
+    // BadRequestException; this is purely UX so the admin sees an inline
+    // message before round-tripping.
+    if (!type) {
+      setError('Type is required.');
+      return;
+    }
+    const missingDims: string[] = [];
+    const universalSpec = UNIVERSAL_ATTRIBUTES as unknown as Record<
+      string,
+      { required: boolean }
+    >;
+    for (const [dim, spec] of Object.entries(universalSpec)) {
+      if (spec.required && !productTags.some((t) => t.dimension === dim)) {
+        missingDims.push(dim);
+      }
+    }
+    for (const [dim, spec] of Object.entries(TYPE_ATTRIBUTES[type])) {
+      if (spec.required && !productTags.some((t) => t.dimension === dim)) {
+        missingDims.push(dim);
+      }
+    }
+    if (missingDims.length > 0) {
+      setError(`Missing required attributes: ${missingDims.join(', ')}.`);
+      return;
+    }
+
     setSubmitting(true);
     setError('');
 
@@ -225,6 +275,9 @@ export default function NewProductPage() {
         isNewArrival,
         showStarBadge,
         images,
+        type,
+        productTags,
+        ...(sizeCharts.length > 0 ? { sizeCharts } : {}),
         ...(generatedVariants.length > 0
           ? { variants: generatedVariants }
           : {}),
@@ -359,6 +412,70 @@ export default function NewProductPage() {
                   className="w-full border-0 border-b border-outline-variant/25 bg-transparent py-2 text-sm text-on-surface placeholder:text-secondary focus:border-primary focus:outline-none focus:ring-0 resize-y"
                 />
               </label>
+            </div>
+          </section>
+
+          {/* Type + Attributes — drives the product-finder bot */}
+          <section className="bg-surface-container-lowest p-8 shadow-[0_20px_40px_rgba(27,28,28,0.03)]">
+            <header className="mb-6 flex items-center justify-between">
+              <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-secondary">
+                I·b · Attributes
+              </p>
+              <span
+                className="material-symbols-outlined text-secondary"
+                aria-hidden
+              >
+                tune
+              </span>
+            </header>
+
+            <div className="grid gap-6">
+              <label className="block">
+                <span className="block text-[10px] font-bold uppercase tracking-[0.2em] text-secondary mb-2">
+                  Type <span className="text-primary">*</span>
+                </span>
+                <select
+                  value={type ?? ''}
+                  onChange={(e) =>
+                    setType((e.target.value || null) as ProductType | null)
+                  }
+                  required
+                  className="w-full border-0 border-b border-outline-variant/25 bg-transparent py-2 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-0"
+                >
+                  <option value="" disabled>
+                    Select type
+                  </option>
+                  {PRODUCT_TYPES.map((t) => (
+                    <option key={t} value={t}>
+                      {t}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <TypeAttributeFields
+                type={type}
+                selected={productTags}
+                onChange={setProductTags}
+              />
+
+              <div className="border-t border-outline-variant/20 pt-6">
+                <SizeChartEditor
+                  type={type}
+                  variantSizes={Array.from(
+                    new Set(
+                      [
+                        ...mainSizes.map((s) => s.label.trim()),
+                        ...variants.colors.flatMap((c) =>
+                          c.sizes.map((sz) => sz.label.trim()),
+                        ),
+                      ].filter((s): s is string => Boolean(s)),
+                    ),
+                  )}
+                  value={sizeCharts}
+                  onChange={setSizeCharts}
+                />
+              </div>
             </div>
           </section>
 

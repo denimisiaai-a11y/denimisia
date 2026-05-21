@@ -35,6 +35,27 @@ enum OrderStatus {
   RETURNED
 }
 
+enum ProductType {
+  PANTS
+  SHIRTS
+  JACKETS
+}
+
+enum TagDimension {
+  silhouette
+  rise
+  length
+  wash
+  sleeve
+  neckline
+  closure
+  warmth
+  season
+  occasion
+  material
+  pattern
+}
+
 enum AddressType {
   HOME
   WORK
@@ -110,6 +131,7 @@ model User {
   // Authoritative JWT revocation counter. Incremented on password reset,
   // deactivate, or explicit forced-logout. Redis mirrors this for fast reads.
   tokenVersion Int       @default(0)
+  fitProfile   Json?
   addresses    Address[]
   orders       Order[]
   reviews      Review[]
@@ -220,6 +242,7 @@ model Product {
   compareAtPrice Decimal?
   images         String[]
   tags           String[]
+  type           ProductType?
   returnable     Boolean            @default(true)
   isActive       Boolean            @default(true)
   isFeatured     Boolean            @default(false)
@@ -236,6 +259,8 @@ model Product {
   campaignProducts  CampaignProduct[]
   bundleItems       BundleItem[]
   sectionProducts   SectionProduct[]
+  productTags       ProductTag[]
+  sizeCharts        ProductSizeChart[]
   createdAt      DateTime           @default(now())
   updatedAt      DateTime           @updatedAt
   deletedAt      DateTime?
@@ -246,6 +271,7 @@ model Product {
   @@index([isActive, isTrending])
   @@index([isActive, isNewArrival])
   @@index([createdAt])
+  @@index([type, isActive])
 }
 
 model ProductVariant {
@@ -273,6 +299,30 @@ model ProductVariant {
 
   @@index([productId])
   @@index([deletedAt])
+}
+
+model ProductTag {
+  id        String       @id @default(cuid())
+  productId String
+  dimension TagDimension
+  value     String
+  product   Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, dimension, value])
+  @@index([dimension, value])
+}
+
+model ProductSizeChart {
+  id              String  @id @default(cuid())
+  productId       String
+  sizeKey         String   // matches Variant.size, e.g. "30", "M"
+  dimension       String   // free-form: "waist" | "hip" | "inseam" | "thigh" | "chest" | "shoulder" | "length" | "sleeve"
+  bodyValueIn     Float
+  garmentValueIn  Float
+  product         Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, sizeKey, dimension])
+  @@index([productId])
 }
 
 // ─── Cart ─────────────────────────────────────────────────────────────────────
@@ -952,4 +1002,25 @@ model RefundTransaction {
   notes       String?
 
   @@index([issuedAt])
+}
+
+model BotSynonym {
+  id        String   @id @default(cuid())
+  dimension String
+  canonical String
+  aliases   String[]
+  updatedAt DateTime @updatedAt
+
+  @@unique([dimension, canonical])
+  @@index([dimension])
+}
+
+model BotUnrecognizedQuery {
+  id        String   @id @default(cuid())
+  text      String
+  sessionId String
+  gender    String?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
 }

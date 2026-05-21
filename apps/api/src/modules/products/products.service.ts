@@ -2,8 +2,10 @@ import {
   Injectable,
   NotFoundException,
   ConflictException,
+  BadRequestException,
 } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
+import { TagDimension } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   CreateProductDto,
@@ -12,6 +14,7 @@ import {
   UpdateVariantDto,
   ProductQueryDto,
 } from './products.dto';
+import { REQUIRED_DIMENSIONS_FOR_TYPE } from '../bot/bot.constants';
 
 /**
  * Shared include for listing endpoints (featured, new-arrivals, trending,
@@ -30,6 +33,15 @@ const PRODUCT_LIST_INCLUDE = {
       price: true,
       stock: true,
       images: true,
+    },
+  },
+  productTags: { select: { dimension: true, value: true } },
+  sizeCharts: {
+    select: {
+      sizeKey: true,
+      dimension: true,
+      bodyValueIn: true,
+      garmentValueIn: true,
     },
   },
   _count: { select: { reviews: true } },
@@ -87,22 +99,7 @@ export class ProductsService {
         skip,
         take: limit,
         orderBy,
-        include: {
-          category: { select: { id: true, name: true, slug: true } },
-          variants: {
-            select: {
-              id: true,
-              sku: true,
-              size: true,
-              color: true,
-              colorHex: true,
-              price: true,
-              stock: true,
-              images: true,
-            },
-          },
-          _count: { select: { reviews: true } },
-        },
+        include: PRODUCT_LIST_INCLUDE,
       }),
       this.prisma.product.count({ where }),
     ]);
@@ -210,6 +207,15 @@ export class ProductsService {
             collection: { select: { id: true, name: true, slug: true } },
           },
         },
+        productTags: { select: { dimension: true, value: true } },
+        sizeCharts: {
+          select: {
+            sizeKey: true,
+            dimension: true,
+            bodyValueIn: true,
+            garmentValueIn: true,
+          },
+        },
       },
     });
     if (!product || !product.isActive)
@@ -220,57 +226,197 @@ export class ProductsService {
   // ─── Admin ────────────────────────────────────────────────────────────────
 
   async create(dto: CreateProductDto) {
-    const { variants, bundle, ...productData } = dto;
+    const { variants, bundle, productTags, sizeCharts, type, ...productData } =
+      dto;
 
-    // Fast path: no inline bundle — a single create call is enough.
-    if (!bundle) {
+    // Server-side guard: when a product type is set, the bot's recommender
+    // requires every dimension in REQUIRED_DIMENSIONS_FOR_TYPE[type] to be
+    // covered by at least one tag. Reject up-front so we never persist
+    // unfindable products.
+    this.assertRequiredTagDimensions(type, productTags);
+
+    // Fast path: no inline bundle and no tags/size-charts — preserve the
+    // single-call behaviour so existing callers / tests stay valid.
+    if (!bundle && !productTags?.length && !sizeCharts?.length) {
       return this.prisma.product.create({
         data: {
           ...productData,
+          ...(type !== undefined ? { type } : {}),
           variants: variants ? { create: variants } : undefined,
         },
         include: { variants: true, category: true },
       });
     }
 
-    // Inline bundle path: wrap both writes in a single transaction so a
-    // failed bundle creation rolls back the product. Avoids orphan rows
-    // the chained 2-call client flow used to leave behind.
+    // Multi-write path: wrap product + bundle + tags + size-charts in one
+    // transaction so a failed leg rolls back the product. Avoids orphan
+    // rows the chained client flow used to leave behind.
     return this.prisma.$transaction(async (tx) => {
       const product = await tx.product.create({
         data: {
           ...productData,
+          ...(type !== undefined ? { type } : {}),
           variants: variants ? { create: variants } : undefined,
         },
         include: { variants: true, category: true },
       });
 
-      await tx.productBundle.create({
-        data: {
-          name: bundle.name,
-          slug: bundle.slug,
-          description: bundle.description ?? null,
-          badgeText: bundle.badgeText,
-          image: bundle.image ?? null,
-          items: {
-            create: [product.id, ...bundle.additionalProductIds].map(
-              (productId) => ({ productId }),
-            ),
+      if (bundle) {
+        await tx.productBundle.create({
+          data: {
+            name: bundle.name,
+            slug: bundle.slug,
+            description: bundle.description ?? null,
+            badgeText: bundle.badgeText,
+            image: bundle.image ?? null,
+            items: {
+              create: [product.id, ...bundle.additionalProductIds].map(
+                (productId) => ({ productId }),
+              ),
+            },
           },
+        });
+      }
+
+      if (productTags?.length) {
+        await tx.productTag.createMany({
+          data: productTags.map((t) => ({
+            productId: product.id,
+            dimension: t.dimension as TagDimension,
+            value: t.value,
+          })),
+        });
+      }
+
+      if (sizeCharts?.length) {
+        await tx.productSizeChart.createMany({
+          data: sizeCharts.map((s) => ({
+            productId: product.id,
+            sizeKey: s.sizeKey,
+            dimension: s.dimension,
+            bodyValueIn: s.bodyValueIn,
+            garmentValueIn: s.garmentValueIn,
+          })),
+        });
+      }
+
+      // Re-fetch with the full include so callers see the tags + charts
+      // they just supplied without needing a follow-up GET.
+      return tx.product.findUnique({
+        where: { id: product.id },
+        include: {
+          variants: true,
+          category: true,
+          productTags: true,
+          sizeCharts: true,
         },
       });
-
-      return product;
     });
   }
 
   async update(id: string, dto: UpdateProductDto) {
     await this.findById(id);
-    return this.prisma.product.update({
-      where: { id },
-      data: dto,
-      include: { variants: true, category: true },
+    const { productTags, sizeCharts, type, ...rest } = dto;
+
+    // If type is being set, enforce the same required-tag coverage that
+    // create() does. We only validate against the tag set provided in
+    // THIS request — if the client wants to keep existing tags, they need
+    // to send them back. (Replace-strategy below mirrors that contract.)
+    if (type !== undefined && productTags !== undefined) {
+      this.assertRequiredTagDimensions(type, productTags);
+    }
+
+    // Fast path: no tags / size-chart replacement — preserve the original
+    // single-call shape so existing callers / tests stay valid.
+    if (productTags === undefined && sizeCharts === undefined) {
+      return this.prisma.product.update({
+        where: { id },
+        data: { ...rest, ...(type !== undefined ? { type } : {}) },
+        include: { variants: true, category: true },
+      });
+    }
+
+    // Replace-strategy: deleteMany then createMany for each collection the
+    // caller provided. An undefined collection means "leave existing
+    // rows alone"; an empty array means "delete all rows".
+    return this.prisma.$transaction(async (tx) => {
+      await tx.product.update({
+        where: { id },
+        data: { ...rest, ...(type !== undefined ? { type } : {}) },
+      });
+
+      if (productTags !== undefined) {
+        await tx.productTag.deleteMany({ where: { productId: id } });
+        if (productTags.length) {
+          await tx.productTag.createMany({
+            data: productTags.map((t) => ({
+              productId: id,
+              dimension: t.dimension as TagDimension,
+              value: t.value,
+            })),
+          });
+        }
+      }
+
+      if (sizeCharts !== undefined) {
+        await tx.productSizeChart.deleteMany({ where: { productId: id } });
+        if (sizeCharts.length) {
+          await tx.productSizeChart.createMany({
+            data: sizeCharts.map((s) => ({
+              productId: id,
+              sizeKey: s.sizeKey,
+              dimension: s.dimension,
+              bodyValueIn: s.bodyValueIn,
+              garmentValueIn: s.garmentValueIn,
+            })),
+          });
+        }
+      }
+
+      return tx.product.findUnique({
+        where: { id },
+        include: {
+          variants: true,
+          category: true,
+          productTags: true,
+          sizeCharts: true,
+        },
+      });
     });
+  }
+
+  /**
+   * Read-only size chart for a product. Rows ordered (sizeKey, dimension)
+   * so consumers (bot recommender + PDP) can render a stable table without
+   * extra sorting on the client.
+   */
+  async getSizeChart(productId: string) {
+    const rows = await this.prisma.productSizeChart.findMany({
+      where: { productId },
+      orderBy: [{ sizeKey: 'asc' }, { dimension: 'asc' }],
+    });
+    return { rows };
+  }
+
+  /**
+   * Throws BadRequestException if `type` is set and one of its required
+   * tag dimensions is missing from the provided `productTags`. Centralised
+   * so create + update share the same rule.
+   */
+  private assertRequiredTagDimensions(
+    type: UpdateProductDto['type'],
+    productTags: UpdateProductDto['productTags'],
+  ) {
+    if (!type) return;
+    const required = REQUIRED_DIMENSIONS_FOR_TYPE[type];
+    const provided = new Set((productTags ?? []).map((t) => t.dimension));
+    for (const dim of required) {
+      if (!provided.has(dim)) {
+        throw new BadRequestException(
+          `Missing required attribute: ${dim} for type ${type}`,
+        );
+      }
+    }
   }
 
   async softDelete(id: string) {
@@ -380,6 +526,18 @@ export class ProductsService {
         collections: {
           include: {
             collection: { select: { id: true, name: true, slug: true } },
+          },
+        },
+        // Admin edit form hydrates type-attribute chips + the size-chart
+        // editor from these. Keep selection lean — `id`/`productId` are
+        // not needed by the form.
+        productTags: { select: { dimension: true, value: true } },
+        sizeCharts: {
+          select: {
+            sizeKey: true,
+            dimension: true,
+            bodyValueIn: true,
+            garmentValueIn: true,
           },
         },
       },

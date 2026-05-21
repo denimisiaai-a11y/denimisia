@@ -7,6 +7,20 @@ import { adminFetch } from '@/lib/api';
 import { Banner } from '@/components/admin-ui';
 import { ConfirmModal } from '@/components/modal';
 import { ImageUploader } from '@/components/image-uploader';
+import {
+  TypeAttributeFields,
+  type TagPair,
+} from '@/components/products/type-attribute-fields';
+import {
+  SizeChartEditor,
+  type ChartRow,
+} from '@/components/products/size-chart-editor';
+import {
+  PRODUCT_TYPES,
+  TYPE_ATTRIBUTES,
+  UNIVERSAL_ATTRIBUTES,
+  type ProductType,
+} from '@/lib/product-taxonomy';
 
 interface Category {
   id: string;
@@ -37,6 +51,14 @@ interface Product {
   isFeatured: boolean;
   images?: string[];
   variants?: Variant[];
+  type?: ProductType | null;
+  productTags?: TagPair[];
+  sizeCharts?: Array<{
+    sizeKey: string;
+    dimension: string;
+    bodyValueIn: number;
+    garmentValueIn: number;
+  }>;
 }
 
 function slugify(text: string): string {
@@ -78,6 +100,12 @@ export default function EditProductPage() {
   const [isFeatured, setIsFeatured] = useState(false);
   const [images, setImages] = useState<string[]>([]);
 
+  // Product type + attribute tags drive the chatbot's product finder.
+  // Hydrated from the API response in fetchProduct().
+  const [type, setType] = useState<ProductType | null>(null);
+  const [productTags, setProductTags] = useState<TagPair[]>([]);
+  const [sizeCharts, setSizeCharts] = useState<ChartRow[]>([]);
+
   // Variant state
   const [variants, setVariants] = useState<Variant[]>([]);
   const [newVariant, setNewVariant] = useState({
@@ -110,6 +138,21 @@ export default function EditProductPage() {
       setIsFeatured(product.isFeatured);
       setImages(product.images ?? []);
       setVariants(product.variants ?? []);
+      setType((product.type ?? null) as ProductType | null);
+      setProductTags(
+        (product.productTags ?? []).map((t) => ({
+          dimension: t.dimension,
+          value: t.value,
+        })),
+      );
+      setSizeCharts(
+        (product.sizeCharts ?? []).map((s) => ({
+          sizeKey: s.sizeKey,
+          dimension: s.dimension,
+          bodyValueIn: s.bodyValueIn,
+          garmentValueIn: s.garmentValueIn,
+        })),
+      );
     } catch (err: unknown) {
       const message =
         err instanceof Error ? err.message : 'Failed to load product';
@@ -144,6 +187,33 @@ export default function EditProductPage() {
   const handleUpdate = async (e: FormEvent) => {
     e.preventDefault();
     if (!token) return;
+
+    // Client-side enforcement of the required-attribute rule the API also
+    // checks. Keeps round-trips down for the common case.
+    if (!type) {
+      setError('Type is required.');
+      return;
+    }
+    const missingDims: string[] = [];
+    const universalSpec = UNIVERSAL_ATTRIBUTES as unknown as Record<
+      string,
+      { required: boolean }
+    >;
+    for (const [dim, spec] of Object.entries(universalSpec)) {
+      if (spec.required && !productTags.some((t) => t.dimension === dim)) {
+        missingDims.push(dim);
+      }
+    }
+    for (const [dim, spec] of Object.entries(TYPE_ATTRIBUTES[type])) {
+      if (spec.required && !productTags.some((t) => t.dimension === dim)) {
+        missingDims.push(dim);
+      }
+    }
+    if (missingDims.length > 0) {
+      setError(`Missing required attributes: ${missingDims.join(', ')}.`);
+      return;
+    }
+
     setSubmitting(true);
     setError('');
 
@@ -165,6 +235,9 @@ export default function EditProductPage() {
         tags: tagList,
         isFeatured,
         images,
+        type,
+        productTags,
+        sizeCharts,
       };
 
       await adminFetch(`/products/${productId}`, token, {
@@ -394,6 +467,67 @@ export default function EditProductPage() {
                   className="w-full border-0 border-b border-outline-variant/25 bg-transparent py-2 text-sm text-on-surface placeholder:text-secondary focus:border-primary focus:outline-none focus:ring-0 resize-y"
                 />
               </label>
+            </div>
+          </section>
+
+          {/* Type + Attributes — drives the product-finder bot */}
+          <section className="bg-surface-container-lowest p-8 shadow-[0_20px_40px_rgba(27,28,28,0.03)]">
+            <header className="mb-6 flex items-center justify-between">
+              <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-secondary">
+                I·b · Attributes
+              </p>
+              <span
+                className="material-symbols-outlined text-secondary"
+                aria-hidden
+              >
+                tune
+              </span>
+            </header>
+
+            <div className="grid gap-6">
+              <label className="block">
+                <span className="block text-[10px] font-bold uppercase tracking-[0.2em] text-secondary mb-2">
+                  Type <span className="text-primary">*</span>
+                </span>
+                <select
+                  value={type ?? ''}
+                  onChange={(e) =>
+                    setType((e.target.value || null) as ProductType | null)
+                  }
+                  required
+                  className="w-full border-0 border-b border-outline-variant/25 bg-transparent py-2 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-0"
+                >
+                  <option value="" disabled>
+                    Select type
+                  </option>
+                  {PRODUCT_TYPES.map((t) => (
+                    <option key={t} value={t}>
+                      {t}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <TypeAttributeFields
+                type={type}
+                selected={productTags}
+                onChange={setProductTags}
+              />
+
+              <div className="border-t border-outline-variant/20 pt-6">
+                <SizeChartEditor
+                  type={type}
+                  variantSizes={Array.from(
+                    new Set(
+                      variants
+                        .map((v) => (v.size ?? '').trim())
+                        .filter((s) => s.length > 0),
+                    ),
+                  )}
+                  value={sizeCharts}
+                  onChange={setSizeCharts}
+                />
+              </div>
             </div>
           </section>
 

@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { adminFetch } from '@/lib/api';
 import { ConfirmModal } from '@/components/modal';
@@ -18,9 +19,24 @@ interface Product {
   isActive: boolean;
   isFeatured: boolean;
   status?: string;
+  type?: string | null;
+  productTags?: { dimension: string; value: string }[];
+  sizeCharts?: { sizeKey: string; dimension: string }[];
   variants?: { id: string; stock: number }[];
   createdAt: string;
 }
+
+type MissingFilter = 'type' | 'tags' | 'charts';
+
+function isMissingFilter(value: string | null): value is MissingFilter {
+  return value === 'type' || value === 'tags' || value === 'charts';
+}
+
+const MISSING_FILTER_LABELS: Record<MissingFilter, string> = {
+  type: 'missing Type',
+  tags: 'missing attribute tags',
+  charts: 'missing size charts',
+};
 
 interface ProductsResponse {
   products: Product[];
@@ -36,6 +52,11 @@ function formatBdt(value: number): string {
 export default function ProductsPage() {
   const { data: session } = useSession();
   const token = (session as { accessToken?: string } | null)?.accessToken;
+  const searchParams = useSearchParams();
+  const missingRaw = searchParams.get('missing');
+  const missing: MissingFilter | null = isMissingFilter(missingRaw)
+    ? missingRaw
+    : null;
 
   const [products, setProducts] = useState<Product[]>([]);
   const [total, setTotal] = useState(0);
@@ -48,16 +69,49 @@ export default function ProductsPage() {
   const [togglingId, setTogglingId] = useState<string | null>(null);
 
   const limit = 20;
-  const totalPages = Math.ceil(total / limit);
+
+  // Backfill click-through filter from the dashboard's Fit Data Coverage card.
+  // Applied client-side over the already-fetched page since the API doesn't
+  // accept a `missing=` filter yet — adequate for v1 since the missing
+  // counts are surfaced on the dashboard widget. When all three counts are
+  // zero, the admin won't land here anyway.
+  const filteredProducts = useMemo(() => {
+    if (!missing) return products;
+    return products.filter((p) => {
+      if (missing === 'type') return !p.type;
+      if (missing === 'tags')
+        return !!p.type && (!p.productTags || p.productTags.length === 0);
+      if (missing === 'charts')
+        return !!p.type && (!p.sizeCharts || p.sizeCharts.length === 0);
+      return true;
+    });
+  }, [products, missing]);
+
+  const displayedTotal = missing ? filteredProducts.length : total;
+  const totalPages = Math.max(1, Math.ceil(displayedTotal / limit));
+
+  // When `missing` is active, paginate the filtered list in-memory. When the
+  // filter is off, the API already returned a single page, so render as-is.
+  const pagedProducts = useMemo(() => {
+    if (!missing) return products;
+    const start = (page - 1) * limit;
+    return filteredProducts.slice(start, start + limit);
+  }, [missing, filteredProducts, products, page, limit]);
 
   const fetchProducts = useCallback(async () => {
     if (!token) return;
     setLoading(true);
     setError('');
     try {
+      // When a `missing=` filter is active we paginate client-side over the
+      // filtered subset, so request a wide page (API caps at 200) instead of
+      // the visible page slice. Without this, server pagination would skip
+      // candidates that the client filter would have kept.
+      const requestLimit = missing ? 200 : limit;
+      const requestPage = missing ? 1 : page;
       const query = new URLSearchParams({
-        page: String(page),
-        limit: String(limit),
+        page: String(requestPage),
+        limit: String(requestLimit),
         ...(search ? { search } : {}),
       });
       // Admin endpoint returns active AND inactive (but never soft-deleted).
@@ -72,11 +126,17 @@ export default function ProductsPage() {
     } finally {
       setLoading(false);
     }
-  }, [token, page, search]);
+  }, [token, page, search, missing]);
 
   useEffect(() => {
     fetchProducts();
   }, [fetchProducts]);
+
+  // Reset to page 1 whenever the missing-filter toggles so the user lands
+  // on a populated first page instead of an empty out-of-range page.
+  useEffect(() => {
+    setPage(1);
+  }, [missing]);
 
   const handleConfirmDelete = async () => {
     if (!token || !confirmDelete) return;
@@ -135,8 +195,9 @@ export default function ProductsPage() {
             Products
           </h2>
           <p className="mt-2 font-body text-sm tracking-wide text-secondary">
-            Manage the catalogue of tailored garments — {total} product
-            {total === 1 ? '' : 's'}.
+            Manage the catalogue of tailored garments — {displayedTotal} product
+            {displayedTotal === 1 ? '' : 's'}
+            {missing ? ` ${MISSING_FILTER_LABELS[missing]}` : ''}.
           </p>
         </div>
         <div className="flex gap-3">
@@ -181,6 +242,32 @@ export default function ProductsPage() {
           </div>
         </label>
       </div>
+
+      {/* Backfill filter banner (from dashboard Fit Data Coverage card) */}
+      {missing && (
+        <div className="mb-6 flex items-center justify-between border border-outline-variant/15 bg-surface-container-low px-5 py-3">
+          <div className="flex items-center gap-3">
+            <span
+              className="material-symbols-outlined text-secondary"
+              aria-hidden
+            >
+              filter_alt
+            </span>
+            <p className="text-xs font-medium tracking-wide text-on-surface">
+              Filter:{' '}
+              <span className="font-semibold">
+                {MISSING_FILTER_LABELS[missing]}
+              </span>
+            </p>
+          </div>
+          <Link
+            href="/products"
+            className="text-[10px] font-bold uppercase tracking-widest text-secondary hover:text-primary transition-colors duration-300 ease-editorial"
+          >
+            Clear
+          </Link>
+        </div>
+      )}
 
       {/* Error */}
       {error && (
@@ -238,7 +325,7 @@ export default function ProductsPage() {
                     Loading archive...
                   </td>
                 </tr>
-              ) : products.length === 0 ? (
+              ) : pagedProducts.length === 0 ? (
                 <tr>
                   <td
                     colSpan={6}
@@ -248,7 +335,7 @@ export default function ProductsPage() {
                   </td>
                 </tr>
               ) : (
-                products.map((product) => {
+                pagedProducts.map((product) => {
                   const stock = getTotalStock(product);
                   const firstImage = product.images?.[0];
                   const stockTone =
@@ -416,8 +503,8 @@ export default function ProductsPage() {
         {totalPages > 1 && (
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 px-6 py-5 border-t border-outline-variant/10">
             <p className="text-xs font-medium uppercase tracking-wider text-secondary">
-              Showing {(page - 1) * limit + 1}–{Math.min(page * limit, total)} of{' '}
-              {total}
+              Showing {(page - 1) * limit + 1}–
+              {Math.min(page * limit, displayedTotal)} of {displayedTotal}
             </p>
             <div className="flex items-center gap-2">
               <button
