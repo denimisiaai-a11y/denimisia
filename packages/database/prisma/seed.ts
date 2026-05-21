@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
+import { seedSilhouettes } from './seeds/silhouettes';
 
 const prisma = new PrismaClient();
 
@@ -531,6 +532,8 @@ async function main() {
     }
   }
   console.log(`\u2705 Product bundles (${bundleSeeds.length})`);
+
+  await seedSilhouettes(prisma);
 
   console.log('\n🎉 Done!');
   console.log('  Admin:    admin@denimisia.com / Password123!');
