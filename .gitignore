@@ -20,6 +20,9 @@ coverage2.txt
 # Turbo
 .turbo
 
+# Superpowers brainstorming companion (local mockups, not for repo)
+.superpowers/
+
 # Vercel
 .vercel
 
