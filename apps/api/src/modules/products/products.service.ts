@@ -580,12 +580,10 @@ export class ProductsService {
     const categoryFacets = categories
       .map((c) => {
         const cat = categoryDetails.find((d) => d.id === c.categoryId);
-        return {
-          name: cat?.name ?? '',
-          slug: cat?.slug ?? '',
-          count: c._count.id,
-        };
+        if (!cat) return null;
+        return { name: cat.name, slug: cat.slug, count: c._count.id };
       })
+      .filter((f): f is NonNullable<typeof f> => f !== null)
       .sort((a, b) => b.count - a.count);
 
     const sizeCounts = new Map<string, number>();

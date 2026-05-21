@@ -20,6 +20,10 @@ interface TrendingProduct {
 
 interface TrendingSectionProps {
   products: TrendingProduct[];
+  /** Heading text. Defaults to "Trending". */
+  title?: string;
+  /** Maximum products to show. Defaults to all. */
+  limit?: number;
 }
 
 const SUBTITLE_POOL = [
@@ -32,10 +36,11 @@ const SUBTITLE_POOL = [
   'Material Study',
 ];
 
-export function TrendingSection({ products }: TrendingSectionProps) {
+export function TrendingSection({ products, title = 'Trending', limit }: TrendingSectionProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const shown = typeof limit === 'number' && limit > 0 ? products.slice(0, limit) : products;
 
-  if (products.length === 0) return null;
+  if (shown.length === 0) return null;
 
   const scroll = (dir: 'left' | 'right') => {
     if (!scrollRef.current) return;
@@ -77,7 +82,7 @@ export function TrendingSection({ products }: TrendingSectionProps) {
             </div>
           }
         >
-          Trending
+          {title}
         </SectionHeading>
       </div>
 
@@ -85,7 +90,7 @@ export function TrendingSection({ products }: TrendingSectionProps) {
         ref={scrollRef}
         className="scrollbar-hide flex gap-6 overflow-x-auto px-6 md:px-12"
       >
-        {products.map((product, idx) => (
+        {shown.map((product, idx) => (
           <Link
             key={product.slug}
             href={`/products/${product.slug}`}

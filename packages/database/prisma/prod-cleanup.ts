@@ -14,7 +14,6 @@
  *
  * Repairs content image URLs:
  *   - HomepageSection.hero.content.image → use a real editorial placeholder
- *   - BlogPost.coverImage (3 posts) → null (let admin re-upload) or placeholder
  *
  * Creates:
  *   - SUPER_ADMIN user (credentials prompted via env: SUPER_ADMIN_EMAIL, SUPER_ADMIN_PASSWORD)
@@ -39,7 +38,6 @@ interface CleanupReport {
   rewiredBundleItems: number;
   testUsers: number;
   duplicateBanners: number;
-  blogCoverFixes: number;
   homepageSectionFixes: number;
   superAdminCreated: boolean;
 }
@@ -91,7 +89,6 @@ async function run(): Promise<CleanupReport> {
     rewiredBundleItems:         0,
     testUsers:                  0,
     duplicateBanners:           0,
-    blogCoverFixes:             0,
     homepageSectionFixes:       0,
     superAdminCreated:          false,
   };
@@ -204,14 +201,7 @@ async function run(): Promise<CleanupReport> {
     console.log(`  ✓ Deleted ${toDelete.length} duplicate banners.`);
   }
 
-  // ── 6. Repair blog covers + homepage section image ─────────────────────
-  const blogFixes = await prisma.blogPost.updateMany({
-    where: { coverImage: { startsWith: '/images/' } },
-    data:  { coverImage: null },
-  });
-  report.blogCoverFixes = blogFixes.count;
-  console.log(`  ✓ Cleared ${blogFixes.count} placeholder blog covers.`);
-
+  // ── 6. Repair homepage section image ───────────────────────────────────
   // HomepageSection: clear any `content` JSON whose `image` field is a local path
   const sections = await prisma.homepageSection.findMany();
   for (const s of sections) {

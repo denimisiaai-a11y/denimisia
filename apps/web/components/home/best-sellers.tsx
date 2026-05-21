@@ -22,11 +22,13 @@ interface ProductData {
 
 interface BestSellersProps {
   products: ProductData[];
+  /** Heading text. Defaults to the styled "Best Sellers." design. */
+  title?: string;
 }
 
 const AUTOPLAY_MS = 6000;
 
-export function BestSellers({ products }: BestSellersProps) {
+export function BestSellers({ products, title }: BestSellersProps) {
   const shouldReduceMotion = useReducedMotion();
   const sectionRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -154,9 +156,15 @@ export function BestSellers({ products }: BestSellersProps) {
             Proven Classics
           </span>
           <h2 className="text-4xl font-black uppercase leading-[0.9] tracking-tighter text-paper md:text-6xl lg:text-7xl">
-            Best
-            <br />
-            <span className="italic font-serif font-light">Sellers.</span>
+            {title ? (
+              title
+            ) : (
+              <>
+                Best
+                <br />
+                <span className="italic font-serif font-light">Sellers.</span>
+              </>
+            )}
           </h2>
         </motion.div>
 

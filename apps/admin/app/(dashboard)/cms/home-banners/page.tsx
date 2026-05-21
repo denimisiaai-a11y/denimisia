@@ -97,10 +97,6 @@ const EDITORIAL_SLOT_KEYS = [
   'editorial_slide_2',
   'editorial_slide_3',
   'editorial_slide_4',
-  'editorial_slide_5',
-  'editorial_slide_6',
-  'editorial_slide_7',
-  'editorial_slide_8',
 ] as const;
 const BRAND_STORY_SLOT_KEYS = ['brand_story_backdrop'] as const;
 const CATEGORY_CARD_SLOT_KEYS = [
@@ -154,20 +150,10 @@ export default function HomeBannersPage() {
     setSlots((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
   }, []);
 
-  const filledEditorialKeys = useMemo(
-    () => EDITORIAL_SLOT_KEYS.filter((k) => isSlotFilled(slotByKey.get(k))),
+  const filledEditorialCount = useMemo(
+    () => EDITORIAL_SLOT_KEYS.filter((k) => isSlotFilled(slotByKey.get(k))).length,
     [slotByKey],
   );
-  const nextEmptyEditorialKey = useMemo(
-    () => EDITORIAL_SLOT_KEYS.find((k) => !isSlotFilled(slotByKey.get(k))),
-    [slotByKey],
-  );
-  const [addingSlotKey, setAddingSlotKey] = useState<string | null>(null);
-  const visibleEditorialKeys = useMemo(() => {
-    const set = new Set<string>(filledEditorialKeys);
-    if (addingSlotKey) set.add(addingSlotKey);
-    return EDITORIAL_SLOT_KEYS.filter((k) => set.has(k));
-  }, [filledEditorialKeys, addingSlotKey]);
 
   return (
     <PageShell
@@ -211,50 +197,26 @@ export default function HomeBannersPage() {
           </Section>
 
           <Section
-            title={`Editorial carousel — ${filledEditorialKeys.length} active slide${filledEditorialKeys.length === 1 ? '' : 's'} (max ${EDITORIAL_SLOT_KEYS.length})`}
-            action={
-              filledEditorialKeys.length < EDITORIAL_SLOT_KEYS.length && (
-                <PrimaryButton
-                  icon="add"
-                  onClick={() => {
-                    if (nextEmptyEditorialKey) setAddingSlotKey(nextEmptyEditorialKey);
-                  }}
-                  disabled={!nextEmptyEditorialKey}
-                >
-                  Add slide
-                </PrimaryButton>
-              )
-            }
+            title={`Editorial carousel — ${filledEditorialCount}/${EDITORIAL_SLOT_KEYS.length} slides with content`}
           >
-            {visibleEditorialKeys.length === 0 ? (
-              <div className="px-6 py-12 text-center text-sm text-secondary">
-                No slides yet. Click <strong>Add slide</strong> to upload the first one.
-              </div>
-            ) : (
-              visibleEditorialKeys.map((key) => {
-                const slot = slotByKey.get(key);
-                return (
-                  <Fragment key={key}>
-                    {slot ? (
-                      <SlotCard
-                        slot={slot}
-                        token={token}
-                        fields={EDITORIAL_FIELDS}
-                        removable
-                        onUpdated={(updated) => {
-                          onSlotUpdated(updated);
-                          if (!isSlotFilled(updated) && addingSlotKey === updated.slotKey) {
-                            setAddingSlotKey(null);
-                          }
-                        }}
-                      />
-                    ) : (
-                      <MissingSlot slotKey={key} />
-                    )}
-                  </Fragment>
-                );
-              })
-            )}
+            {EDITORIAL_SLOT_KEYS.map((key) => {
+              const slot = slotByKey.get(key);
+              return (
+                <Fragment key={key}>
+                  {slot ? (
+                    <SlotCard
+                      slot={slot}
+                      token={token}
+                      fields={EDITORIAL_FIELDS}
+                      removable
+                      onUpdated={onSlotUpdated}
+                    />
+                  ) : (
+                    <MissingSlot slotKey={key} />
+                  )}
+                </Fragment>
+              );
+            })}
           </Section>
 
           <Section title="Brand story — backdrop image and copy on the home page">
@@ -321,7 +283,7 @@ function MissingSlot({ slotKey }: { readonly slotKey: string }) {
   return (
     <div className="rounded border border-dashed border-outline-variant/40 px-4 py-6 text-center text-xs text-secondary">
       Slot <code className="font-mono">{slotKey}</code> is not in the database yet.
-      Run <code className="font-mono">pnpm --filter @repo/database media-seed</code> in the
+      Run <code className="font-mono">pnpm --filter database seed:media</code> in the
       monorepo root, then refresh.
     </div>
   );

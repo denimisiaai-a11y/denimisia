@@ -11,7 +11,6 @@ const STATIC_PAGES: SitemapUrl[] = [
   { loc: `${SITE_URL}/collections`, changefreq: 'weekly', priority: 0.8 },
   { loc: `${SITE_URL}/bundles`, changefreq: 'weekly', priority: 0.7 },
   { loc: `${SITE_URL}/outlets`, changefreq: 'monthly', priority: 0.5 },
-  { loc: `${SITE_URL}/blog`, changefreq: 'weekly', priority: 0.7 },
   { loc: `${SITE_URL}/about`, changefreq: 'monthly', priority: 0.5 },
   { loc: `${SITE_URL}/contact`, changefreq: 'monthly', priority: 0.5 },
   { loc: `${SITE_URL}/career`, changefreq: 'monthly', priority: 0.3 },

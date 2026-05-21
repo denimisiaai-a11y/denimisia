@@ -17,6 +17,15 @@ function isSlotFilled(slot: PageSlotRecord): boolean {
   );
 }
 
+interface EditorialBannerProps {
+  /**
+   * Slot group key the banner reads from. Defaults to `home.editorial`.
+   * Multiple instances of this section on the homepage can point at
+   * different slot groups so each carousel shows different content.
+   */
+  readonly slotGroupKey?: string;
+}
+
 /**
  * Server wrapper — merges uploaded slot content with hardcoded fallbacks,
  * then hands a prepared slide array to the client animation component.
@@ -25,9 +34,9 @@ function isSlotFilled(slot: PageSlotRecord): boolean {
  * content are rendered. When no admin slot is filled yet, the hardcoded
  * EDITORIAL_BANNER_SLIDES fallback keeps the section visually alive.
  */
-export async function EditorialBanner() {
+export async function EditorialBanner({ slotGroupKey = 'home.editorial' }: EditorialBannerProps = {}) {
   const slots = await fetchPageSlots('home');
-  const filled = pickSlotGroup(slots, 'home.editorial').filter(isSlotFilled);
+  const filled = pickSlotGroup(slots, slotGroupKey).filter(isSlotFilled);
 
   const slides: EditorialSlide[] = filled.length > 0
     ? filled.map((slot, i) => {

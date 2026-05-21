@@ -44,11 +44,10 @@ const NAV_GROUPS: readonly NavGroup[] = [
   {
     label: 'Content',
     items: [
-      { href: '/cms',              label: 'CMS Hub',      icon: 'space_dashboard' },
-      { href: '/cms/media',        label: 'Live Media',   icon: 'auto_awesome' },
-      { href: '/cms/home-banners', label: 'Home Banners', icon: 'view_carousel' },
-      { href: '/cms/banners',      label: 'Promo Banners',icon: 'campaign' },
-      { href: '/cms/blog',         label: 'Blog',         icon: 'article' },
+      { href: '/cms',         label: 'CMS Hub',        icon: 'space_dashboard' },
+      { href: '/cms/media',        label: 'Live Media',    icon: 'auto_awesome' },
+      { href: '/cms/home-banners', label: 'Home Banners',  icon: 'view_carousel' },
+      { href: '/cms/banners',      label: 'Promo Banners', icon: 'campaign' },
     ],
   },
   {

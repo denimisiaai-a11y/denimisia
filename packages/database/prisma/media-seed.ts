@@ -102,12 +102,6 @@ const SLOTS: readonly SlotSpec[] = [
     specWidth: 2560, specHeight: 1440, specAspect: '16:9', maxBytes: 4 * MB,
     defaultHeading: 'Denim pairs, done for you.' },
 
-  // BLOG
-  { pageKey: 'blog-index', slotKey: 'blog_hero', label: 'Blog index hero',
-    mediaKind: 'IMAGE', acceptsVideo: false,
-    specWidth: 2000, specHeight: 1125, specAspect: '16:9', maxBytes: 2 * MB,
-    defaultHeading: 'Journal', defaultSubheading: 'Style notes, drops, and stories.' },
-
   // ABOUT
   { pageKey: 'about', slotKey: 'about_hero', label: 'About hero',
     mediaKind: 'IMAGE', acceptsVideo: true,

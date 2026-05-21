@@ -5,11 +5,17 @@ import {
   IsInt,
   IsArray,
   IsObject,
+  IsEnum,
+  IsISO8601,
+  ValidateIf,
+  ValidateNested,
   Matches,
   MaxLength,
+  Min,
+  Max,
 } from 'class-validator';
-import { Transform } from 'class-transformer';
-import DOMPurify from 'isomorphic-dompurify';
+import { Type } from 'class-transformer';
+import { HomepageSectionType } from '@prisma/client';
 
 // Accepts absolute http(s) URLs or root-relative paths starting with '/'.
 // class-validator's @IsUrl does not accept root-relative paths, so we use
@@ -18,81 +24,72 @@ const URL_OR_ROOT_RELATIVE = /^(?:https?:\/\/[^\s]+|\/[^\s]*)$/;
 const URL_MESSAGE =
   'Must be an absolute http(s) URL or root-relative path (e.g. /bundles/foo)';
 
-// ─── Homepage Sections ────────────────────────────────────────────────────────
+// ─── Homepage Section Composer ────────────────────────────────────────────────
 
-export class CreateSectionDto {
-  @IsString()
-  @MaxLength(120)
-  key: string;
-
-  @IsString()
-  @MaxLength(200)
-  title: string;
-
-  @IsOptional()
-  @IsString()
-  @MaxLength(500)
-  subtitle?: string;
-
-  @IsOptional()
-  @IsObject()
-  content?: Record<string, unknown>;
-
-  @IsOptional()
-  @IsString()
-  @MaxLength(2048)
-  @Matches(URL_OR_ROOT_RELATIVE, { message: URL_MESSAGE })
-  image?: string;
-
-  @IsOptional()
-  @IsString()
-  @MaxLength(2048)
-  @Matches(URL_OR_ROOT_RELATIVE, { message: URL_MESSAGE })
-  link?: string;
+export class CreateHomepageSectionDto {
+  @IsEnum(HomepageSectionType)
+  type!: HomepageSectionType;
 
   @IsOptional()
   @IsInt()
+  @Min(0)
   position?: number;
 
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  @IsOptional()
+  @IsObject()
+  config?: Record<string, unknown>;
 }
 
-export class UpdateSectionDto {
-  @IsOptional()
-  @IsString()
-  @MaxLength(200)
-  title?: string;
-
-  @IsOptional()
-  @IsString()
-  @MaxLength(500)
-  subtitle?: string;
-
-  @IsOptional()
-  @IsObject()
-  content?: Record<string, unknown>;
-
-  @IsOptional()
-  @IsString()
-  @MaxLength(2048)
-  @Matches(URL_OR_ROOT_RELATIVE, { message: URL_MESSAGE })
-  image?: string;
-
-  @IsOptional()
-  @IsString()
-  @MaxLength(2048)
-  @Matches(URL_OR_ROOT_RELATIVE, { message: URL_MESSAGE })
-  link?: string;
-
+export class UpdateHomepageSectionDto {
   @IsOptional()
   @IsInt()
+  @Min(0)
   position?: number;
 
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  @IsOptional()
+  @IsObject()
+  config?: Record<string, unknown>;
+}
+
+export class SectionOrderItemDto {
+  @IsString()
+  id!: string;
+
+  @IsInt()
+  @Min(0)
+  position!: number;
+}
+
+export class ReorderHomepageSectionsDto {
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => SectionOrderItemDto)
+  orders!: SectionOrderItemDto[];
+}
+
+// ─── Global Storefront Styles ─────────────────────────────────────────────────
+
+// 0 = tight, 1 = default, 2 = airy
+export class UpdateGlobalStylesDto {
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(2)
+  negativeSpace?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(2)
+  typographyFlow?: number;
 }
 
 // ─── Banners ──────────────────────────────────────────────────────────────────
@@ -126,6 +123,59 @@ export class CreateBannerDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  // Accept null OR an ISO date string (yyyy-mm-dd is ISO 8601 compliant).
+  // The service converts to Date before handing to Prisma.
+  @IsOptional()
+  @ValidateIf((_, v) => v !== null)
+  @IsISO8601()
+  startDate?: string | null;
+
+  @IsOptional()
+  @ValidateIf((_, v) => v !== null)
+  @IsISO8601()
+  endDate?: string | null;
+
+  // Popup-only presentation. Service ignores these for non-popup positions.
+  @IsOptional()
+  @IsEnum(['compact', 'medium', 'large', 'fullscreen'])
+  popupSize?: 'compact' | 'medium' | 'large' | 'fullscreen';
+
+  @IsOptional()
+  @IsEnum(['compact', 'medium', 'large', 'fullscreen'])
+  popupSizeMobile?: 'compact' | 'medium' | 'large' | 'fullscreen';
+
+  @IsOptional()
+  @IsBoolean()
+  textOverlay?: boolean;
+
+  @IsOptional()
+  @IsInt()
+  @Min(20)
+  @Max(100)
+  popupWidthPct?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(100)
+  popupHeightPct?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(20)
+  @Max(100)
+  popupWidthPctMobile?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(100)
+  popupHeightPctMobile?: number;
+
+  @IsOptional()
+  @IsEnum(['cover', 'contain'])
+  imageFit?: 'cover' | 'contain';
 }
 
 export class UpdateBannerDto {
@@ -159,85 +209,54 @@ export class UpdateBannerDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
-}
-
-// ─── Blog Posts ───────────────────────────────────────────────────────────────
-
-export class CreateBlogPostDto {
-  @IsString()
-  @MaxLength(300)
-  title: string;
-
-  @IsString()
-  @MaxLength(200)
-  slug: string;
 
   @IsOptional()
-  @IsString()
-  @MaxLength(1000)
-  excerpt?: string;
-
-  @Transform(({ value }) =>
-    typeof value === 'string'
-      ? DOMPurify.sanitize(value, { USE_PROFILES: { html: true } })
-      : value,
-  )
-  @IsString()
-  @MaxLength(20000)
-  body!: string;
+  @ValidateIf((_, v) => v !== null)
+  @IsISO8601()
+  startDate?: string | null;
 
   @IsOptional()
-  @IsString()
-  @MaxLength(2048)
-  @Matches(URL_OR_ROOT_RELATIVE, { message: URL_MESSAGE })
-  coverImage?: string;
+  @ValidateIf((_, v) => v !== null)
+  @IsISO8601()
+  endDate?: string | null;
 
   @IsOptional()
-  @IsArray()
-  tags?: string[];
+  @IsEnum(['compact', 'medium', 'large', 'fullscreen'])
+  popupSize?: 'compact' | 'medium' | 'large' | 'fullscreen';
+
+  @IsOptional()
+  @IsEnum(['compact', 'medium', 'large', 'fullscreen'])
+  popupSizeMobile?: 'compact' | 'medium' | 'large' | 'fullscreen';
 
   @IsOptional()
   @IsBoolean()
-  isPublished?: boolean;
-}
-
-export class UpdateBlogPostDto {
-  @IsOptional()
-  @IsString()
-  @MaxLength(300)
-  title?: string;
+  textOverlay?: boolean;
 
   @IsOptional()
-  @IsString()
-  @MaxLength(200)
-  slug?: string;
+  @IsInt()
+  @Min(20)
+  @Max(100)
+  popupWidthPct?: number;
 
   @IsOptional()
-  @IsString()
-  @MaxLength(1000)
-  excerpt?: string;
+  @IsInt()
+  @Min(0)
+  @Max(100)
+  popupHeightPct?: number;
 
   @IsOptional()
-  @Transform(({ value }) =>
-    typeof value === 'string'
-      ? DOMPurify.sanitize(value, { USE_PROFILES: { html: true } })
-      : value,
-  )
-  @IsString()
-  @MaxLength(20000)
-  body?: string;
+  @IsInt()
+  @Min(20)
+  @Max(100)
+  popupWidthPctMobile?: number;
 
   @IsOptional()
-  @IsString()
-  @MaxLength(2048)
-  @Matches(URL_OR_ROOT_RELATIVE, { message: URL_MESSAGE })
-  coverImage?: string;
+  @IsInt()
+  @Min(0)
+  @Max(100)
+  popupHeightPctMobile?: number;
 
   @IsOptional()
-  @IsArray()
-  tags?: string[];
-
-  @IsOptional()
-  @IsBoolean()
-  isPublished?: boolean;
+  @IsEnum(['cover', 'contain'])
+  imageFit?: 'cover' | 'contain';
 }

@@ -103,8 +103,24 @@ const nextAuth: NextAuthResult = NextAuth({
   pages: { signIn: '/login' },
   session: {
     strategy: 'jwt',
-    maxAge: 60 * 60 * 8,      // 8 hours â€” admin sessions expire fast
-    updateAge: 60 * 60,        // refresh once per hour
+    maxAge: 60 * 60 * 24 * 7,   // 7 days — keeps admin signed in across a work week
+    updateAge: 60 * 60 * 24,    // rotate the cookie once a day
+  },
+  // Namespace the cookie so admin (3002) and web (3000) don't clobber each
+  // other's sessions on localhost (cookies are scoped by domain, not port).
+  cookies: {
+    sessionToken: {
+      name: 'denimisia-admin.session-token',
+      options: { httpOnly: true, sameSite: 'lax', path: '/', secure: false },
+    },
+    csrfToken: {
+      name: 'denimisia-admin.csrf-token',
+      options: { httpOnly: true, sameSite: 'lax', path: '/', secure: false },
+    },
+    callbackUrl: {
+      name: 'denimisia-admin.callback-url',
+      options: { sameSite: 'lax', path: '/', secure: false },
+    },
   },
   secret: process.env.NEXTAUTH_SECRET,
 });

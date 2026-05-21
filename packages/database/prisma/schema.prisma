@@ -41,6 +41,22 @@ enum ProductType {
   JACKETS
 }
 
+enum SilhouetteGender {
+  MALE
+  FEMALE
+}
+
+model Silhouette {
+  id        String           @id @default(cuid())
+  gender    SilhouetteGender @unique
+  svgPath   String           @db.Text
+  viewBox   String
+  landmarks Json
+  version   Int              @default(1)
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+}
+
 enum TagDimension {
   silhouette
   rise
@@ -139,7 +155,6 @@ model User {
   cart           Cart?
   campaignUsages CampaignUsage[]
   auditLogs      AuditLog[]
-  blogPosts      BlogPost[]
   mediaAssets    MediaAsset[] @relation("MediaUploader")
   returns         Return[]
   reviewedReturns Return[]            @relation("ReturnReviewer")
@@ -243,6 +258,7 @@ model Product {
   images         String[]
   tags           String[]
   type           ProductType?
+  fitLandmarks   Json?
   returnable     Boolean            @default(true)
   isActive       Boolean            @default(true)
   isFeatured     Boolean            @default(false)
@@ -670,18 +686,43 @@ model AuditLog {
 
 // ─── CMS: Homepage Sections ───────────────────────────────────────────────────
 
-model HomepageSection {
-  id        String   @id @default(cuid())
-  key       String   @unique
-  title     String
-  subtitle  String?
-  content   Json?
-  image     String?
-  link      String?
-  position  Int      @default(0)
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+enum HomepageSectionType {
+  HERO
+  CATEGORY_CARDS
+  NEW_ARRIVALS
+  EDITORIAL_BANNER
+  BUNDLE_DEALS
+  TRENDING
+  BESTSELLERS
+  BRAND_STORY
+}
+
+// Each row = one instance of a section type on the storefront home page.
+// Position controls render order. Config is type-specific (see SectionConfig
+// discriminated union in @repo/types). Multiple instances of the same type
+// are allowed (e.g., two EditorialBanner instances pointing at different
+// slot groups).
+model HomepageSectionInstance {
+  id        String              @id @default(cuid())
+  type      HomepageSectionType
+  position  Int
+  isActive  Boolean             @default(true)
+  config    Json                @default("{}")
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+
+  @@index([position])
+  @@index([isActive, position])
+}
+
+// Singleton row holding storefront-wide style toggles. Read by the root
+// layout to set CSS custom properties; written by the admin CMS composer.
+// Convention: one row with id='singleton'.
+model GlobalStorefrontStyles {
+  id              String   @id @default("singleton")
+  negativeSpace   Int      @default(1) // 0=tight, 1=default, 2=airy
+  typographyFlow  Int      @default(1) // 0=tight, 1=default, 2=loose
+  updatedAt       DateTime @updatedAt
 }
 
 // ─── CMS: Banners ─────────────────────────────────────────────────────────────
@@ -696,28 +737,26 @@ model Banner {
   isActive  Boolean   @default(true)
   startDate DateTime?
   endDate   DateTime?
+  // Popup-only presentation settings. Ignored for top/middle/bottom banners.
+  // Values: 'compact' | 'medium' | 'large' | 'fullscreen'  (deprecated: kept
+  // for backwards compatibility but the storefront now reads the numeric
+  // fields below).
+  popupSize       String  @default("large")
+  popupSizeMobile String  @default("medium")
+  // When true the headline + CTA overlay the image (gradient backdrop).
+  // When false they sit in a white side panel next to the image.
+  textOverlay     Boolean @default(false)
+  // Fine-grained per-banner sizing. Percentages of the viewport.
+  // 0 means "auto" — let content drive the dimension.
+  popupWidthPct        Int    @default(95)
+  popupHeightPct       Int    @default(0)
+  popupWidthPctMobile  Int    @default(95)
+  popupHeightPctMobile Int    @default(0)
+  // How the image fills its container. 'cover' may crop; 'contain' shows
+  // the full subject with letterbox.
+  imageFit             String @default("cover")
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
-}
-
-// ─── CMS: Blog Posts ──────────────────────────────────────────────────────────
-
-model BlogPost {
-  id          String    @id @default(cuid())
-  title       String
-  slug        String    @unique
-  excerpt     String?
-  body        String
-  coverImage  String?
-  authorId    String
-  author      User      @relation(fields: [authorId], references: [id], onDelete: Restrict)
-  tags        String[]  @default([])
-  isPublished Boolean   @default(false)
-  publishedAt DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-
-  @@index([isPublished, publishedAt])
 }
 
 // ─── CMS: Section Curation (homepage product merchandising) ──────────────────

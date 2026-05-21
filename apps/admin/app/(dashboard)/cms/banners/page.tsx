@@ -5,42 +5,69 @@ import { useEffect, useState, useCallback } from 'react';
 import { adminFetch } from '@/lib/api';
 import { ImageUploader } from '@/components/image-uploader';
 
+type PopupSize = 'compact' | 'medium' | 'large' | 'fullscreen';
+
 interface Banner {
   id: string;
   title: string;
   subtitle: string | null;
-  imageUrl: string;
+  image: string;
   link: string | null;
-  position: 'top' | 'middle' | 'bottom';
-  active: boolean;
+  position: 'popup' | 'top' | 'middle' | 'bottom';
+  isActive: boolean;
   startDate: string | null;
   endDate: string | null;
+  popupSize: PopupSize;
+  popupSizeMobile: PopupSize;
+  textOverlay: boolean;
+  popupWidthPct: number;
+  popupHeightPct: number;
+  popupWidthPctMobile: number;
+  popupHeightPctMobile: number;
+  imageFit: 'cover' | 'contain';
 }
 
 interface BannerFormData {
   title: string;
   subtitle: string;
-  imageUrl: string;
+  image: string;
   link: string;
-  position: 'top' | 'middle' | 'bottom';
-  active: boolean;
+  position: 'popup' | 'top' | 'middle' | 'bottom';
+  isActive: boolean;
   startDate: string;
   endDate: string;
+  popupSize: PopupSize;
+  popupSizeMobile: PopupSize;
+  textOverlay: boolean;
+  popupWidthPct: number;
+  popupHeightPct: number;
+  popupWidthPctMobile: number;
+  popupHeightPctMobile: number;
+  imageFit: 'cover' | 'contain';
 }
 
 const EMPTY_FORM: BannerFormData = {
   title: '',
   subtitle: '',
-  imageUrl: '',
+  image: '',
   link: '',
   position: 'top',
-  active: true,
+  isActive: true,
   startDate: '',
   endDate: '',
+  popupSize: 'large',
+  popupSizeMobile: 'medium',
+  textOverlay: false,
+  popupWidthPct: 95,
+  popupHeightPct: 0,
+  popupWidthPctMobile: 95,
+  popupHeightPctMobile: 0,
+  imageFit: 'cover',
 };
 
 const POSITION_ORDER: Record<Banner['position'], number> = {
-  top: 1,
+  popup:  0,
+  top:    1,
   middle: 2,
   bottom: 3,
 };
@@ -85,12 +112,20 @@ export default function BannersPage() {
     setForm({
       title: banner.title,
       subtitle: banner.subtitle ?? '',
-      imageUrl: banner.imageUrl,
+      image: banner.image,
       link: banner.link ?? '',
       position: banner.position,
-      active: banner.active,
+      isActive: banner.isActive,
       startDate: banner.startDate ? banner.startDate.slice(0, 10) : '',
       endDate: banner.endDate ? banner.endDate.slice(0, 10) : '',
+      popupSize: banner.popupSize ?? 'large',
+      popupSizeMobile: banner.popupSizeMobile ?? 'medium',
+      textOverlay: Boolean(banner.textOverlay),
+      popupWidthPct:        banner.popupWidthPct        ?? 95,
+      popupHeightPct:       banner.popupHeightPct       ?? 0,
+      popupWidthPctMobile:  banner.popupWidthPctMobile  ?? 95,
+      popupHeightPctMobile: banner.popupHeightPctMobile ?? 0,
+      imageFit:             banner.imageFit             ?? 'cover',
     });
     setEditingId(banner.id);
     setShowForm(true);
@@ -110,12 +145,20 @@ export default function BannersPage() {
     const payload = {
       title: form.title,
       subtitle: form.subtitle || null,
-      imageUrl: form.imageUrl,
+      image: form.image,
       link: form.link || null,
       position: form.position,
-      active: form.active,
+      isActive: form.isActive,
       startDate: form.startDate || null,
       endDate: form.endDate || null,
+      popupSize: form.popupSize,
+      popupSizeMobile: form.popupSizeMobile,
+      textOverlay: form.textOverlay,
+      popupWidthPct:        form.popupWidthPct,
+      popupHeightPct:       form.popupHeightPct,
+      popupWidthPctMobile:  form.popupWidthPctMobile,
+      popupHeightPctMobile: form.popupHeightPctMobile,
+      imageFit:             form.imageFit,
     };
 
     try {
@@ -237,8 +280,9 @@ export default function BannersPage() {
                 Image *
               </label>
               <ImageUploader
-                value={form.imageUrl ? [form.imageUrl] : []}
-                onChange={(urls) => updateField('imageUrl', urls[0] ?? '')}
+                key={editingId ?? 'new-banner'}
+                value={form.image ? [form.image] : []}
+                onChange={(urls) => updateField('image', urls[0] ?? '')}
                 token={token}
                 folder="banners"
                 maxFiles={1}
@@ -269,11 +313,118 @@ export default function BannersPage() {
                 }
                 className="w-full border-0 border-b border-outline-variant/25 bg-transparent py-2 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-0"
               >
-                <option value="top">Top</option>
-                <option value="middle">Middle</option>
-                <option value="bottom">Bottom</option>
+                <option value="popup">Popup (modal, 10s delay)</option>
+                <option value="top">Top (above navbar)</option>
+                <option value="middle">Middle (between sections)</option>
+                <option value="bottom">Bottom (before footer)</option>
               </select>
             </div>
+            <>
+                <div className="col-span-2 rounded border border-outline-variant/30 bg-surface-container-low p-4">
+                  <p className="mb-4 text-[10px] font-bold uppercase tracking-[0.2em] text-secondary">
+                    Dimensions — Desktop
+                  </p>
+                  <SliderRow
+                    label="Width"
+                    value={form.popupWidthPct}
+                    onChange={(v) => updateField('popupWidthPct', v)}
+                    min={20}
+                    max={100}
+                    unit="vw"
+                  />
+                  <SliderRow
+                    label="Height"
+                    value={form.popupHeightPct}
+                    onChange={(v) => updateField('popupHeightPct', v)}
+                    min={0}
+                    max={100}
+                    unit="vh"
+                    autoLabel="Auto (content-driven, max 92vh)"
+                  />
+                </div>
+                <div className="col-span-2 rounded border border-outline-variant/30 bg-surface-container-low p-4">
+                  <p className="mb-4 text-[10px] font-bold uppercase tracking-[0.2em] text-secondary">
+                    Dimensions — Mobile
+                  </p>
+                  <SliderRow
+                    label="Width"
+                    value={form.popupWidthPctMobile}
+                    onChange={(v) => updateField('popupWidthPctMobile', v)}
+                    min={20}
+                    max={100}
+                    unit="vw"
+                  />
+                  <SliderRow
+                    label="Height"
+                    value={form.popupHeightPctMobile}
+                    onChange={(v) => updateField('popupHeightPctMobile', v)}
+                    min={0}
+                    max={100}
+                    unit="vh"
+                    autoLabel="Auto (content-driven, max 92vh)"
+                  />
+                </div>
+                <div className="col-span-2 flex items-center justify-between gap-4 rounded border border-outline-variant/30 bg-surface-container-low px-4 py-3">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-[0.15em] text-on-surface">
+                      Image fit
+                    </p>
+                    <p className="mt-1 text-[10px] text-secondary">
+                      {form.imageFit === 'cover'
+                        ? 'Cover — fills the area, may crop edges so no letterbox.'
+                        : 'Contain — shows the full image, may leave letterbox bars.'}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 overflow-hidden rounded border border-outline-variant/30">
+                    {(['cover', 'contain'] as const).map((mode) => (
+                      <button
+                        key={mode}
+                        type="button"
+                        onClick={() => updateField('imageFit', mode)}
+                        aria-pressed={form.imageFit === mode}
+                        className={
+                          'px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.15em] transition-colors ' +
+                          (form.imageFit === mode
+                            ? 'bg-primary text-on-primary'
+                            : 'bg-surface-container text-secondary hover:text-on-surface')
+                        }
+                      >
+                        {mode}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                {form.position !== 'top' && (
+                  <div className="col-span-2 flex items-center justify-between gap-4 rounded border border-outline-variant/30 bg-surface-container-low px-4 py-3">
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-[0.15em] text-on-surface">
+                        Text overlay
+                      </p>
+                      <p className="mt-1 text-[10px] text-secondary">
+                        {form.textOverlay
+                          ? 'Headline + CTA render on top of the image (gradient backdrop).'
+                          : 'Headline + CTA render in a white side panel next to the image.'}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => updateField('textOverlay', !form.textOverlay)}
+                      aria-pressed={form.textOverlay}
+                      className={
+                        'relative h-6 w-11 shrink-0 rounded-full transition-colors ' +
+                        (form.textOverlay ? 'bg-primary' : 'bg-surface-container-high')
+                      }
+                    >
+                      <span
+                        className={
+                          'absolute top-1 h-4 w-4 rounded-full bg-paper transition-transform ' +
+                          (form.textOverlay ? 'translate-x-6' : 'translate-x-1')
+                        }
+                      />
+                    </button>
+                  </div>
+                )}
+              </>
             <div>
               <label className="block text-[10px] font-bold uppercase tracking-[0.2em] text-secondary mb-2">
                 Start Date
@@ -299,21 +450,21 @@ export default function BannersPage() {
             <div className="flex items-center gap-3 pt-6">
               <button
                 type="button"
-                onClick={() => updateField('active', !form.active)}
-                aria-pressed={form.active}
+                onClick={() => updateField('isActive', !form.isActive)}
+                aria-pressed={form.isActive}
                 aria-label="Toggle visibility"
                 className={`w-10 h-5 rounded-full relative flex items-center px-1 transition-colors ${
-                  form.active ? 'bg-primary' : 'bg-surface-container-high'
+                  form.isActive ? 'bg-primary' : 'bg-surface-container-high'
                 }`}
               >
                 <span
                   className={`w-3 h-3 bg-white rounded-full transition-transform duration-300 ${
-                    form.active ? 'translate-x-5' : 'translate-x-0'
+                    form.isActive ? 'translate-x-5' : 'translate-x-0'
                   }`}
                 />
               </button>
               <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-secondary">
-                {form.active ? 'Visible on storefront' : 'Hidden'}
+                {form.isActive ? 'Visible on storefront' : 'Hidden'}
               </span>
             </div>
           </div>
@@ -380,10 +531,10 @@ export default function BannersPage() {
                 >
                   {/* Thumbnail */}
                   <div className="w-[120px] h-20 bg-surface-container-high overflow-hidden flex items-center justify-center">
-                    {banner.imageUrl ? (
+                    {banner.image ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
-                        src={banner.imageUrl}
+                        src={banner.image}
                         alt={banner.title}
                         className="w-full h-full object-cover"
                       />
@@ -426,17 +577,17 @@ export default function BannersPage() {
                   <div className="flex items-center gap-6">
                     <div className="flex items-center gap-3">
                       <span className="text-[10px] font-bold tracking-[0.2em] uppercase text-secondary">
-                        {banner.active ? 'Visible' : 'Hidden'}
+                        {banner.isActive ? 'Visible' : 'Hidden'}
                       </span>
                       <div
                         aria-hidden
                         className={`w-10 h-5 rounded-full relative flex items-center px-1 ${
-                          banner.active ? 'bg-primary' : 'bg-surface-container-high'
+                          banner.isActive ? 'bg-primary' : 'bg-surface-container-high'
                         }`}
                       >
                         <div
                           className={`w-3 h-3 bg-white rounded-full transition-transform duration-300 ${
-                            banner.active ? 'translate-x-5' : 'translate-x-0'
+                            banner.isActive ? 'translate-x-5' : 'translate-x-0'
                           }`}
                         />
                       </div>
@@ -484,6 +635,44 @@ export default function BannersPage() {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+interface SliderRowProps {
+  readonly label: string;
+  readonly value: number;
+  readonly onChange: (next: number) => void;
+  readonly min: number;
+  readonly max: number;
+  readonly unit: string;
+  /** Shown when value === 0 (treated as "auto"). */
+  readonly autoLabel?: string;
+}
+
+function SliderRow({ label, value, onChange, min, max, unit, autoLabel }: SliderRowProps) {
+  const isAuto = autoLabel !== undefined && value === 0;
+  return (
+    <div className="mb-3 last:mb-0">
+      <div className="mb-1.5 flex items-center justify-between gap-3">
+        <span className="text-[11px] font-semibold tracking-[0.1em] uppercase text-on-surface">
+          {label}
+        </span>
+        <span className="font-mono text-[11px] text-secondary">
+          {isAuto ? 'auto' : `${value}${unit}`}
+        </span>
+      </div>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="block w-full accent-primary"
+      />
+      {isAuto && autoLabel && (
+        <p className="mt-1 text-[10px] text-secondary">{autoLabel}</p>
+      )}
     </div>
   );
 }

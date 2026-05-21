@@ -81,7 +81,6 @@ async function main(): Promise<void> {
     'Wishlist.userId':               { onDelete: 'CASCADE',  onUpdate: 'CASCADE' },
     'WishlistItem.wishlistId':       { onDelete: 'CASCADE',  onUpdate: 'CASCADE' },
     'WishlistItem.productId':        { onDelete: 'CASCADE',  onUpdate: 'CASCADE' },
-    'BlogPost.authorId':             { onDelete: 'RESTRICT', onUpdate: 'CASCADE' },
     'AuditLog.userId':               { onDelete: 'RESTRICT', onUpdate: 'CASCADE' },
   };
 
@@ -148,8 +147,6 @@ async function main(): Promise<void> {
     'Address_userId_idx', 'Address_deletedAt_idx',
     // InventoryLog
     'InventoryLog_variantId_createdAt_idx',
-    // BlogPost
-    'BlogPost_isPublished_publishedAt_idx',
     // BundleItem + CampaignProduct
     'BundleItem_productId_idx', 'CampaignProduct_productId_idx',
     // ShippingRate

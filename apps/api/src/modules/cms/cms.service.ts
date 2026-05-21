@@ -1,72 +1,161 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Prisma, HomepageSectionType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import {
-  CreateSectionDto,
-  UpdateSectionDto,
   CreateBannerDto,
   UpdateBannerDto,
-  CreateBlogPostDto,
-  UpdateBlogPostDto,
+  CreateHomepageSectionDto,
+  UpdateHomepageSectionDto,
+  ReorderHomepageSectionsDto,
+  UpdateGlobalStylesDto,
 } from './cms.dto';
+
+const STYLES_SINGLETON_ID = 'singleton';
+type AuditEntity = 'HomepageSectionInstance' | 'GlobalStorefrontStyles';
+
+/**
+ * Coerce ISO date strings in a banner DTO to Date instances Prisma can persist.
+ * Leaves other fields untouched. Null passes through unchanged so the admin
+ * can clear an existing date by sending `null`.
+ */
+function coerceBannerDates<T extends { startDate?: string | null; endDate?: string | null }>(
+  dto: T,
+): Omit<T, 'startDate' | 'endDate'> & { startDate?: Date | null; endDate?: Date | null } {
+  const { startDate, endDate, ...rest } = dto;
+  const out: Record<string, unknown> = { ...rest };
+  if (startDate !== undefined) {
+    out.startDate = startDate === null ? null : new Date(startDate);
+  }
+  if (endDate !== undefined) {
+    out.endDate = endDate === null ? null : new Date(endDate);
+  }
+  return out as Omit<T, 'startDate' | 'endDate'> & {
+    startDate?: Date | null;
+    endDate?: Date | null;
+  };
+}
 
 @Injectable()
 export class CmsService {
   constructor(private prisma: PrismaService) {}
 
-  // ─── Homepage Sections ──────────────────────────────────────────────────────
+  // ─── Homepage Section Composer ──────────────────────────────────────────────
 
-  async listSections() {
-    return this.prisma.homepageSection.findMany({
+  /** Admin: list every section (active + inactive), ordered. */
+  async listAllSections() {
+    return this.prisma.homepageSectionInstance.findMany({
+      orderBy: { position: 'asc' },
+    });
+  }
+
+  /** Storefront: list only active sections, ordered. Drives page.tsx. */
+  async listActiveSections() {
+    return this.prisma.homepageSectionInstance.findMany({
       where: { isActive: true },
       orderBy: { position: 'asc' },
     });
   }
 
-  async getSectionByKey(key: string) {
-    // Public endpoint — must hide deactivated sections. The unique slug
-    // lookup may still match an inactive row, so re-check after fetch.
-    const section = await this.prisma.homepageSection.findUnique({
-      where: { key },
-    });
-    if (!section || !section.isActive) {
-      throw new NotFoundException('Section not found');
-    }
-    return section;
-  }
-
-  async createSection(dto: CreateSectionDto) {
-    return this.prisma.homepageSection.create({
+  async createSection(dto: CreateHomepageSectionDto, userId?: string) {
+    // Default to "append to end" when position is omitted.
+    const position =
+      dto.position ??
+      ((await this.prisma.homepageSectionInstance.count()) || 0);
+    const created = await this.prisma.homepageSectionInstance.create({
       data: {
-        ...dto,
-        content: dto.content as unknown as Prisma.InputJsonValue,
+        type: dto.type,
+        position,
+        isActive: dto.isActive ?? true,
+        config: (dto.config ?? {}) as Prisma.InputJsonValue,
       },
     });
+    await this.audit(userId, 'cms.section.create', 'HomepageSectionInstance', created.id, {
+      type: created.type,
+      position: created.position,
+    });
+    return created;
   }
 
-  async updateSection(id: string, dto: UpdateSectionDto) {
-    const section = await this.prisma.homepageSection.findUnique({
+  async updateSection(id: string, dto: UpdateHomepageSectionDto, userId?: string) {
+    const existing = await this.prisma.homepageSectionInstance.findUnique({
       where: { id },
     });
-    if (!section) throw new NotFoundException('Section not found');
-    return this.prisma.homepageSection.update({
+    if (!existing) throw new NotFoundException('Section not found');
+
+    const data: Prisma.HomepageSectionInstanceUpdateInput = {};
+    if (dto.position !== undefined) data.position = dto.position;
+    if (dto.isActive !== undefined) data.isActive = dto.isActive;
+    if (dto.config !== undefined) data.config = dto.config as Prisma.InputJsonValue;
+
+    const updated = await this.prisma.homepageSectionInstance.update({
       where: { id },
-      data: {
-        ...dto,
-        content: dto.content as unknown as Prisma.InputJsonValue,
+      data,
+    });
+    await this.audit(userId, 'cms.section.update', 'HomepageSectionInstance', id, {
+      type: updated.type,
+      changes: dto,
+    });
+    return updated;
+  }
+
+  async deleteSection(id: string, userId?: string) {
+    const existing = await this.prisma.homepageSectionInstance.findUnique({
+      where: { id },
+    });
+    if (!existing) throw new NotFoundException('Section not found');
+    await this.prisma.homepageSectionInstance.delete({ where: { id } });
+    await this.audit(userId, 'cms.section.delete', 'HomepageSectionInstance', id, {
+      type: existing.type,
+    });
+  }
+
+  /**
+   * Bulk-reorder. Uses a transaction so a partial update can't leave the list
+   * in a half-reordered state visible to readers.
+   */
+  async reorderSections(dto: ReorderHomepageSectionsDto, userId?: string) {
+    const updates = dto.orders.map((o) =>
+      this.prisma.homepageSectionInstance.update({
+        where: { id: o.id },
+        data: { position: o.position },
+      }),
+    );
+    const updated = await this.prisma.$transaction(updates);
+    await this.audit(userId, 'cms.section.reorder', 'HomepageSectionInstance', null, {
+      orderedIds: dto.orders.map((o) => o.id),
+    });
+    return updated;
+  }
+
+  // ─── Global Storefront Styles ───────────────────────────────────────────────
+
+  /** Storefront-readable. Always returns the singleton (creating it on demand). */
+  async getStyles() {
+    return this.prisma.globalStorefrontStyles.upsert({
+      where: { id: STYLES_SINGLETON_ID },
+      create: { id: STYLES_SINGLETON_ID },
+      update: {},
+    });
+  }
+
+  async updateStyles(dto: UpdateGlobalStylesDto, userId?: string) {
+    const updated = await this.prisma.globalStorefrontStyles.upsert({
+      where: { id: STYLES_SINGLETON_ID },
+      create: {
+        id: STYLES_SINGLETON_ID,
+        negativeSpace: dto.negativeSpace ?? 1,
+        typographyFlow: dto.typographyFlow ?? 1,
+      },
+      update: {
+        ...(dto.negativeSpace !== undefined && { negativeSpace: dto.negativeSpace }),
+        ...(dto.typographyFlow !== undefined && { typographyFlow: dto.typographyFlow }),
       },
     });
+    await this.audit(userId, 'cms.styles.update', 'GlobalStorefrontStyles', updated.id, { ...dto });
+    return updated;
   }
 
-  async deleteSection(id: string) {
-    const section = await this.prisma.homepageSection.findUnique({
-      where: { id },
-    });
-    if (!section) throw new NotFoundException('Section not found');
-    await this.prisma.homepageSection.delete({ where: { id } });
-  }
-
-  // ─── Banners ────────────────────────────────────────────────────────────────
+  // ─── Banners (unchanged from before) ────────────────────────────────────────
 
   async listActiveBanners() {
     const now = new Date();
@@ -85,13 +174,13 @@ export class CmsService {
   }
 
   async createBanner(dto: CreateBannerDto) {
-    return this.prisma.banner.create({ data: dto });
+    return this.prisma.banner.create({ data: coerceBannerDates(dto) });
   }
 
   async updateBanner(id: string, dto: UpdateBannerDto) {
     const banner = await this.prisma.banner.findUnique({ where: { id } });
     if (!banner) throw new NotFoundException('Banner not found');
-    return this.prisma.banner.update({ where: { id }, data: dto });
+    return this.prisma.banner.update({ where: { id }, data: coerceBannerDates(dto) });
   }
 
   async deleteBanner(id: string) {
@@ -100,76 +189,28 @@ export class CmsService {
     await this.prisma.banner.delete({ where: { id } });
   }
 
-  // ─── Blog Posts ─────────────────────────────────────────────────────────────
+  // ─── Internal ───────────────────────────────────────────────────────────────
 
-  async listPublishedPosts(page = 1, limit = 10) {
-    // Cap pagination so a customer-supplied ?limit=10000 cannot enumerate
-    // the entire blog table in one round trip. 50 is generous for a
-    // public blog listing; admin pagination has its own endpoint.
-    const safePage = Math.max(page, 1);
-    const safeLimit = Math.min(Math.max(limit, 1), 50);
-    const skip = (safePage - 1) * safeLimit;
-    const [posts, total] = await Promise.all([
-      this.prisma.blogPost.findMany({
-        where: { isPublished: true },
-        orderBy: { publishedAt: 'desc' },
-        skip,
-        take: safeLimit,
-        include: { author: { select: { firstName: true, lastName: true } } },
-      }),
-      this.prisma.blogPost.count({ where: { isPublished: true } }),
-    ]);
-    return { posts, total, page: safePage, limit: safeLimit };
-  }
-
-  /**
-   * Public blog post fetch — MUST filter unpublished drafts.
-   * For admin/editor access to drafts, use getPostBySlugAdmin.
-   */
-  async getPostBySlug(slug: string) {
-    const post = await this.prisma.blogPost.findFirst({
-      where: { slug, isPublished: true },
-      include: { author: { select: { firstName: true, lastName: true } } },
-    });
-    if (!post) throw new NotFoundException('Blog post not found');
-    return post;
-  }
-
-  /** Admin-only: returns posts regardless of isPublished state. */
-  async getPostBySlugAdmin(slug: string) {
-    const post = await this.prisma.blogPost.findUnique({
-      where: { slug },
-      include: { author: { select: { firstName: true, lastName: true } } },
-    });
-    if (!post) throw new NotFoundException('Blog post not found');
-    return post;
-  }
-
-  async createPost(authorId: string, dto: CreateBlogPostDto) {
-    return this.prisma.blogPost.create({
-      data: {
-        ...dto,
-        authorId,
-        publishedAt: dto.isPublished ? new Date() : null,
-      },
-    });
-  }
-
-  async updatePost(id: string, dto: UpdateBlogPostDto) {
-    const post = await this.prisma.blogPost.findUnique({ where: { id } });
-    if (!post) throw new NotFoundException('Blog post not found');
-
-    const data: Record<string, unknown> = { ...dto };
-    if (dto.isPublished && !post.publishedAt) {
-      data.publishedAt = new Date();
+  private async audit(
+    userId: string | undefined,
+    action: string,
+    entity: AuditEntity,
+    entityId: string | null,
+    details?: Record<string, unknown>,
+  ): Promise<void> {
+    try {
+      await this.prisma.auditLog.create({
+        data: {
+          userId: userId ?? null,
+          action,
+          entity,
+          entityId,
+          details: details as Prisma.InputJsonValue,
+        },
+      });
+    } catch {
+      // AuditLog writes must never block the operation that triggered them.
+      // A swallowed audit miss is preferable to a 500 on a working PATCH.
     }
-
-    return this.prisma.blogPost.update({ where: { id }, data });
-  }
-
-  async deletePost(id: string) {
-    const post = await this.prisma.blogPost.findUnique({ where: { id } });
-    if (!post) throw new NotFoundException('Blog post not found');
-    await this.prisma.blogPost.delete({ where: { id } });
   }
 }

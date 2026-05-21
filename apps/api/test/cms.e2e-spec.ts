@@ -33,102 +33,6 @@ describe('CMS Endpoints (e2e)', () => {
     await app.close();
   });
 
-  // ─── Blog Posts ───────────────────────────────────────────────────────────
-
-  describe('GET /api/v1/cms/blog', () => {
-    it('should return a paginated list of published blog posts', async () => {
-      const res = await request(app.getHttpServer())
-        .get('/api/v1/cms/blog')
-        .expect(200);
-
-      expect(res.body).toHaveProperty('success', true);
-      expect(res.body.data).toHaveProperty('posts');
-      expect(res.body.data).toHaveProperty('total');
-      expect(res.body.data).toHaveProperty('page');
-      expect(res.body.data).toHaveProperty('limit');
-      expect(Array.isArray(res.body.data.posts)).toBe(true);
-      expect(typeof res.body.data.total).toBe('number');
-    });
-
-    it('should default to page 1 and limit 10', async () => {
-      const res = await request(app.getHttpServer())
-        .get('/api/v1/cms/blog')
-        .expect(200);
-
-      expect(res.body.data.page).toBe(1);
-      expect(res.body.data.limit).toBe(10);
-    });
-
-    it('should respect page and limit query params', async () => {
-      const res = await request(app.getHttpServer())
-        .get('/api/v1/cms/blog')
-        .query({ page: '1', limit: '3' })
-        .expect(200);
-
-      expect(res.body.data.page).toBe(1);
-      expect(res.body.data.limit).toBe(3);
-      expect(res.body.data.posts.length).toBeLessThanOrEqual(3);
-    });
-
-    it('should include author info for each blog post', async () => {
-      const res = await request(app.getHttpServer())
-        .get('/api/v1/cms/blog')
-        .expect(200);
-
-      for (const post of res.body.data.posts) {
-        expect(post).toHaveProperty('author');
-        if (post.author) {
-          expect(post.author).toHaveProperty('firstName');
-          expect(post.author).toHaveProperty('lastName');
-        }
-      }
-    });
-
-    it('should only return published posts', async () => {
-      const res = await request(app.getHttpServer())
-        .get('/api/v1/cms/blog')
-        .expect(200);
-
-      for (const post of res.body.data.posts) {
-        expect(post.isPublished).toBe(true);
-      }
-    });
-  });
-
-  describe('GET /api/v1/cms/blog/:slug', () => {
-    it('should return a blog post by slug', async () => {
-      // First get a valid slug from the list
-      const listRes = await request(app.getHttpServer()).get(
-        '/api/v1/cms/blog',
-      );
-
-      if (listRes.body.data.posts.length === 0) {
-        return; // No blog posts in DB, skip
-      }
-
-      const slug = listRes.body.data.posts[0].slug;
-
-      const res = await request(app.getHttpServer())
-        .get(`/api/v1/cms/blog/${slug}`)
-        .expect(200);
-
-      expect(res.body).toHaveProperty('success', true);
-      expect(res.body.data).toHaveProperty('slug', slug);
-      expect(res.body.data).toHaveProperty('title');
-      expect(res.body.data).toHaveProperty('body');
-      expect(res.body.data).toHaveProperty('author');
-    });
-
-    it('should return 404 for non-existent blog slug', async () => {
-      const res = await request(app.getHttpServer())
-        .get('/api/v1/cms/blog/this-blog-post-does-not-exist-xyz')
-        .expect(404);
-
-      expect(res.body).toHaveProperty('success', false);
-      expect(res.body.statusCode).toBe(404);
-    });
-  });
-
   // ─── Banners ──────────────────────────────────────────────────────────────
 
   describe('GET /api/v1/cms/banners', () => {
@@ -159,27 +63,20 @@ describe('CMS Endpoints (e2e)', () => {
     });
   });
 
-  // ─── Homepage Sections ────────────────────────────────────────────────────
+  // ─── Homepage Section Composer ────────────────────────────────────────────
 
-  describe('GET /api/v1/cms/sections', () => {
-    it('should return active homepage sections', async () => {
+  describe('GET /api/v1/cms/homepage/sections/active', () => {
+    it('returns active sections ordered by position', async () => {
       const res = await request(app.getHttpServer())
-        .get('/api/v1/cms/sections')
+        .get('/api/v1/cms/homepage/sections/active')
         .expect(200);
 
       expect(res.body).toHaveProperty('success', true);
       expect(Array.isArray(res.body.data)).toBe(true);
 
-      // All returned sections should be active
-      for (const section of res.body.data) {
-        expect(section.isActive).toBe(true);
+      for (const s of res.body.data) {
+        expect(s.isActive).toBe(true);
       }
-    });
-
-    it('should return sections ordered by position', async () => {
-      const res = await request(app.getHttpServer())
-        .get('/api/v1/cms/sections')
-        .expect(200);
 
       const positions = res.body.data.map(
         (s: { position: number }) => s.position,
@@ -189,86 +86,59 @@ describe('CMS Endpoints (e2e)', () => {
       }
     });
 
-    it('should return sections with expected fields', async () => {
+    it('returns sections with type + config fields', async () => {
       const res = await request(app.getHttpServer())
-        .get('/api/v1/cms/sections')
+        .get('/api/v1/cms/homepage/sections/active')
         .expect(200);
 
       if (res.body.data.length > 0) {
-        const section = res.body.data[0];
-        expect(section).toHaveProperty('id');
-        expect(section).toHaveProperty('key');
-        expect(section).toHaveProperty('isActive');
-        expect(section).toHaveProperty('position');
+        const s = res.body.data[0];
+        expect(s).toHaveProperty('id');
+        expect(s).toHaveProperty('type');
+        expect(s).toHaveProperty('position');
+        expect(s).toHaveProperty('isActive');
+        expect(s).toHaveProperty('config');
       }
     });
   });
 
-  describe('GET /api/v1/cms/sections/:key', () => {
-    it('should return a section by key', async () => {
-      // First get a valid key from the list
-      const listRes = await request(app.getHttpServer()).get(
-        '/api/v1/cms/sections',
-      );
-
-      if (listRes.body.data.length === 0) {
-        return; // No sections in DB, skip
-      }
-
-      const key = listRes.body.data[0].key;
-
+  describe('GET /api/v1/cms/homepage/styles', () => {
+    it('returns the singleton styles row', async () => {
       const res = await request(app.getHttpServer())
-        .get(`/api/v1/cms/sections/${key}`)
+        .get('/api/v1/cms/homepage/styles')
         .expect(200);
 
       expect(res.body).toHaveProperty('success', true);
-      expect(res.body.data).toHaveProperty('key', key);
-    });
-
-    it('should return 404 for non-existent section key', async () => {
-      const res = await request(app.getHttpServer())
-        .get('/api/v1/cms/sections/non-existent-section-key-xyz')
-        .expect(404);
-
-      expect(res.body).toHaveProperty('success', false);
-      expect(res.body.statusCode).toBe(404);
+      expect(res.body.data).toHaveProperty('negativeSpace');
+      expect(res.body.data).toHaveProperty('typographyFlow');
     });
   });
 
   // ─── Admin CMS endpoints require auth ─────────────────────────────────────
 
   describe('Admin CMS endpoints', () => {
-    it('POST /api/v1/cms/blog should reject without auth', async () => {
-      const res = await request(app.getHttpServer())
-        .post('/api/v1/cms/blog')
-        .send({
-          title: 'Unauthorized Post',
-          slug: 'unauthorized-post',
-          content: 'Should not be created',
-        })
-        .expect(401);
-
-      expect(res.body).toHaveProperty('success', false);
-    });
-
     it('POST /api/v1/cms/banners should reject without auth', async () => {
       const res = await request(app.getHttpServer())
         .post('/api/v1/cms/banners')
-        .send({
-          title: 'Unauthorized Banner',
-        })
+        .send({ title: 'Unauthorized Banner' })
         .expect(401);
 
       expect(res.body).toHaveProperty('success', false);
     });
 
-    it('POST /api/v1/cms/sections should reject without auth', async () => {
+    it('POST /api/v1/cms/homepage/sections should reject without auth', async () => {
       const res = await request(app.getHttpServer())
-        .post('/api/v1/cms/sections')
-        .send({
-          key: 'unauthorized-section',
-          title: 'Unauthorized',
-        })
+        .post('/api/v1/cms/homepage/sections')
+        .send({ type: 'HERO' })
+        .expect(401);
+
+      expect(res.body).toHaveProperty('success', false);
+    });
+
+    it('PATCH /api/v1/cms/homepage/styles should reject without auth', async () => {
+      const res = await request(app.getHttpServer())
+        .patch('/api/v1/cms/homepage/styles')
+        .send({ negativeSpace: 2 })
         .expect(401);
 
       expect(res.body).toHaveProperty('success', false);

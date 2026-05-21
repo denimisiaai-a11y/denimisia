@@ -32,7 +32,6 @@ const ROUTE_ALLOWLIST: Record<string, readonly string[]> = {
   '/shop': ['page'],
   '/shop/men': ['page'],
   '/shop/women': ['page'],
-  '/blog': ['page'],
 };
 
 function resolveAllowlist(pathname: string): readonly string[] {

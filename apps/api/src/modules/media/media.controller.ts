@@ -32,8 +32,17 @@ interface AuthedRequest extends Request {
  * and history pointers out of unauthenticated responses.
  */
 interface PublicSlot {
+  readonly id: string;
   readonly slotKey: string;
   readonly pageKey: string;
+  readonly label: string;
+  readonly mediaKind: string;
+  readonly acceptsVideo: boolean;
+  readonly groupKey: string | null;
+  readonly specWidth: number;
+  readonly specHeight: number;
+  readonly specAspect: string;
+  readonly maxBytes: number;
   readonly altText: string | null;
   readonly isActive: boolean;
   readonly heading: string | null;
@@ -42,12 +51,16 @@ interface PublicSlot {
   readonly ctaLabel: string | null;
   readonly ctaHref: string | null;
   readonly position: number;
+  readonly assetId: string | null;
   readonly asset: {
+    readonly id: string;
     readonly publicUrl: string;
     readonly posterUrl: string | null;
     readonly width: number | null;
     readonly height: number | null;
     readonly kind: string;
+    readonly mime: string;
+    readonly bytes: number;
   } | null;
 }
 
@@ -55,8 +68,17 @@ type RawSlot = Awaited<ReturnType<MediaService['listPage']>>['slots'][number];
 
 function toPublicSlot(slot: RawSlot): PublicSlot {
   return {
+    id: slot.id,
     slotKey: slot.slotKey,
     pageKey: slot.pageKey,
+    label: slot.label,
+    mediaKind: slot.mediaKind,
+    acceptsVideo: slot.acceptsVideo,
+    groupKey: slot.groupKey,
+    specWidth: slot.specWidth,
+    specHeight: slot.specHeight,
+    specAspect: slot.specAspect,
+    maxBytes: slot.maxBytes,
     altText: slot.altText,
     isActive: slot.isActive,
     heading: slot.heading,
@@ -65,13 +87,17 @@ function toPublicSlot(slot: RawSlot): PublicSlot {
     ctaLabel: slot.ctaLabel,
     ctaHref: slot.ctaHref,
     position: slot.position,
+    assetId: slot.assetId,
     asset: slot.asset
       ? {
+          id: slot.asset.id,
           publicUrl: slot.asset.publicUrl,
           posterUrl: slot.asset.posterUrl,
           width: slot.asset.width,
           height: slot.asset.height,
           kind: slot.asset.kind,
+          mime: slot.asset.mime,
+          bytes: slot.asset.bytes,
         }
       : null,
   };

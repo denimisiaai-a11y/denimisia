@@ -80,8 +80,6 @@ export const PAGE_ROUTES: Record<string, { label: string; path: string }> = {
   'product-detail':          { label: 'Product detail',    path: '/products' },
   'bundles-index':           { label: 'Bundles',           path: '/bundles' },
   'bundle-detail':           { label: 'Bundle detail',     path: '/bundles' },
-  'blog-index':              { label: 'Blog',              path: '/blog' },
-  'blog-post':               { label: 'Blog post',         path: '/blog' },
   'about':                   { label: 'About',             path: '/about' },
   'career':                  { label: 'Career',            path: '/career' },
   'contact':                 { label: 'Contact',           path: '/contact' },

@@ -42,6 +42,25 @@
   100% { transform: translateX(100%); }
 }
 
+/* ── CMS Section Composer: storefront-wide style toggles ─────────────────
+   Set by apps/web/app/layout.tsx based on GlobalStorefrontStyles row.
+   --section-spacing-scale: 0.75 (tight) / 1.0 (default) / 1.4 (airy)
+   --font-scale-ratio:      1.15 / 1.25 / 1.333
+   These multiply through to the visible storefront via two channels:
+   1. Vertical gap between top-level homepage sections (margin-top delta
+      that goes negative for "tight" and positive for "airy").
+   2. Heading line-height ratio across the whole document. */
+main {
+  --section-gap: calc((var(--section-spacing-scale, 1) - 1) * 6rem);
+}
+main > section + section,
+main > div > section + section {
+  margin-top: var(--section-gap);
+}
+html {
+  line-height: calc(1.5 * (var(--font-scale-ratio, 1.25) / 1.25));
+}
+
 /* ── Mobile foundation: safe-area insets.
    Spec: docs/superpowers/specs/2026-05-04-mobile-first-foundation-design.md
    Required HTML: <meta viewport-fit="cover"> in app/layout.tsx so env() resolves on iOS. */

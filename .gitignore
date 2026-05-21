@@ -20,6 +20,9 @@ coverage2.txt
 # Turbo
 .turbo
 
+# Superpowers brainstorming companion (local mockups, not for repo)
+.superpowers/
+
 # Vercel
 .vercel
 
@@ -29,6 +32,10 @@ out/
 build
 dist
 
+# Local dev artefacts
+dev-server.log
+dev-server.err.log
+playwright-report/
 
 # Debug
 npm-debug.log*

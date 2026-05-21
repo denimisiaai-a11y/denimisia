@@ -1,17 +1,16 @@
 import type { Metadata } from 'next';
 import { buildMetadata } from '@/lib/seo/metadata';
 import { brand } from '@/config/brand';
-import { HeroSection } from '@/components/home/hero-section';
-import { CategoryCards } from '@/components/home/category-cards';
-import { NewArrivals } from '@/components/home/new-arrivals';
-import { EditorialBanner } from '@/components/home/editorial-banner';
-import { BundleDeals } from '@/components/home/bundle-deals';
-import { TrendingSection } from '@/components/home/trending-section';
-import { BestSellers } from '@/components/home/best-sellers';
-import { BrandStory } from '@/components/home/brand-story';
+import { SectionRenderer, type SectionData } from '@/components/home/section-renderer';
 import { SplashPrerender } from '@/components/splash/splash-prerender';
+import { PromoBanner } from '@/components/promo/promo-banner';
 import { resolveProductImage, resolveHoverImage } from '@/lib/placeholder-images';
 import { fetchCuratedSection, type CuratedItem } from '@/lib/curation';
+import {
+  fetchHomepageSections,
+  type HomepageSection,
+  type HomepageSectionType,
+} from '@/lib/homepage-sections';
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api/v1';
 
@@ -61,8 +60,6 @@ async function fetchProducts(limit = 17): Promise<ApiProduct[]> {
   }
 }
 
-/** Hits a flag-aware endpoint. Returns admin-flagged products (isTrending=
- *  true, isNewArrival=true, isFeatured=true). */
 async function fetchFlaggedList(
   path: 'trending' | 'new-arrivals' | 'featured',
 ): Promise<ApiProduct[]> {
@@ -84,9 +81,6 @@ async function fetchFlaggedList(
  * deduped list capped at `cap`. Flagged comes first so a freshly-toggled
  * product appears at the front of the row; existing curation fills the
  * remaining slots; fallback only kicks in if the first two are empty.
- *
- * Earlier behavior was first-non-empty-wins — that hid flagged products
- * whenever the CMS had any curation, which made the flag feel broken.
  */
 function mergeSources<T extends { id: string }>(
   flagged: readonly T[],
@@ -141,8 +135,34 @@ export const metadata: Metadata = buildMetadata({
   pathname: '/',
 });
 
+/**
+ * Hard-coded fallback for when the CMS section composer hasn't been
+ * configured yet (API down, table empty, etc.). Matches the historical
+ * homepage order so a fresh deploy looks the same as before the composer
+ * was introduced.
+ */
+const FALLBACK_SECTIONS: HomepageSection[] = (
+  [
+    'HERO',
+    'CATEGORY_CARDS',
+    'NEW_ARRIVALS',
+    'EDITORIAL_BANNER',
+    'BUNDLE_DEALS',
+    'TRENDING',
+    'BESTSELLERS',
+    'BRAND_STORY',
+  ] as HomepageSectionType[]
+).map((type, i) => ({
+  id: `fallback-${type}`,
+  type,
+  position: i,
+  isActive: true,
+  config: {},
+}));
+
 export default async function HomePage() {
   const [
+    sectionsFromApi,
     newArrivalsRaw,
     bestsellersRaw,
     allProducts,
@@ -153,6 +173,7 @@ export default async function HomePage() {
     curatedBestsellers,
     curatedTrending,
   ] = await Promise.all([
+    fetchHomepageSections(),
     fetchCollection('new-arrivals'),
     fetchCollection('bestsellers'),
     fetchProducts(17),
@@ -164,11 +185,8 @@ export default async function HomePage() {
     fetchCuratedSection('home', 'trending_section'),
   ]);
 
-  // Merge order for every homepage row: flagged → curated → fallback.
-  // Flagged products jump to the front so admins see the impact of toggling
-  // a flag immediately; curated items fill remaining slots; the
-  // collection / all-products fallback only fires when both upstream
-  // sources are empty.
+  const sections = sectionsFromApi.length > 0 ? sectionsFromApi : FALLBACK_SECTIONS;
+
   const newArrivals = mergeSources(
     flaggedNewArrivals.map(mapProduct),
     curatedNewArrivals.items.map(curatedToCard),
@@ -190,17 +208,26 @@ export default async function HomePage() {
     10,
   );
 
+  const sectionData: SectionData = { newArrivals, trending, bestsellers };
+
+  // Split sections in half so the MIDDLE promo placement sits at a natural
+  // break point in the homepage flow without depending on which specific
+  // section types the admin has configured.
+  const half = Math.floor(sections.length / 2);
+  const firstHalf  = sections.slice(0, half);
+  const secondHalf = sections.slice(half);
+
   return (
     <>
       <SplashPrerender />
-      <HeroSection />
-      <CategoryCards />
-      <NewArrivals products={newArrivals} />
-      <EditorialBanner />
-      <BundleDeals />
-      <TrendingSection products={trending} />
-      <BestSellers products={bestsellers} />
-      <BrandStory />
+      {firstHalf.map((section) => (
+        <SectionRenderer key={section.id} section={section} data={sectionData} />
+      ))}
+      <PromoBanner position="middle" />
+      {secondHalf.map((section) => (
+        <SectionRenderer key={section.id} section={section} data={sectionData} />
+      ))}
+      <PromoBanner position="bottom" />
     </>
   );
 }
