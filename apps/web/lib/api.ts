@@ -143,7 +143,14 @@ export function getCollections(): Promise<Collection[]> {
 
 export interface BundleItem {
   id: string;
-  product: { name: string; slug: string; images: string[] };
+  color: string;
+  product: {
+    name: string;
+    slug: string;
+    images: string[];
+    price: string;
+    description?: string | null;
+  };
 }
 
 export interface Bundle {
@@ -153,12 +160,18 @@ export interface Bundle {
   description: string | null;
   image: string | null;
   badgeText: string;
+  bundlePrice: string | number;
+  availableSizes: string[];
   isActive: boolean;
   items: BundleItem[];
 }
 
 export function getBundles(): Promise<Bundle[]> {
   return apiFetch<Bundle[]>('/bundles');
+}
+
+export function getBundleBySlug(slug: string): Promise<Bundle> {
+  return apiFetch<Bundle>(`/bundles/${slug}`);
 }
 
 // ─── Authenticated API Helper ────────────────────────────────────────────────
