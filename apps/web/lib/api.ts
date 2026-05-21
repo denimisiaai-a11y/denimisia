@@ -356,36 +356,6 @@ export async function revokeWishlistShareToken(accessToken: string): Promise<voi
   }
 }
 
-// ─── Blog ────────────────────────────────────────────────────────────────────
-
-export interface BlogPost {
-  id: string;
-  title: string;
-  slug: string;
-  excerpt: string | null;
-  body: string;
-  coverImage: string | null;
-  tags: string[];
-  publishedAt: string | null;
-  author: { firstName: string; lastName: string };
-}
-
-export interface BlogListResponse {
-  posts: BlogPost[];
-  total: number;
-  page: number;
-  limit: number;
-  totalPages: number;
-}
-
-export function getBlogPosts(page = 1, limit = 9): Promise<BlogListResponse> {
-  return apiFetch<BlogListResponse>(`/cms/blog?page=${page}&limit=${limit}`);
-}
-
-export function getBlogPostBySlug(slug: string): Promise<BlogPost> {
-  return apiFetch<BlogPost>(`/cms/blog/${slug}`);
-}
-
 // ─── Returns ─────────────────────────────────────────────────────────────────
 
 export type ReturnStatus =

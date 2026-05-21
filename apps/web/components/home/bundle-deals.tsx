@@ -77,7 +77,15 @@ function realBundleToCard(bundle: RealBundle): BundleCardData {
   };
 }
 
-export async function BundleDeals() {
+interface BundleDealsProps {
+  /** Heading text. Defaults to the styled "Bundle Deals" design. */
+  title?: string;
+  /** Max bundles to show. Defaults to HOMEPAGE_BUNDLE_LIMIT. */
+  limit?: number;
+}
+
+export async function BundleDeals({ title, limit }: BundleDealsProps = {}) {
+  const cap = typeof limit === 'number' && limit > 0 ? limit : HOMEPAGE_BUNDLE_LIMIT;
   // Prefer real admin-created bundles; fall back to placeholders so the
   // homepage doesn't go empty before any bundles exist.
   const real = await fetchRealBundles();
@@ -85,8 +93,8 @@ export async function BundleDeals() {
 
   const bundles: BundleCardData[] =
     real.length > 0
-      ? real.slice(0, HOMEPAGE_BUNDLE_LIMIT).map(realBundleToCard)
-      : placeholders.map((b) => ({
+      ? real.slice(0, cap).map(realBundleToCard)
+      : placeholders.slice(0, cap).map((b) => ({
           name: b.name,
           slug: b.slug,
           image: b.heroImage,
@@ -139,11 +147,17 @@ export async function BundleDeals() {
               </span>
             </div>
             <h2 className="text-5xl font-black uppercase leading-[0.88] tracking-tighter text-paper sm:text-6xl md:text-7xl">
-              Bundle{' '}
-              <span className="relative inline-block">
-                <span className="relative z-10">Deals</span>
-                <span className="absolute inset-x-0 bottom-1 z-0 h-3 bg-paper/15 md:h-4" />
-              </span>
+              {title ? (
+                title
+              ) : (
+                <>
+                  Bundle{' '}
+                  <span className="relative inline-block">
+                    <span className="relative z-10">Deals</span>
+                    <span className="absolute inset-x-0 bottom-1 z-0 h-3 bg-paper/15 md:h-4" />
+                  </span>
+                </>
+              )}
             </h2>
             <p className="mt-6 max-w-xl text-sm leading-relaxed text-paper/70 md:text-base">
               Editor-curated pairings.{' '}

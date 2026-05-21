@@ -12,10 +12,15 @@ interface ProductData {
 
 interface NewArrivalsProps {
   products: ProductData[];
+  /** Heading text. Defaults to "New Arrivals". */
+  title?: string;
+  /** Maximum products to show. Defaults to all. */
+  limit?: number;
 }
 
-export function NewArrivals({ products }: NewArrivalsProps) {
-  if (products.length === 0) return null;
+export function NewArrivals({ products, title = 'New Arrivals', limit }: NewArrivalsProps) {
+  const shown = typeof limit === 'number' && limit > 0 ? products.slice(0, limit) : products;
+  if (shown.length === 0) return null;
 
   return (
     <section
@@ -32,7 +37,7 @@ export function NewArrivals({ products }: NewArrivalsProps) {
             data-slot-field="heading"
             className="text-4xl font-black uppercase leading-[0.95] tracking-tighter text-ink md:text-5xl lg:text-6xl"
           >
-            New Arrivals
+            {title}
           </h2>
         </div>
         <div className="shrink-0 pb-2">
@@ -44,7 +49,7 @@ export function NewArrivals({ products }: NewArrivalsProps) {
           </Link>
         </div>
       </div>
-      <NewArrivalsGrid products={products} />
+      <NewArrivalsGrid products={shown} />
 
       <div className="mt-20 flex justify-center">
         <Link

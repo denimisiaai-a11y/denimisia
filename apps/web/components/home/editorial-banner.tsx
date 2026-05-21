@@ -2,13 +2,22 @@ import { EDITORIAL_BANNER_SLIDES } from '@/lib/placeholder-images';
 import { fetchPageSlots, pickSlotGroup, resolveSlotText, resolveSlotUrl } from '@/lib/page-slots';
 import { EditorialBannerClient, type EditorialSlide } from './editorial-banner.client';
 
+interface EditorialBannerProps {
+  /**
+   * Slot group key the banner reads from. Defaults to `home.editorial`.
+   * Multiple instances of this section on the homepage can point at
+   * different slot groups so each carousel shows different content.
+   */
+  readonly slotGroupKey?: string;
+}
+
 /**
  * Server wrapper — merges uploaded slot content with hardcoded fallbacks,
  * then hands a prepared slide array to the client animation component.
  */
-export async function EditorialBanner() {
+export async function EditorialBanner({ slotGroupKey = 'home.editorial' }: EditorialBannerProps = {}) {
   const slots = await fetchPageSlots('home');
-  const carouselSlots = pickSlotGroup(slots, 'home.editorial');
+  const carouselSlots = pickSlotGroup(slots, slotGroupKey);
 
   const slides: EditorialSlide[] = EDITORIAL_BANNER_SLIDES.map((fb, i) => {
     const slot = carouselSlots[i];

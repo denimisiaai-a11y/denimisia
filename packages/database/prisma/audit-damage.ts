@@ -51,13 +51,6 @@ async function main(): Promise<void> {
   log('banners with local /images/ url', banners.filter((b) => (b.imageUrl || '').startsWith('/images/')).length);
   for (const b of banners.slice(0, 5)) log(`  ${b.title?.slice(0, 30)}`, `active=${b.isActive} img=${(b.imageUrl || '').slice(0, 40)}`);
 
-  console.log('\n=== BLOG POSTS ===');
-  const posts = await prisma.blogPost.findMany();
-  log('total posts', posts.length);
-  log('published posts', posts.filter((p) => p.publishedAt !== null).length);
-  log('posts with local /images/ cover', posts.filter((p) => (p.coverImage || '').startsWith('/images/')).length);
-  for (const p of posts.slice(0, 8)) log(`  ${p.slug}`, `cover=${(p.coverImage || '').slice(0, 40)}`);
-
   console.log('\n=== HOMEPAGE SECTIONS (legacy) ===');
   const hps = await prisma.homepageSection.findMany();
   log('total sections', hps.length);

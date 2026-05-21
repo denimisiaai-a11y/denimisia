@@ -40,8 +40,6 @@ export const PAGE_KEYS = {
   productDetail: 'product-detail',
   bundlesIndex: 'bundles-index',
   bundleDetail: 'bundle-detail',
-  blogIndex: 'blog-index',
-  blogPost: 'blog-post',
   about: 'about',
   career: 'career',
   contact: 'contact',
@@ -228,21 +226,6 @@ export const SLOT_SPECS: readonly SlotSpec[] = [
     specAspect: '16:9',
     maxBytes: 4 * MB,
     defaultHeading: 'Denim pairs, done for you.',
-  },
-
-  // ─── BLOG ───────────────────────────────────────────────────────────────────
-  {
-    pageKey: PAGE_KEYS.blogIndex,
-    slotKey: 'blog_hero',
-    label: 'Blog index hero',
-    mediaKind: 'IMAGE',
-    acceptsVideo: false,
-    specWidth: 2000,
-    specHeight: 1125,
-    specAspect: '16:9',
-    maxBytes: 2 * MB,
-    defaultHeading: 'Journal',
-    defaultSubheading: 'Style notes, drops, and stories.',
   },
 
   // ─── ABOUT ──────────────────────────────────────────────────────────────────

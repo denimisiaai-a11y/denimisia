@@ -1,241 +1,194 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import { adminFetch } from '@/lib/api';
 import { Banner } from '@/components/admin-ui';
-import { ConfirmModal } from '@/components/modal';
+import {
+  type HomepageSection,
+  type HomepageSectionType,
+  type GlobalStorefrontStyles,
+  type AuditLogEntry,
+  SECTION_TYPE_META,
+  HAS_CONFIG_FIELDS,
+} from './section-types';
+import { InsertSectionModal } from './insert-section-modal';
+import { SectionConfigForm } from './section-config-form';
+import { GlobalStylesPanel } from './global-styles-panel';
+import { RecentHistoryPanel } from './recent-history-panel';
 
-interface HomepageSection {
-  id: string;
-  key: string;
-  title: string;
-  subtitle: string | null;
-  image: string | null;
-  link: string | null;
-  position: number;
-  isActive: boolean;
-  updatedAt: string;
-}
+const WEB_ORIGIN = process.env.NEXT_PUBLIC_WEB_ORIGIN ?? 'http://localhost:3000';
+const CMS_AUDIT_ACTION_PREFIX = 'cms.';
 
-interface SectionRow {
-  key: string;
-  title: string;
-  subtitle: string;
-  icon: string;
-  href: string;
-  isActive: boolean;
-  image?: string | null;
-}
-
-type DraftTone = 'info' | 'success' | 'error';
-
-interface DraftBannerState {
-  readonly tone: DraftTone;
-  readonly message: string;
-}
-
-const DRAFT_STORAGE_KEY = 'cms-draft-v1';
-const PUBLISHED_STORAGE_KEY = 'cms-published-v1';
-
-function resolveHref(key: string): string {
-  if (key.includes('blog') || key.includes('journal')) {
-    return '/cms/blog';
-  }
-  return '/cms/banners';
-}
-
-function resolveIcon(key: string): string {
-  if (key.includes('blog') || key.includes('journal')) {
-    return 'menu_book';
-  }
-  if (key.includes('hero')) {
-    return 'photo_library';
-  }
-  if (key.includes('categor') || key.includes('mosaic')) {
-    return 'grid_view';
-  }
-  return 'auto_awesome';
-}
-
-function mapSectionToRow(section: HomepageSection): SectionRow {
-  return {
-    key: section.key,
-    title: section.title,
-    subtitle: section.subtitle ?? 'No description set',
-    icon: resolveIcon(section.key.toLowerCase()),
-    href: resolveHref(section.key.toLowerCase()),
-    isActive: section.isActive,
-    image: section.image,
-  };
-}
-
-function reorder<T>(items: ReadonlyArray<T>, from: number, to: number): T[] {
-  if (from === to) return items.slice();
-  const next = items.slice();
-  const [moved] = next.splice(from, 1);
-  if (!moved) return items.slice();
-  next.splice(to, 0, moved);
-  return next;
-}
-
-export default function CmsPage() {
+export default function CmsHubPage() {
   const { data: session } = useSession();
-  const token = session?.accessToken;
+  const token = (session as { accessToken?: string } | null)?.accessToken;
 
-  const [sections, setSections] = useState<ReadonlyArray<SectionRow>>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-  const [lastUpdated, setLastUpdated] = useState<string | null>(null);
-  const [banner, setBanner] = useState<DraftBannerState | null>(null);
-  const [saving, setSaving] = useState<boolean>(false);
-  const [publishOpen, setPublishOpen] = useState<boolean>(false);
-  const [publishing, setPublishing] = useState<boolean>(false);
+  const [sections, setSections]   = useState<HomepageSection[]>([]);
+  const [styles, setStyles]       = useState<GlobalStorefrontStyles | null>(null);
+  const [history, setHistory]     = useState<AuditLogEntry[]>([]);
+  const [loading, setLoading]     = useState(true);
+  const [error, setError]         = useState('');
+  const [insertOpen, setInsertOpen] = useState(false);
+  const [editingId, setEditingId]   = useState<string | null>(null);
 
-  // Drag & drop state
-  const [dragIndex, setDragIndex] = useState<number | null>(null);
-  const [hoverIndex, setHoverIndex] = useState<number | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function load() {
-      try {
-        const data = await adminFetch<HomepageSection[]>('/cms/sections', token);
-        if (cancelled) return;
-
-        if (Array.isArray(data) && data.length > 0) {
-          const rows = data
-            .slice()
-            .sort((a, b) => a.position - b.position)
-            .map(mapSectionToRow);
-          setSections(rows);
-
-          const latest = data.reduce<string | null>((acc, s) => {
-            if (!acc) return s.updatedAt;
-            return s.updatedAt > acc ? s.updatedAt : acc;
-          }, null);
-          setLastUpdated(latest);
-        }
-        setError(null);
-      } catch (err: unknown) {
-        if (cancelled) return;
-        const message = err instanceof Error ? err.message : 'Failed to load sections';
-        setError(message);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
+  const refresh = useCallback(async () => {
+    if (!token) return;
+    setLoading(true);
+    setError('');
+    try {
+      const [sectionsRes, stylesRes, auditRes] = await Promise.all([
+        adminFetch<HomepageSection[]>('/cms/homepage/sections', token),
+        adminFetch<GlobalStorefrontStyles>('/cms/homepage/styles'),
+        adminFetch<{ items: AuditLogEntry[] }>(
+          '/audit-log?limit=20',
+          token,
+        ).catch(() => ({ items: [] })),
+      ]);
+      setSections(sectionsRes);
+      setStyles(stylesRes);
+      // Filter to CMS-related events on the client (the audit endpoint
+      // doesn't support an action-prefix filter, so we slice client-side).
+      const cmsEntries = auditRes.items
+        .filter((e) => e.action.startsWith(CMS_AUDIT_ACTION_PREFIX))
+        .slice(0, 5);
+      setHistory(cmsEntries);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load CMS hub');
+    } finally {
+      setLoading(false);
     }
-
-    load();
-    return () => {
-      cancelled = true;
-    };
   }, [token]);
 
-  async function handleSaveDraft() {
-    if (saving) return;
-    setSaving(true);
-    setBanner(null);
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
 
-    const orderedKeys = sections.map((s) => s.key);
-    const payload = {
-      order: orderedKeys,
-      sections: sections.map((s, i) => ({
-        key: s.key,
-        position: i,
-        isActive: s.isActive,
-      })),
-    };
+  const handleInsert = async (type: HomepageSectionType) => {
+    if (!token) return;
+    const config = SECTION_TYPE_META[type].defaultConfig;
+    const created = await adminFetch<HomepageSection>(
+      '/cms/homepage/sections',
+      token,
+      { method: 'POST', body: JSON.stringify({ type, config }) },
+    );
+    setSections((prev) => [...prev, created]);
+    void refreshHistory();
+  };
 
+  const refreshHistory = useCallback(async () => {
+    if (!token) return;
     try {
-      await adminFetch('/cms/draft', token, {
-        method: 'POST',
-        body: JSON.stringify(payload),
-      });
-      setBanner({ tone: 'success', message: 'Draft saved.' });
+      const auditRes = await adminFetch<{ items: AuditLogEntry[] }>(
+        '/audit-log?limit=20',
+        token,
+      );
+      const cmsEntries = auditRes.items
+        .filter((e) => e.action.startsWith(CMS_AUDIT_ACTION_PREFIX))
+        .slice(0, 5);
+      setHistory(cmsEntries);
     } catch {
-      // Fallback: optimistic local persistence if no endpoint yet.
-      try {
-        window.localStorage.setItem(
-          DRAFT_STORAGE_KEY,
-          JSON.stringify({ savedAt: new Date().toISOString(), ...payload }),
-        );
-        setBanner({
-          tone: 'info',
-          message: 'Draft saved locally — publish to apply.',
-        });
-      } catch (storageErr: unknown) {
-        const message =
-          storageErr instanceof Error ? storageErr.message : 'Failed to save draft locally';
-        setBanner({ tone: 'error', message });
-      }
-    } finally {
-      setSaving(false);
+      // Silent — history is a "nice to have" panel.
     }
-  }
+  }, [token]);
 
-  async function handlePublishConfirmed() {
-    if (publishing) return;
-    setPublishing(true);
-    setBanner(null);
+  const handleToggleActive = async (section: HomepageSection) => {
+    if (!token) return;
+    const next = { ...section, isActive: !section.isActive };
+    setSections((prev) => prev.map((s) => (s.id === section.id ? next : s)));
     try {
-      await adminFetch('/cms/publish', token, { method: 'POST' });
-      setBanner({ tone: 'success', message: 'Storefront published.' });
-    } catch {
-      // Fallback: promote localStorage draft to published.
-      try {
-        const draft = window.localStorage.getItem(DRAFT_STORAGE_KEY);
-        if (draft) {
-          window.localStorage.setItem(PUBLISHED_STORAGE_KEY, draft);
-        }
-        setBanner({
-          tone: 'success',
-          message: 'Draft promoted locally to published state.',
-        });
-      } catch (storageErr: unknown) {
-        const message =
-          storageErr instanceof Error ? storageErr.message : 'Failed to publish locally';
-        setBanner({ tone: 'error', message });
-      }
-    } finally {
-      setPublishing(false);
-      setPublishOpen(false);
+      await adminFetch<HomepageSection>(
+        `/cms/homepage/sections/${section.id}`,
+        token,
+        { method: 'PATCH', body: JSON.stringify({ isActive: next.isActive }) },
+      );
+      void refreshHistory();
+    } catch (err) {
+      // Roll back optimistic update
+      setSections((prev) => prev.map((s) => (s.id === section.id ? section : s)));
+      setError(err instanceof Error ? err.message : 'Failed to toggle section');
     }
-  }
+  };
 
-  function onDragStart(index: number) {
-    setDragIndex(index);
-  }
-
-  function onDragOver(e: React.DragEvent, index: number) {
-    e.preventDefault();
-    if (hoverIndex !== index) setHoverIndex(index);
-  }
-
-  function onDrop() {
-    if (dragIndex === null || hoverIndex === null || dragIndex === hoverIndex) {
-      setDragIndex(null);
-      setHoverIndex(null);
-      return;
+  const handleDelete = async (section: HomepageSection) => {
+    if (!token) return;
+    if (!confirm(`Delete this ${SECTION_TYPE_META[section.type].label} section?`)) return;
+    const prev = sections;
+    setSections((s) => s.filter((row) => row.id !== section.id));
+    try {
+      await adminFetch(
+        `/cms/homepage/sections/${section.id}`,
+        token,
+        { method: 'DELETE' },
+      );
+      void refreshHistory();
+    } catch (err) {
+      setSections(prev);
+      setError(err instanceof Error ? err.message : 'Failed to delete section');
     }
-    setSections((prev) => reorder(prev, dragIndex, hoverIndex));
-    setDragIndex(null);
-    setHoverIndex(null);
-  }
+  };
 
-  function onDragEnd() {
-    setDragIndex(null);
-    setHoverIndex(null);
-  }
+  const handleMove = async (section: HomepageSection, direction: -1 | 1) => {
+    if (!token) return;
+    const sorted = [...sections].sort((a, b) => a.position - b.position);
+    const idx = sorted.findIndex((s) => s.id === section.id);
+    const newIdx = idx + direction;
+    if (idx === -1 || newIdx < 0 || newIdx >= sorted.length) return;
+    const a = sorted[idx];
+    const b = sorted[newIdx];
+    if (!a || !b) return;
+    sorted[idx] = b;
+    sorted[newIdx] = a;
+    const reordered = sorted.map((s, i) => ({ ...s, position: i }));
+    setSections(reordered);
+    try {
+      await adminFetch(
+        '/cms/homepage/sections/reorder',
+        token,
+        {
+          method: 'PATCH',
+          body: JSON.stringify({
+            orders: reordered.map((s) => ({ id: s.id, position: s.position })),
+          }),
+        },
+      );
+      void refreshHistory();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to reorder');
+      void refresh();
+    }
+  };
 
-  const activeCount = sections.filter((s) => s.isActive).length;
-  const totalCount = sections.length;
+  const handleSaveConfig = async (
+    sectionId: string,
+    nextConfig: Record<string, unknown>,
+  ) => {
+    if (!token) return;
+    const updated = await adminFetch<HomepageSection>(
+      `/cms/homepage/sections/${sectionId}`,
+      token,
+      { method: 'PATCH', body: JSON.stringify({ config: nextConfig }) },
+    );
+    setSections((prev) => prev.map((s) => (s.id === sectionId ? updated : s)));
+    setEditingId(null);
+    void refreshHistory();
+  };
+
+  const editingSection = useMemo(
+    () => sections.find((s) => s.id === editingId) ?? null,
+    [sections, editingId],
+  );
+
+  const sortedSections = useMemo(
+    () => [...sections].sort((a, b) => a.position - b.position),
+    [sections],
+  );
+  const activeCount = sortedSections.filter((s) => s.isActive).length;
 
   return (
     <div className="max-w-6xl mx-auto p-12">
-      {/* Page Header */}
+      {/* Header */}
       <div className="flex items-end justify-between mb-16">
         <div className="space-y-2">
           <span className="text-primary font-semibold tracking-widest text-[10px] uppercase">
@@ -245,97 +198,124 @@ export default function CmsPage() {
             Homepage Sections
           </h2>
           <p className="text-secondary text-sm max-w-md font-light leading-relaxed">
-            Customize the layout and visibility of your primary atelier storefront. Drag items to
-            reorder the sequence of visual narratives.
+            Customise the layout and visibility of your storefront home page.
+            Changes go live immediately.
           </p>
         </div>
         <div className="flex gap-4">
-          <Link
-            href="/"
+          <a
+            href={WEB_ORIGIN}
+            target="_blank"
+            rel="noopener noreferrer"
             className="px-6 py-3 border border-outline-variant/30 text-on-surface text-[11px] font-bold tracking-widest uppercase hover:bg-surface-container transition-colors"
           >
             Preview Store
-          </Link>
+          </a>
           <button
             type="button"
-            onClick={() => void handleSaveDraft()}
-            disabled={saving || sections.length === 0}
+            onClick={() => void refresh()}
+            disabled={loading}
             className="px-6 py-3 bg-inverse-surface text-inverse-on-surface text-[11px] font-bold tracking-widest uppercase hover:opacity-90 transition-opacity disabled:opacity-50"
           >
-            {saving ? 'Saving…' : 'Save Changes'}
+            {loading ? 'Refreshing…' : 'Refresh'}
           </button>
         </div>
       </div>
 
-      {/* Draft / Publish banner */}
-      {banner && <Banner tone={banner.tone === 'info' ? 'info' : banner.tone === 'success' ? 'success' : 'error'} message={banner.message} />}
-
-      {/* Error Banner */}
       {error && (
-        <div className="mb-6 p-4 border border-primary/30 bg-primary/5 text-primary text-xs font-body">
-          Could not load live sections: {error}. Showing default layout.
+        <div className="mb-6">
+          <Banner tone="error" message={error} />
         </div>
       )}
 
-      {/* Editor Workspace */}
-      <div className="space-y-6">
-        {loading && sections.length === 0 ? (
+      {/* Sections list */}
+      <div className="space-y-4 mb-8">
+        {loading && sortedSections.length === 0 ? (
           <div className="text-secondary text-xs uppercase tracking-widest py-12 text-center">
             Loading sections…
           </div>
-        ) : sections.length === 0 ? (
+        ) : sortedSections.length === 0 ? (
           <div className="border border-outline-variant/10 p-12 text-center">
             <p className="text-sm text-on-surface">No homepage sections yet.</p>
             <p className="mt-2 text-xs uppercase tracking-widest text-secondary">
-              {error ?? 'Add your first section with "Insert New Storytelling Section" below.'}
+              Click &quot;Insert section&quot; below to add one.
             </p>
           </div>
         ) : (
-          sections.map((section, i) => {
-            const isDragging = dragIndex === i;
-            const isHoverTarget = hoverIndex === i && dragIndex !== null && dragIndex !== i;
+          sortedSections.map((section, i) => {
+            const meta = SECTION_TYPE_META[section.type];
+            const isFirst = i === 0;
+            const isLast = i === sortedSections.length - 1;
             return (
               <div
-                key={section.key}
-                draggable
-                onDragStart={() => onDragStart(i)}
-                onDragOver={(e) => onDragOver(e, i)}
-                onDrop={onDrop}
-                onDragEnd={onDragEnd}
+                key={section.id}
                 className={`group border p-6 flex items-center gap-6 transition-all duration-300 ${
                   section.isActive
-                    ? 'bg-surface-container-lowest hover:border-outline-variant/40'
-                    : 'bg-surface-container-low opacity-60'
-                } ${isDragging ? 'opacity-40' : ''} ${
-                  isHoverTarget ? 'border-primary' : 'border-outline-variant/10'
+                    ? 'bg-surface-container-lowest border-outline-variant/10 hover:border-outline-variant/40'
+                    : 'bg-surface-container-low border-outline-variant/10 opacity-60'
                 }`}
               >
-                <div className="drag-handle flex cursor-grab items-center justify-center p-2 text-secondary/30 group-hover:text-primary transition-colors">
-                  <span className="material-symbols-outlined">drag_indicator</span>
+                {/* Reorder buttons */}
+                <div className="flex flex-col gap-1">
+                  <button
+                    type="button"
+                    disabled={isFirst}
+                    onClick={() => void handleMove(section, -1)}
+                    aria-label="Move up"
+                    className="flex h-6 w-6 items-center justify-center border border-outline-variant/30 text-secondary hover:text-on-surface hover:bg-surface-container disabled:opacity-30"
+                  >
+                    <span className="material-symbols-outlined text-base" aria-hidden>
+                      keyboard_arrow_up
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isLast}
+                    onClick={() => void handleMove(section, 1)}
+                    aria-label="Move down"
+                    className="flex h-6 w-6 items-center justify-center border border-outline-variant/30 text-secondary hover:text-on-surface hover:bg-surface-container disabled:opacity-30"
+                  >
+                    <span className="material-symbols-outlined text-base" aria-hidden>
+                      keyboard_arrow_down
+                    </span>
+                  </button>
                 </div>
-                <div className="w-32 h-20 bg-surface-container overflow-hidden rounded-sm flex items-center justify-center">
-                  <span className="material-symbols-outlined text-secondary/30 text-3xl">
-                    {section.icon}
+
+                {/* Icon */}
+                <div className="w-20 h-20 bg-surface-container overflow-hidden rounded-sm flex items-center justify-center shrink-0">
+                  <span className="material-symbols-outlined text-secondary/60 text-3xl">
+                    {meta.icon}
                   </span>
                 </div>
-                <div className="flex-1">
+
+                {/* Label + summary */}
+                <div className="flex-1 min-w-0">
                   <h4
                     className={`font-headline text-lg font-semibold tracking-wide uppercase ${
                       section.isActive ? 'text-on-surface' : 'text-secondary'
                     }`}
                   >
-                    {section.title}
+                    {i + 1}. {meta.label}
                   </h4>
-                  <p className="text-secondary text-xs mt-1 italic">{section.subtitle}</p>
+                  <p className="text-secondary text-xs mt-1 truncate">
+                    {sectionSummary(section)}
+                  </p>
                 </div>
-                <div className="flex items-center gap-8">
-                  <div className="flex items-center gap-3">
+
+                {/* Actions */}
+                <div className="flex items-center gap-6 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => void handleToggleActive(section)}
+                    aria-pressed={section.isActive}
+                    className="flex items-center gap-3"
+                  >
                     <span className="text-[10px] font-bold tracking-tighter uppercase text-secondary">
                       {section.isActive ? 'Visible' : 'Hidden'}
                     </span>
                     <div
                       aria-hidden
-                      className={`w-10 h-5 rounded-full relative flex items-center px-1 ${
+                      className={`w-10 h-5 rounded-full relative flex items-center px-1 transition-colors ${
                         section.isActive ? 'bg-primary' : 'bg-surface-container-high'
                       }`}
                     >
@@ -345,127 +325,155 @@ export default function CmsPage() {
                         }`}
                       />
                     </div>
-                  </div>
-                  <Link
-                    href={section.href}
-                    className={`flex items-center gap-2 text-[10px] font-bold tracking-widest uppercase transition-colors ${
-                      section.isActive
-                        ? 'text-on-surface hover:text-primary'
-                        : 'text-secondary hover:text-on-surface'
-                    }`}
+                  </button>
+
+                  {HAS_CONFIG_FIELDS.has(section.type) ? (
+                    <button
+                      type="button"
+                      onClick={() => setEditingId(section.id)}
+                      className="flex items-center gap-1.5 text-[10px] font-bold tracking-widest uppercase text-on-surface hover:text-primary"
+                    >
+                      <span className="material-symbols-outlined text-sm" aria-hidden>edit</span>
+                      Edit
+                    </button>
+                  ) : meta.contentEditor ? (
+                    <Link
+                      href={meta.contentEditor}
+                      className="flex items-center gap-1.5 text-[10px] font-bold tracking-widest uppercase text-on-surface hover:text-primary"
+                    >
+                      <span className="material-symbols-outlined text-sm" aria-hidden>open_in_new</span>
+                      Edit content
+                    </Link>
+                  ) : null}
+
+                  <button
+                    type="button"
+                    onClick={() => void handleDelete(section)}
+                    aria-label="Delete section"
+                    className="flex h-7 w-7 items-center justify-center text-secondary hover:text-[#c62828]"
                   >
-                    Edit Content
-                    <span className="material-symbols-outlined text-sm">edit</span>
-                  </Link>
+                    <span className="material-symbols-outlined text-base" aria-hidden>
+                      delete
+                    </span>
+                  </button>
                 </div>
               </div>
             );
           })
         )}
 
-        {/* Add Section Placeholder */}
-        <Link
-          href="/cms/blog/new"
+        {/* Insert placeholder */}
+        <button
+          type="button"
+          onClick={() => setInsertOpen(true)}
           className="w-full border-2 border-dashed border-outline-variant/30 py-12 flex flex-col items-center justify-center gap-4 text-secondary hover:text-primary hover:border-primary/50 transition-all group bg-surface/30"
         >
           <div className="w-12 h-12 rounded-full bg-surface-container flex items-center justify-center group-hover:bg-primary/10 transition-colors">
             <span className="material-symbols-outlined">add</span>
           </div>
           <span className="font-headline text-xs font-bold tracking-widest uppercase">
-            Insert New Storytelling Section
+            Insert Section
           </span>
-        </Link>
+        </button>
       </div>
 
-      {/* Editor Sidebar / Context Menu Area */}
+      {/* Bottom panels */}
       <div className="mt-20 grid grid-cols-3 gap-8">
+        {styles && (
+          <GlobalStylesPanel
+            styles={styles}
+            token={token}
+            onUpdated={setStyles}
+          />
+        )}
+        <RecentHistoryPanel entries={history} />
         <div className="bg-surface-container-low p-8 border border-outline-variant/10">
           <div className="flex items-center gap-3 mb-6">
-            <span className="material-symbols-outlined text-primary">auto_awesome</span>
+            <span className="material-symbols-outlined text-primary">visibility</span>
             <h5 className="font-headline text-sm font-bold tracking-widest uppercase">
-              Global Styles
+              Live Status
             </h5>
           </div>
-          <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <span className="text-xs text-secondary">Negative Space</span>
-              <span className="text-[10px] font-bold uppercase px-2 py-1 bg-surface-container-high">
-                —
-              </span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-xs text-secondary">Typography Flow</span>
-              <span className="text-[10px] font-bold uppercase px-2 py-1 bg-surface-container-high">
-                —
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-surface-container-low p-8 border border-outline-variant/10">
-          <div className="flex items-center gap-3 mb-6">
-            <span className="material-symbols-outlined text-primary">history</span>
-            <h5 className="font-headline text-sm font-bold tracking-widest uppercase">
-              Recent History
-            </h5>
-          </div>
-          <div className="space-y-3">
-            {lastUpdated ? (
-              <div className="flex gap-3 items-start">
-                <div className="w-1.5 h-1.5 rounded-full bg-primary mt-1.5" />
-                <div>
-                  <p className="text-xs font-semibold">Sections updated</p>
-                  <p className="text-[10px] text-secondary">
-                    {new Date(lastUpdated).toLocaleString()}
-                  </p>
-                </div>
-              </div>
-            ) : (
-              <div className="flex gap-3 items-start">
-                <div className="w-1.5 h-1.5 rounded-full bg-secondary/30 mt-1.5" />
-                <div>
-                  <p className="text-xs font-semibold text-secondary">No recent activity</p>
-                  <p className="text-[10px] text-secondary">—</p>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="bg-inverse-surface p-8">
-          <h5 className="font-headline text-sm font-bold tracking-widest uppercase text-inverse-on-surface mb-2">
-            Live Status
-          </h5>
-          <p className="text-inverse-on-surface/70 text-[10px] mb-4 leading-relaxed">
-            {totalCount > 0
-              ? `${activeCount} of ${totalCount} sections currently visible on the storefront.`
-              : 'No sections configured yet.'}
+          <p className="text-secondary text-[11px] leading-relaxed">
+            {sortedSections.length === 0
+              ? 'No sections configured yet.'
+              : `${activeCount} of ${sortedSections.length} sections currently visible on the storefront.`}
           </p>
-          <p className="text-inverse-on-surface/60 text-[10px] mb-6 leading-relaxed">
-            Your changes are currently in &apos;Draft&apos; mode. They will not be visible to
-            customers until you publish.
+          <p className="mt-3 text-secondary text-[10px] leading-relaxed">
+            Changes go live immediately on every save. The storefront caches
+            section data for 30 seconds, so refresh the public site if you
+            don&apos;t see your edit right away.
           </p>
-          <button
-            type="button"
-            onClick={() => setPublishOpen(true)}
-            disabled={publishing || sections.length === 0}
-            className="w-full py-3 bg-primary text-on-primary text-[11px] font-bold tracking-widest uppercase hover:brightness-110 transition-all disabled:opacity-50"
-          >
-            {publishing ? 'Publishing…' : 'Publish Storefront'}
-          </button>
         </div>
       </div>
 
-      <ConfirmModal
-        open={publishOpen}
-        onCancel={() => setPublishOpen(false)}
-        onConfirm={handlePublishConfirmed}
-        title="Publish Draft"
-        message="Publish draft to live storefront?"
-        confirmLabel="Publish"
-        tone="danger"
-        busy={publishing}
+      <InsertSectionModal
+        open={insertOpen}
+        onClose={() => setInsertOpen(false)}
+        onPick={handleInsert}
       />
+
+      {/* Config editor modal */}
+      {editingSection && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-6"
+          onClick={() => setEditingId(null)}
+        >
+          <div
+            className="atelier-shadow w-full max-w-xl bg-surface-container-lowest"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <header className="flex items-center justify-between border-b border-outline-variant/15 px-6 py-4">
+              <div className="text-[10px] font-bold uppercase tracking-[0.25em] text-secondary">
+                Edit · {SECTION_TYPE_META[editingSection.type].label}
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingId(null)}
+                className="text-secondary hover:text-on-surface"
+              >
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </header>
+            <div className="p-6">
+              <SectionConfigForm
+                type={editingSection.type}
+                initial={editingSection.config}
+                onSubmit={(c) => handleSaveConfig(editingSection.id, c)}
+                onCancel={() => setEditingId(null)}
+              />
+              {SECTION_TYPE_META[editingSection.type].contentEditor && (
+                <p className="mt-6 border-t border-outline-variant/15 pt-4 text-[10px] uppercase tracking-[0.18em] text-secondary">
+                  Section visuals are managed in{' '}
+                  <Link
+                    href={SECTION_TYPE_META[editingSection.type].contentEditor!}
+                    className="underline hover:text-on-surface"
+                  >
+                    {SECTION_TYPE_META[editingSection.type].contentEditor!.replace(
+                      '/cms/',
+                      'CMS → ',
+                    )}
+                  </Link>
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
+}
+
+function sectionSummary(section: HomepageSection): string {
+  const meta = SECTION_TYPE_META[section.type];
+  if (!HAS_CONFIG_FIELDS.has(section.type)) {
+    return meta.description;
+  }
+  const parts: string[] = [];
+  const cfg = section.config;
+  if (typeof cfg.title === 'string') parts.push(`"${cfg.title}"`);
+  if (typeof cfg.limit === 'number') parts.push(`up to ${cfg.limit}`);
+  if (typeof cfg.slotGroupKey === 'string') parts.push(`slots: ${cfg.slotGroupKey}`);
+  if (typeof cfg.collectionSlug === 'string') parts.push(`collection: ${cfg.collectionSlug}`);
+  return parts.length > 0 ? parts.join(' · ') : meta.description;
 }

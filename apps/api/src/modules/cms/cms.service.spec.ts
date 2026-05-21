@@ -3,275 +3,176 @@ import { NotFoundException } from '@nestjs/common';
 import { CmsService } from './cms.service';
 import { PrismaService } from '../prisma/prisma.service';
 
+// Minimal Prisma stub: just the methods the service actually calls.
+// Note: tests assert behaviour, not Prisma client internals.
+type PrismaStub = {
+  homepageSectionInstance: Record<string, jest.Mock>;
+  globalStorefrontStyles: Record<string, jest.Mock>;
+  banner: Record<string, jest.Mock>;
+  auditLog: Record<string, jest.Mock>;
+  $transaction: jest.Mock;
+};
+
 describe('CmsService', () => {
   let service: CmsService;
-  let prisma: Record<string, Record<string, jest.Mock>>;
+  let prisma: PrismaStub;
 
   beforeEach(async () => {
     prisma = {
-      homepageSection: {
-        findMany: jest.fn(),
+      homepageSectionInstance: {
+        findMany:   jest.fn(),
         findUnique: jest.fn(),
-        create: jest.fn(),
-        update: jest.fn(),
-        delete: jest.fn(),
+        create:     jest.fn(),
+        update:     jest.fn(),
+        delete:     jest.fn(),
+        count:      jest.fn(),
+      },
+      globalStorefrontStyles: {
+        upsert: jest.fn(),
       },
       banner: {
-        findMany: jest.fn(),
+        findMany:   jest.fn(),
         findUnique: jest.fn(),
-        create: jest.fn(),
-        update: jest.fn(),
-        delete: jest.fn(),
+        create:     jest.fn(),
+        update:     jest.fn(),
+        delete:     jest.fn(),
       },
-      blogPost: {
-        findMany: jest.fn(),
-        count: jest.fn(),
-        findUnique: jest.fn(),
-        findFirst: jest.fn(),
-        create: jest.fn(),
-        update: jest.fn(),
-        delete: jest.fn(),
+      auditLog: {
+        create: jest.fn().mockResolvedValue({}),
       },
+      $transaction: jest.fn((ops: Promise<unknown>[]) => Promise.all(ops)),
     };
 
     const module: TestingModule = await Test.createTestingModule({
-      providers: [CmsService, { provide: PrismaService, useValue: prisma }],
+      providers: [
+        CmsService,
+        { provide: PrismaService, useValue: prisma },
+      ],
     }).compile();
 
     service = module.get(CmsService);
   });
 
-  // ─── Homepage Sections ─────────────────────────────────────────────────
+  // ─── Homepage Section Composer ──────────────────────────────────────────
 
-  describe('listSections', () => {
-    it('returns active sections ordered by position', async () => {
-      prisma.homepageSection.findMany.mockResolvedValue([
-        { id: 's-1', key: 'hero', position: 0 },
+  describe('listActiveSections', () => {
+    it('returns only active sections ordered by position', async () => {
+      prisma.homepageSectionInstance.findMany.mockResolvedValue([
+        { id: 's-1', position: 0 },
       ]);
-
-      const result = await service.listSections();
-
-      expect(prisma.homepageSection.findMany).toHaveBeenCalledWith({
+      const result = await service.listActiveSections();
+      expect(result).toHaveLength(1);
+      expect(prisma.homepageSectionInstance.findMany).toHaveBeenCalledWith({
         where: { isActive: true },
         orderBy: { position: 'asc' },
       });
-      expect(result).toHaveLength(1);
     });
   });
 
-  describe('getSectionByKey', () => {
-    it('returns the section when it exists and is active', async () => {
-      prisma.homepageSection.findUnique.mockResolvedValue({
-        id: 's-1',
-        key: 'hero',
-        isActive: true,
+  describe('createSection', () => {
+    it('appends to end when position is omitted', async () => {
+      prisma.homepageSectionInstance.count.mockResolvedValue(3);
+      prisma.homepageSectionInstance.create.mockResolvedValue({
+        id: 'new',
+        type: 'HERO',
+        position: 3,
       });
 
-      const result = await service.getSectionByKey('hero');
-
-      expect(result.key).toBe('hero');
-    });
-
-    it('throws NotFoundException when the section is missing', async () => {
-      prisma.homepageSection.findUnique.mockResolvedValue(null);
-
-      await expect(service.getSectionByKey('missing')).rejects.toThrow(
-        NotFoundException,
+      const created = await service.createSection(
+        { type: 'HERO' as never },
+        'admin-1',
       );
+
+      expect(created.position).toBe(3);
+      const callArgs = prisma.homepageSectionInstance.create.mock.calls[0][0] as {
+        data: { position: number };
+      };
+      expect(callArgs.data.position).toBe(3);
+      expect(prisma.auditLog.create).toHaveBeenCalled();
     });
 
-    it('throws NotFoundException when the section is inactive (public endpoint hides drafts)', async () => {
-      prisma.homepageSection.findUnique.mockResolvedValue({
-        id: 's-1',
-        key: 'hero',
-        isActive: false,
+    it('respects an explicit position', async () => {
+      prisma.homepageSectionInstance.create.mockResolvedValue({
+        id: 'new',
+        type: 'HERO',
+        position: 1,
       });
-
-      await expect(service.getSectionByKey('hero')).rejects.toThrow(
-        NotFoundException,
+      await service.createSection(
+        { type: 'HERO' as never, position: 1 },
+        'admin-1',
       );
+      const callArgs = prisma.homepageSectionInstance.create.mock.calls[0][0] as {
+        data: { position: number };
+      };
+      expect(callArgs.data.position).toBe(1);
     });
   });
 
   describe('updateSection', () => {
-    it('throws NotFoundException when the section does not exist', async () => {
-      prisma.homepageSection.findUnique.mockResolvedValue(null);
-
+    it('throws NotFoundException when the section is missing', async () => {
+      prisma.homepageSectionInstance.findUnique.mockResolvedValue(null);
       await expect(
-        service.updateSection('missing', { title: 'New' } as never),
+        service.updateSection('missing', { isActive: false }, 'admin-1'),
       ).rejects.toThrow(NotFoundException);
+    });
+
+    it('writes only the fields present in the dto', async () => {
+      prisma.homepageSectionInstance.findUnique.mockResolvedValue({
+        id: 's-1',
+        type: 'HERO',
+      });
+      prisma.homepageSectionInstance.update.mockResolvedValue({
+        id: 's-1',
+        type: 'HERO',
+      });
+
+      await service.updateSection('s-1', { isActive: false }, 'admin-1');
+
+      const args = prisma.homepageSectionInstance.update.mock.calls[0][0] as {
+        data: Record<string, unknown>;
+      };
+      expect(args.data).toEqual({ isActive: false });
     });
   });
 
   describe('deleteSection', () => {
-    it('throws NotFoundException when the section does not exist', async () => {
-      prisma.homepageSection.findUnique.mockResolvedValue(null);
-
-      await expect(service.deleteSection('missing')).rejects.toThrow(
+    it('throws NotFoundException for missing rows', async () => {
+      prisma.homepageSectionInstance.findUnique.mockResolvedValue(null);
+      await expect(service.deleteSection('missing', 'admin-1')).rejects.toThrow(
         NotFoundException,
       );
     });
   });
 
-  // ─── Banners ───────────────────────────────────────────────────────────
-
-  describe('listActiveBanners', () => {
-    it('returns banners in active window ordered by createdAt desc', async () => {
-      prisma.banner.findMany.mockResolvedValue([{ id: 'b-1' }]);
-
-      const result = await service.listActiveBanners();
-
-      expect(prisma.banner.findMany).toHaveBeenCalled();
-      expect(result).toHaveLength(1);
-    });
-  });
-
-  describe('updateBanner / deleteBanner', () => {
-    it('updateBanner throws NotFoundException when missing', async () => {
-      prisma.banner.findUnique.mockResolvedValue(null);
-
-      await expect(
-        service.updateBanner('missing', { title: 'X' } as never),
-      ).rejects.toThrow(NotFoundException);
-    });
-
-    it('deleteBanner throws NotFoundException when missing', async () => {
-      prisma.banner.findUnique.mockResolvedValue(null);
-
-      await expect(service.deleteBanner('missing')).rejects.toThrow(
-        NotFoundException,
+  describe('reorderSections', () => {
+    it('runs all position updates inside a transaction', async () => {
+      prisma.homepageSectionInstance.update.mockResolvedValue({});
+      await service.reorderSections(
+        { orders: [{ id: 'a', position: 0 }, { id: 'b', position: 1 }] },
+        'admin-1',
       );
+      expect(prisma.$transaction).toHaveBeenCalled();
+      expect(prisma.homepageSectionInstance.update).toHaveBeenCalledTimes(2);
     });
   });
 
-  // ─── Blog Posts ────────────────────────────────────────────────────────
+  // ─── Global Styles ──────────────────────────────────────────────────────
 
-  describe('listPublishedPosts', () => {
-    it('paginates and filters drafts via isPublished:true', async () => {
-      prisma.blogPost.findMany.mockResolvedValue([{ id: 'bp-1' }]);
-      prisma.blogPost.count.mockResolvedValue(1);
-
-      const result = await service.listPublishedPosts(1, 10);
-
-      expect(result.posts).toHaveLength(1);
-      expect(result.total).toBe(1);
-      const findManyArgs = prisma.blogPost.findMany.mock.calls[0][0] as {
-        where: { isPublished: boolean };
-      };
-      const countArgs = prisma.blogPost.count.mock.calls[0][0] as {
-        where: { isPublished: boolean };
-      };
-      expect(findManyArgs.where.isPublished).toBe(true);
-      expect(countArgs.where.isPublished).toBe(true);
-    });
-  });
-
-  describe('getPostBySlug', () => {
-    it('uses findFirst + isPublished:true (drafts hidden from public)', async () => {
-      prisma.blogPost.findFirst.mockResolvedValue({
-        id: 'bp-1',
-        slug: 'hello',
-        isPublished: true,
+  describe('updateStyles', () => {
+    it('upserts the singleton row', async () => {
+      prisma.globalStorefrontStyles.upsert.mockResolvedValue({
+        id: 'singleton',
+        negativeSpace: 2,
+        typographyFlow: 1,
       });
 
-      const result = await service.getPostBySlug('hello');
+      const result = await service.updateStyles({ negativeSpace: 2 }, 'admin-1');
 
-      expect(result.slug).toBe('hello');
-      const args = prisma.blogPost.findFirst.mock.calls[0][0] as {
-        where: { isPublished: boolean };
+      expect(result.negativeSpace).toBe(2);
+      const args = prisma.globalStorefrontStyles.upsert.mock.calls[0][0] as {
+        where: { id: string };
       };
-      expect(args.where.isPublished).toBe(true);
-    });
-
-    it('throws NotFoundException when no matching published post', async () => {
-      prisma.blogPost.findFirst.mockResolvedValue(null);
-
-      await expect(service.getPostBySlug('missing')).rejects.toThrow(
-        NotFoundException,
-      );
-    });
-  });
-
-  describe('getPostBySlugAdmin', () => {
-    it('returns draft posts (no isPublished filter)', async () => {
-      prisma.blogPost.findUnique.mockResolvedValue({
-        id: 'bp-1',
-        slug: 'draft',
-        isPublished: false,
-      });
-
-      const result = await service.getPostBySlugAdmin('draft');
-
-      expect(result.isPublished).toBe(false);
-    });
-  });
-
-  describe('createPost', () => {
-    it('sets publishedAt when isPublished is true', async () => {
-      prisma.blogPost.create.mockResolvedValue({ id: 'bp-new' });
-
-      await service.createPost('author-1', {
-        title: 't',
-        slug: 's',
-        body: 'b',
-        isPublished: true,
-      } as never);
-
-      const args = prisma.blogPost.create.mock.calls[0][0] as {
-        data: { publishedAt: Date | null };
-      };
-      expect(args.data.publishedAt).toBeInstanceOf(Date);
-    });
-
-    it('leaves publishedAt null when isPublished is false', async () => {
-      prisma.blogPost.create.mockResolvedValue({ id: 'bp-new' });
-
-      await service.createPost('author-1', {
-        title: 't',
-        slug: 's',
-        body: 'b',
-        isPublished: false,
-      } as never);
-
-      const args = prisma.blogPost.create.mock.calls[0][0] as {
-        data: { publishedAt: Date | null };
-      };
-      expect(args.data.publishedAt).toBeNull();
-    });
-  });
-
-  describe('updatePost', () => {
-    it('sets publishedAt on first publish transition', async () => {
-      prisma.blogPost.findUnique.mockResolvedValue({
-        id: 'bp-1',
-        publishedAt: null,
-      });
-      prisma.blogPost.update.mockResolvedValue({ id: 'bp-1' });
-
-      await service.updatePost('bp-1', { isPublished: true } as never);
-
-      const args = prisma.blogPost.update.mock.calls[0][0] as {
-        data: { publishedAt?: Date };
-      };
-      expect(args.data.publishedAt).toBeInstanceOf(Date);
-    });
-
-    it('throws NotFoundException when post is missing', async () => {
-      prisma.blogPost.findUnique.mockResolvedValue(null);
-
-      await expect(
-        service.updatePost('missing', { title: 'X' } as never),
-      ).rejects.toThrow(NotFoundException);
-    });
-  });
-
-  describe('deletePost', () => {
-    it('throws NotFoundException when post is missing', async () => {
-      prisma.blogPost.findUnique.mockResolvedValue(null);
-
-      await expect(service.deletePost('missing')).rejects.toThrow(
-        NotFoundException,
-      );
+      expect(args.where.id).toBe('singleton');
     });
   });
 });

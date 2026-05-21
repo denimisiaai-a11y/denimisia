@@ -41,18 +41,6 @@ test.describe('Navigation', () => {
     await expect(page.getByRole('heading', { name: 'Visit Our Store' })).toBeVisible();
   });
 
-  test('navigate to /blog — blog listing with posts', async ({ page }) => {
-    await page.goto('/blog');
-    await page.waitForLoadState('networkidle');
-
-    await expect(page).toHaveTitle(/Blog/i);
-
-    // Blog cards link to /blog/[slug]
-    const blogLinks = page.locator('a[href^="/blog/"]');
-    const count = await blogLinks.count();
-    expect(count).toBeGreaterThanOrEqual(1);
-  });
-
   test('navigate to /contact — contact form renders', async ({ page }) => {
     await page.goto('/contact');
     await page.waitForLoadState('networkidle');
@@ -99,25 +87,4 @@ test.describe('Navigation', () => {
     expect(page.url()).toContain('/products/');
   });
 
-  test('navigate to /blog/[slug] from blog listing', async ({ page }) => {
-    await page.goto('/blog');
-    await page.waitForLoadState('networkidle');
-
-    // Click the first blog post link
-    const firstPost = page.locator('a[href^="/blog/"]').first();
-    await expect(firstPost).toBeVisible();
-
-    const href = await firstPost.getAttribute('href');
-    expect(href).toBeTruthy();
-
-    await firstPost.click();
-    await page.waitForLoadState('networkidle');
-
-    // URL should be /blog/[slug]
-    expect(page.url()).toContain('/blog/');
-
-    // Blog post page should have a heading (the post title)
-    const postTitle = page.locator('article h1');
-    await expect(postTitle).toBeVisible();
-  });
 });

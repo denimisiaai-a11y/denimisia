@@ -430,56 +430,6 @@ async function main() {
   });
   console.log('✅ Banners');
 
-  // ─── Blog Posts ──────────────────────────────────────────────────────────
-  const admin = await prisma.user.findFirst({ where: { email: 'admin@denimisia.com' } });
-  if (!admin) throw new Error('Admin user not found — cannot seed blog posts');
-  const authorId = admin.id;
-
-  const blogData = [
-    {
-      title: 'The Complete Denim Care Guide',
-      slug: 'denim-care-guide',
-      excerpt: 'Everything you need to know about washing, drying, and maintaining your raw denim.',
-      body: 'Raw denim is an investment. Treat it right, and it will reward you with fades and character that tell your story.\n\nFirst wash: Wait at least 6 months before your first wash. The longer you wait, the more contrast your fades will develop.\n\nWashing method: Turn your jeans inside out. Use cold water and a small amount of mild detergent — no bleach, no fabric softener. Hand washing or a gentle machine cycle works best.\n\nDrying: Never tumble dry. Hang them by the waist in a well-ventilated area, away from direct sunlight. Sunlight can cause uneven fading.\n\nSpot cleaning: For small stains, use a damp cloth with mild soap. Blot, don\'t rub.\n\nStorage: Fold rather than hang to prevent stretching at the waist. Store in a cool, dry place.\n\nThe golden rule? Wear them hard, wash them rarely, and let the denim tell your story.',
-      coverImage: '/images/hero-1.jpg',
-      tags: ['denim-care', 'guide', 'raw-denim'],
-      isPublished: true,
-      publishedAt: new Date('2026-03-15'),
-      authorId,
-    },
-    {
-      title: 'How to Style Denim on Denim',
-      slug: 'style-guide-denim-on-denim',
-      excerpt: 'The Canadian tuxedo, done right. Our guide to pulling off the double denim look.',
-      body: 'Denim on denim used to be a fashion faux pas. Now it\'s a power move — if you know the rules.\n\nRule 1: Vary the wash. Pair dark jeans with a lighter denim jacket, or vice versa. The contrast creates visual depth.\n\nRule 2: Break it up. Add a belt, a white tee, or boots that create a visual break between your denim pieces.\n\nRule 3: Pay attention to fit. A fitted jacket with relaxed jeans works. So does a loose trucker over slim denim. Avoid matching silhouettes.\n\nRule 4: Accessories matter. A leather belt, clean sneakers, or a simple watch can elevate the look from casual to intentional.',
-      coverImage: '/images/our-message.jpg',
-      tags: ['style-guide', 'denim', 'fashion'],
-      isPublished: true,
-      publishedAt: new Date('2026-04-01'),
-      authorId,
-    },
-    {
-      title: 'Built in Bangladesh: Our Manufacturing Story',
-      slug: 'built-in-bangladesh',
-      excerpt: 'Why we chose to manufacture locally and what it means for quality, community, and the planet.',
-      body: 'Bangladesh is the second-largest garment exporter in the world. We believe it can also be the best.\n\nDenimisia was founded with a simple premise: take the incredible skill and infrastructure of Bangladeshi garment manufacturing and channel it into a brand that prioritises quality over quantity.\n\nOur factory partners provide fair wages, safe working conditions, and growth opportunities. We source denim from mills using water-saving laser finishing and ozone washing technologies, reducing water usage by up to 70%.\n\nEvery Denimisia piece is made within 100km of our Dhaka headquarters. When you buy Denimisia, you invest in a manufacturing ecosystem that proves Bangladeshi brands can compete on quality, not just price.',
-      coverImage: '/images/hero-1.jpg',
-      tags: ['brand-story', 'sustainability', 'bangladesh'],
-      isPublished: true,
-      publishedAt: new Date('2026-04-10'),
-      authorId,
-    },
-  ];
-
-  for (const blog of blogData) {
-    await prisma.blogPost.upsert({
-      where: { slug: blog.slug },
-      update: {},
-      create: blog,
-    });
-  }
-  console.log('✅ Blog posts');
-
   // ─── Homepage Section ────────────────────────────────────────────────────
   await prisma.homepageSection.upsert({
     where: { key: 'hero' },

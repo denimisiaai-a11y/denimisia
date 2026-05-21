@@ -8,20 +8,21 @@ describe('CmsController', () => {
 
   beforeEach(async () => {
     cmsService = {
-      listSections: jest.fn(),
-      getSectionByKey: jest.fn(),
+      // banners
       listActiveBanners: jest.fn(),
-      listPublishedPosts: jest.fn(),
-      getPostBySlug: jest.fn(),
-      createSection: jest.fn(),
-      updateSection: jest.fn(),
-      deleteSection: jest.fn(),
-      createBanner: jest.fn(),
-      updateBanner: jest.fn(),
-      deleteBanner: jest.fn(),
-      createPost: jest.fn(),
-      updatePost: jest.fn(),
-      deletePost: jest.fn(),
+      createBanner:      jest.fn(),
+      updateBanner:      jest.fn(),
+      deleteBanner:      jest.fn(),
+      // homepage sections
+      listAllSections:    jest.fn(),
+      listActiveSections: jest.fn(),
+      createSection:      jest.fn(),
+      updateSection:      jest.fn(),
+      deleteSection:      jest.fn(),
+      reorderSections:    jest.fn(),
+      // styles
+      getStyles:    jest.fn(),
+      updateStyles: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -32,101 +33,110 @@ describe('CmsController', () => {
     controller = module.get(CmsController);
   });
 
-  // Public routes
-  it('should list sections', async () => {
-    cmsService.listSections.mockResolvedValue([]);
-    await controller.listSections();
-    expect(cmsService.listSections).toHaveBeenCalled();
-  });
+  // ─── Public ─────────────────────────────────────────────────────────────
 
-  it('should get section by key', async () => {
-    cmsService.getSectionByKey.mockResolvedValue({ id: 's-1' });
-    await controller.getSectionByKey('hero');
-    expect(cmsService.getSectionByKey).toHaveBeenCalledWith('hero');
-  });
-
-  it('should list banners', async () => {
+  it('listBanners delegates to service', async () => {
     cmsService.listActiveBanners.mockResolvedValue([]);
     await controller.listBanners();
     expect(cmsService.listActiveBanners).toHaveBeenCalled();
   });
 
-  it('should list blog posts', async () => {
-    cmsService.listPublishedPosts.mockResolvedValue({ posts: [] });
-    await controller.listBlogPosts('1', '10');
-    expect(cmsService.listPublishedPosts).toHaveBeenCalledWith(1, 10);
+  it('listActiveHomepageSections delegates to service', async () => {
+    cmsService.listActiveSections.mockResolvedValue([]);
+    await controller.listActiveHomepageSections();
+    expect(cmsService.listActiveSections).toHaveBeenCalled();
   });
 
-  it('should get blog post', async () => {
-    cmsService.getPostBySlug.mockResolvedValue({ id: 'bp-1' });
-    await controller.getBlogPost('hello');
-    expect(cmsService.getPostBySlug).toHaveBeenCalledWith('hello');
+  it('getStyles delegates to service', async () => {
+    cmsService.getStyles.mockResolvedValue({ id: 'singleton' });
+    await controller.getStyles();
+    expect(cmsService.getStyles).toHaveBeenCalled();
   });
 
-  // Admin sections
-  it('should create section', async () => {
+  // ─── Admin homepage composer ────────────────────────────────────────────
+
+  it('listAllHomepageSections delegates to service', async () => {
+    cmsService.listAllSections.mockResolvedValue([]);
+    await controller.listAllHomepageSections();
+    expect(cmsService.listAllSections).toHaveBeenCalled();
+  });
+
+  it('createHomepageSection passes the user id', async () => {
     cmsService.createSection.mockResolvedValue({ id: 's-1' });
-    await controller.createSection({ key: 'hero' } as any);
-    expect(cmsService.createSection).toHaveBeenCalledWith({ key: 'hero' });
+    await controller.createHomepageSection(
+      { type: 'HERO' } as never,
+      { user: { id: 'admin-1' } } as never,
+    );
+    expect(cmsService.createSection).toHaveBeenCalledWith(
+      { type: 'HERO' },
+      'admin-1',
+    );
   });
 
-  it('should update section', async () => {
+  it('updateHomepageSection passes id, dto, and user', async () => {
     cmsService.updateSection.mockResolvedValue({ id: 's-1' });
-    await controller.updateSection('s-1', { title: 'Hero' } as any);
-    expect(cmsService.updateSection).toHaveBeenCalledWith('s-1', {
-      title: 'Hero',
-    });
+    await controller.updateHomepageSection(
+      's-1',
+      { isActive: false } as never,
+      { user: { id: 'admin-1' } } as never,
+    );
+    expect(cmsService.updateSection).toHaveBeenCalledWith(
+      's-1',
+      { isActive: false },
+      'admin-1',
+    );
   });
 
-  it('should delete section', async () => {
+  it('deleteHomepageSection passes id and user', async () => {
     cmsService.deleteSection.mockResolvedValue(undefined);
-    await controller.deleteSection('s-1');
-    expect(cmsService.deleteSection).toHaveBeenCalledWith('s-1');
+    await controller.deleteHomepageSection(
+      's-1',
+      { user: { id: 'admin-1' } } as never,
+    );
+    expect(cmsService.deleteSection).toHaveBeenCalledWith('s-1', 'admin-1');
   });
 
-  // Admin banners
-  it('should create banner', async () => {
+  it('reorderHomepageSections passes orders and user', async () => {
+    cmsService.reorderSections.mockResolvedValue([]);
+    await controller.reorderHomepageSections(
+      { orders: [{ id: 'a', position: 0 }] } as never,
+      { user: { id: 'admin-1' } } as never,
+    );
+    expect(cmsService.reorderSections).toHaveBeenCalledWith(
+      { orders: [{ id: 'a', position: 0 }] },
+      'admin-1',
+    );
+  });
+
+  it('updateStyles passes dto and user', async () => {
+    cmsService.updateStyles.mockResolvedValue({ id: 'singleton' });
+    await controller.updateStyles(
+      { negativeSpace: 2 } as never,
+      { user: { id: 'admin-1' } } as never,
+    );
+    expect(cmsService.updateStyles).toHaveBeenCalledWith(
+      { negativeSpace: 2 },
+      'admin-1',
+    );
+  });
+
+  // ─── Admin banners (passthrough) ────────────────────────────────────────
+
+  it('createBanner delegates', async () => {
     cmsService.createBanner.mockResolvedValue({ id: 'b-1' });
-    await controller.createBanner({ title: 'Sale' } as any);
-    expect(cmsService.createBanner).toHaveBeenCalledWith({ title: 'Sale' });
+    await controller.createBanner({ title: 'X' } as never);
+    expect(cmsService.createBanner).toHaveBeenCalledWith({ title: 'X' });
   });
 
-  it('should update banner', async () => {
+  it('updateBanner delegates', async () => {
     cmsService.updateBanner.mockResolvedValue({ id: 'b-1' });
-    await controller.updateBanner('b-1', { title: 'Updated' } as any);
-    expect(cmsService.updateBanner).toHaveBeenCalledWith('b-1', {
-      title: 'Updated',
-    });
+    await controller.updateBanner('b-1', { title: 'Y' } as never);
+    expect(cmsService.updateBanner).toHaveBeenCalledWith('b-1', { title: 'Y' });
   });
 
-  it('should delete banner', async () => {
+  it('deleteBanner delegates', async () => {
     cmsService.deleteBanner.mockResolvedValue(undefined);
     await controller.deleteBanner('b-1');
     expect(cmsService.deleteBanner).toHaveBeenCalledWith('b-1');
-  });
-
-  // Admin blog posts
-  it('should create blog post', async () => {
-    cmsService.createPost.mockResolvedValue({ id: 'bp-1' });
-    await controller.createBlogPost({ id: 'user-1' }, {
-      title: 'Hello',
-    } as any);
-    expect(cmsService.createPost).toHaveBeenCalledWith('user-1', {
-      title: 'Hello',
-    });
-  });
-
-  it('should update blog post', async () => {
-    cmsService.updatePost.mockResolvedValue({ id: 'bp-1' });
-    await controller.updateBlogPost('bp-1', { title: 'Updated' } as any);
-    expect(cmsService.updatePost).toHaveBeenCalledWith('bp-1', {
-      title: 'Updated',
-    });
-  });
-
-  it('should delete blog post', async () => {
-    cmsService.deletePost.mockResolvedValue(undefined);
-    await controller.deleteBlogPost('bp-1');
-    expect(cmsService.deletePost).toHaveBeenCalledWith('bp-1');
   });
 });

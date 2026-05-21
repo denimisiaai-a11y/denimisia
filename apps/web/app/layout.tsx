@@ -15,6 +15,17 @@ import { defaultMetadata } from '@/lib/seo/metadata';
 import { seoEnv } from '@/lib/seo/env';
 import { organizationJsonLd } from '@/lib/seo/jsonld/organization';
 import { websiteJsonLd } from '@/lib/seo/jsonld/website';
+import { fetchHomepageStyles } from '@/lib/homepage-sections';
+
+// CSS variable mappings — must mirror the apps/admin GlobalStylesPanel scale.
+// Default (1) preserves the pre-composer layout exactly.
+const SPACING_SCALE = [0.75, 1.0, 1.4] as const;
+const FONT_RATIO    = [1.15, 1.25, 1.333] as const;
+function clamp01to2(n: number): 0 | 1 | 2 {
+  if (n <= 0) return 0;
+  if (n >= 2) return 2;
+  return 1;
+}
 
 // Runs in SSR HTML before body paints. Sets data-splash-skip on <html> when
 // the splash should not run (repeat session, bfcache). No user input reaches
@@ -46,10 +57,20 @@ export const viewport: Viewport = {
   viewportFit: 'cover',
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const styles = await fetchHomepageStyles();
+  const spacing = SPACING_SCALE[clamp01to2(styles.negativeSpace)];
+  const fontRatio = FONT_RATIO[clamp01to2(styles.typographyFlow)];
+
   return (
     <html lang="en" className={inter.variable} data-scroll-behavior="smooth" suppressHydrationWarning>
-      <body className="min-h-screen bg-paper font-sans text-ink antialiased">
+      <body
+        className="min-h-screen bg-paper font-sans text-ink antialiased"
+        style={{
+          ['--section-spacing-scale' as string]: String(spacing),
+          ['--font-scale-ratio' as string]: String(fontRatio),
+        }}
+      >
         <Script id="denimisia-splash-init" strategy="beforeInteractive">
           {SPLASH_INIT_SCRIPT}
         </Script>
