@@ -44,9 +44,12 @@ export function SilhouetteEditorClient() {
   useEffect(() => {
     let cancelled = false;
     fetch(`${API_BASE}/silhouettes`)
-      .then((r) => (r.ok ? r.json() : []))
-      .then((rows: SilhouetteData[]) => {
+      .then((r) => (r.ok ? r.json() : { data: [] }))
+      .then((body: unknown) => {
         if (cancelled) return;
+        const rows = Array.isArray(body)
+          ? (body as SilhouetteData[])
+          : ((body as { data?: SilhouetteData[] }).data ?? []);
         setSilhouettes(rows);
         const initial = rows.find((s) => s.gender === selectedGender);
         if (initial) setDraft(initial);
