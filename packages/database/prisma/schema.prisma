@@ -41,6 +41,22 @@ enum ProductType {
   JACKETS
 }
 
+enum SilhouetteGender {
+  MALE
+  FEMALE
+}
+
+model Silhouette {
+  id        String           @id @default(cuid())
+  gender    SilhouetteGender @unique
+  svgPath   String           @db.Text
+  viewBox   String
+  landmarks Json
+  version   Int              @default(1)
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+}
+
 enum TagDimension {
   silhouette
   rise
@@ -242,6 +258,7 @@ model Product {
   images         String[]
   tags           String[]
   type           ProductType?
+  fitLandmarks   Json?
   returnable     Boolean            @default(true)
   isActive       Boolean            @default(true)
   isFeatured     Boolean            @default(false)

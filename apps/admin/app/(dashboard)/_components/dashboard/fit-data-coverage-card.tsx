@@ -10,6 +10,7 @@ interface Coverage {
   missingType: number;
   missingTags: number;
   missingCharts: number;
+  missingFitLandmarks: number;
 }
 
 interface Props {
@@ -80,6 +81,18 @@ export function FitDataCoverageCard({ token }: Props) {
               </Link>
             }
             warn={data.missingCharts > 0}
+          />
+          <Row
+            label="Missing fit landmarks"
+            value={
+              <Link
+                href="/products?missing=fitLandmarks"
+                className="underline"
+              >
+                {data.missingFitLandmarks}
+              </Link>
+            }
+            warn={data.missingFitLandmarks > 0}
           />
         </dl>
       )}

@@ -7,6 +7,7 @@ import {
   MAX_PRODUCTS_RETURNED,
   MAX_SIZING_CANDIDATES,
 } from './bot.constants';
+import { formatFitStyleNote } from './bot.fit-style';
 
 type FitPref = 'slim' | 'regular' | 'baggy' | 'fitted' | 'oversized';
 
@@ -133,6 +134,15 @@ export class BotSizingService {
       orderBy: { createdAt: 'desc' },
     });
 
-    return { recommendedSize: bestSize, alternativeSize, products: matched };
+    const matchedWithStyle = matched.map((p) => ({
+      ...p,
+      styleNote: formatFitStyleNote(p.fitLandmarks),
+    }));
+
+    return {
+      recommendedSize: bestSize,
+      alternativeSize,
+      products: matchedWithStyle,
+    };
   }
 }

@@ -107,7 +107,7 @@ export const TYPE_ATTRIBUTES: Record<
 };
 
 export const SIZE_CHART_DIMENSIONS: Record<ProductType, readonly string[]> = {
-  PANTS: ['waist', 'hip', 'inseam', 'thigh'],
-  SHIRTS: ['chest', 'shoulder', 'length', 'sleeve'],
-  JACKETS: ['chest', 'shoulder', 'length', 'sleeve'],
+  PANTS: ['waist', 'hip', 'inseam', 'thigh', 'front rise', 'back rise', 'hem opening', 'waistband height'],
+  SHIRTS: ['chest', 'shoulder', 'length', 'sleeve', 'bicep', 'hem opening', 'neck width', 'cuff opening', 'armhole depth'],
+  JACKETS: ['chest', 'shoulder', 'length', 'sleeve', 'bicep', 'hem opening', 'cuff opening', 'back length', 'armhole depth'],
 };

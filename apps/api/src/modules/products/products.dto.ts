@@ -5,6 +5,7 @@ import {
   IsBoolean,
   IsNumber,
   IsArray,
+  IsObject,
   IsPositive,
   IsEnum,
   ValidateNested,
@@ -219,6 +220,10 @@ export class CreateProductDto {
   @ValidateNested({ each: true })
   @Type(() => SizeChartEntryDto)
   sizeCharts?: SizeChartEntryDto[];
+
+  @IsOptional()
+  @IsObject()
+  fitLandmarks?: Record<string, any>;
 }
 
 export class UpdateProductDto {
@@ -293,6 +298,10 @@ export class UpdateProductDto {
   @ValidateNested({ each: true })
   @Type(() => SizeChartEntryDto)
   sizeCharts?: SizeChartEntryDto[];
+
+  @IsOptional()
+  @IsObject()
+  fitLandmarks?: Record<string, any>;
 }
 
 export class UpdateVariantDto {

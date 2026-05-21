@@ -12,9 +12,10 @@ import {
   type TagPair,
 } from '@/components/products/type-attribute-fields';
 import {
-  SizeChartEditor,
+  SizeAndFitEditor,
   type ChartRow,
-} from '@/components/products/size-chart-editor';
+} from '@/components/products/size-and-fit-editor';
+import type { FitLandmarks } from '@repo/fit-engine';
 import {
   PRODUCT_TYPES,
   TYPE_ATTRIBUTES,
@@ -53,6 +54,7 @@ interface Product {
   variants?: Variant[];
   type?: ProductType | null;
   productTags?: TagPair[];
+  fitLandmarks?: unknown;
   sizeCharts?: Array<{
     sizeKey: string;
     dimension: string;
@@ -105,6 +107,7 @@ export default function EditProductPage() {
   const [type, setType] = useState<ProductType | null>(null);
   const [productTags, setProductTags] = useState<TagPair[]>([]);
   const [sizeCharts, setSizeCharts] = useState<ChartRow[]>([]);
+  const [fitLandmarks, setFitLandmarks] = useState<FitLandmarks | null>(null);
 
   // Variant state
   const [variants, setVariants] = useState<Variant[]>([]);
@@ -152,6 +155,9 @@ export default function EditProductPage() {
           bodyValueIn: s.bodyValueIn,
           garmentValueIn: s.garmentValueIn,
         })),
+      );
+      setFitLandmarks(
+        (product.fitLandmarks ?? null) as FitLandmarks | null,
       );
     } catch (err: unknown) {
       const message =
@@ -238,6 +244,7 @@ export default function EditProductPage() {
         type,
         productTags,
         sizeCharts,
+        fitLandmarks,
       };
 
       await adminFetch(`/products/${productId}`, token, {
@@ -515,7 +522,7 @@ export default function EditProductPage() {
               />
 
               <div className="border-t border-outline-variant/20 pt-6">
-                <SizeChartEditor
+                <SizeAndFitEditor
                   type={type}
                   variantSizes={Array.from(
                     new Set(
@@ -524,8 +531,10 @@ export default function EditProductPage() {
                         .filter((s) => s.length > 0),
                     ),
                   )}
-                  value={sizeCharts}
-                  onChange={setSizeCharts}
+                  chartValue={sizeCharts}
+                  onChartChange={setSizeCharts}
+                  fitLandmarks={fitLandmarks}
+                  onFitChange={setFitLandmarks}
                 />
               </div>
             </div>
