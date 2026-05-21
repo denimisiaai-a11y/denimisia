@@ -159,13 +159,15 @@ describe('BotController', () => {
         .mockResolvedValueOnce(100) // total
         .mockResolvedValueOnce(10) // missingType
         .mockResolvedValueOnce(20) // missingTags
-        .mockResolvedValueOnce(30); // missingCharts
+        .mockResolvedValueOnce(30) // missingCharts
+        .mockResolvedValueOnce(40); // missingFitLandmarks
       const r = await controller.fitDataCoverage();
       expect(r).toEqual({
         total: 100,
         missingType: 10,
         missingTags: 20,
         missingCharts: 30,
+        missingFitLandmarks: 40,
       });
     });
   });

@@ -26,16 +26,22 @@ interface Product {
   createdAt: string;
 }
 
-type MissingFilter = 'type' | 'tags' | 'charts';
+type MissingFilter = 'type' | 'tags' | 'charts' | 'fitLandmarks';
 
 function isMissingFilter(value: string | null): value is MissingFilter {
-  return value === 'type' || value === 'tags' || value === 'charts';
+  return (
+    value === 'type' ||
+    value === 'tags' ||
+    value === 'charts' ||
+    value === 'fitLandmarks'
+  );
 }
 
 const MISSING_FILTER_LABELS: Record<MissingFilter, string> = {
   type: 'missing Type',
   tags: 'missing attribute tags',
   charts: 'missing size charts',
+  fitLandmarks: 'missing fit landmarks',
 };
 
 interface ProductsResponse {
@@ -83,6 +89,11 @@ export default function ProductsPage() {
         return !!p.type && (!p.productTags || p.productTags.length === 0);
       if (missing === 'charts')
         return !!p.type && (!p.sizeCharts || p.sizeCharts.length === 0);
+      if (missing === 'fitLandmarks')
+        return (
+          !!p.type &&
+          (p as unknown as { fitLandmarks?: unknown }).fitLandmarks == null
+        );
       return true;
     });
   }, [products, missing]);

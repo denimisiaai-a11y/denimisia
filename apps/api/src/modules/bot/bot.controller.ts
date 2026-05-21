@@ -8,7 +8,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { ProductType } from '@prisma/client';
+import { Prisma, ProductType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { BotMessageDto, RecommendSizeDto } from './bot.dto';
 import { BotParserService } from './bot.parser.service';
@@ -216,7 +216,20 @@ export class BotController {
         sizeCharts: { none: {} },
       },
     });
-    return { total, missingType, missingTags, missingCharts };
+    const missingFitLandmarks = await this.prisma.product.count({
+      where: {
+        ...baseWhere,
+        type: { not: null },
+        fitLandmarks: { equals: Prisma.DbNull },
+      },
+    });
+    return {
+      total,
+      missingType,
+      missingTags,
+      missingCharts,
+      missingFitLandmarks,
+    };
   }
 
   private startSizingFlow(context: BotContext): BotMessageReply {
