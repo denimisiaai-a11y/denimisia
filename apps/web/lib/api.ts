@@ -577,6 +577,19 @@ export async function getProductSizeChart(
   return (json.data ?? json) as { rows: SizeChartRow[] };
 }
 
+export async function getSilhouettes(): Promise<
+  import('@repo/fit-engine').SilhouetteData[]
+> {
+  const res = await fetch(`${API}/silhouettes`, {
+    next: { revalidate: 3600 },
+  });
+  if (!res.ok) {
+    throw new Error(`Silhouettes fetch failed: ${res.status}`);
+  }
+  const json = await res.json();
+  return (json.data ?? json) as import('@repo/fit-engine').SilhouetteData[];
+}
+
 // ─── Promo Banners ────────────────────────────────────────────────────────────
 
 export type PromoBannerPosition = 'popup' | 'top' | 'middle' | 'bottom';

@@ -9,7 +9,8 @@ import { useCart } from '@/stores/cart';
 import { formatPrice, cn } from '@/lib/utils';
 import { ImageWithFallback } from '@/components/ui/image-with-fallback';
 import { SizeGuideModal } from '@/components/product/size-guide-modal';
-import { SizeChartModal } from '@/components/products/size-chart-modal';
+import { SizeAndFitModal } from '@/components/products/size-and-fit-modal';
+import type { FitLandmarks } from '@repo/fit-engine';
 import { WishlistButton } from '@/components/ui/wishlist-button';
 import { pickCategory, detectRise, detectGender } from '@/lib/size-charts';
 
@@ -254,7 +255,7 @@ export function ProductDetail({ product }: ProductDetailProps) {
                   onClick={() => setSizeChartOpen(true)}
                   className="text-[11px] font-medium uppercase tracking-[0.1em] text-muted underline underline-offset-[3px] decoration-ink/20 transition-colors hover:text-ink hover:decoration-ink"
                 >
-                  Size chart
+                  Size &amp; Fit
                 </button>
                 <button
                   type="button"
@@ -393,8 +394,18 @@ export function ProductDetail({ product }: ProductDetailProps) {
         gender={sizeGuideGender}
       />
 
-      <SizeChartModal
+      <SizeAndFitModal
         productId={product.id}
+        productName={product.name}
+        productType={
+          (product as unknown as {
+            type?: 'PANTS' | 'SHIRTS' | 'JACKETS' | null;
+          }).type ?? null
+        }
+        fitLandmarks={
+          (product as unknown as { fitLandmarks?: FitLandmarks | null })
+            .fitLandmarks ?? null
+        }
         open={sizeChartOpen}
         onClose={() => setSizeChartOpen(false)}
       />
