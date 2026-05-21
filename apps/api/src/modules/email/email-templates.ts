@@ -157,7 +157,10 @@ export interface OrderConfirmationAddress {
 
 export interface OrderConfirmationEmailInput {
   firstName: string;
-  orderId: string;
+  // Customer-facing identifier (`DEN-NNNNNN`). Used in subject + body.
+  // The internal CUID is no longer surfaced in emails — see commit
+  // adding Order.orderNumber.
+  orderNumber: string;
   items: OrderConfirmationItem[];
   subtotal: number;
   discount: number;
@@ -193,16 +196,12 @@ function formatAddressHtml(addr: OrderConfirmationAddress): string {
     : '<span style="color:#999;">Address on file</span>';
 }
 
-function shortOrderRef(orderId: string): string {
-  return orderId.slice(-8).toUpperCase();
-}
-
 export function buildOrderConfirmationEmail(
   input: OrderConfirmationEmailInput,
 ): RenderedEmail {
   const name = escapeHtml(input.firstName || 'there');
-  const ref = shortOrderRef(input.orderId);
-  const subject = `Order ${ref} confirmed — ${BRAND_NAME}`;
+  const ref = escapeHtml(input.orderNumber);
+  const subject = `Order ${input.orderNumber} confirmed — ${BRAND_NAME}`;
 
   const itemsText = input.items
     .map(
@@ -213,7 +212,7 @@ export function buildOrderConfirmationEmail(
 
   const text = `Hi ${input.firstName || 'there'},
 
-Thanks for your order. Your order reference is ${ref}.
+Thanks for your order. Your order reference is ${input.orderNumber}.
 
 This order is cash on delivery. Please keep the exact total ready when our courier arrives.
 
@@ -272,6 +271,285 @@ ${formatAddressHtml(input.shippingAddress)}
 <a href="${escapeHtml(input.trackOrderUrl)}" style="display:inline-block;background:${BRAND_INK};color:#ffffff;text-decoration:none;padding:10px 20px;border-radius:4px;font-weight:500;font-size:14px;">Track order</a>
 </p>
 <p style="margin:0;font-size:13px;color:${BRAND_MUTED};">We'll reach out about delivery timing. If anything looks wrong, just reply to this email.</p>`,
+  });
+
+  return { subject, text, html };
+}
+
+// ─── Returns: submitted ─────────────────────────────────────────────────────
+
+export interface ReturnSubmittedEmailInput {
+  rtnNumber: string;
+  customerName: string;
+  slaHours: number;
+  trackingUrl: string;
+}
+
+export function returnSubmitted(
+  input: ReturnSubmittedEmailInput,
+): RenderedEmail {
+  const name = escapeHtml(input.customerName || 'there');
+  const rtn = escapeHtml(input.rtnNumber);
+  const href = escapeHtml(input.trackingUrl);
+  const hours = input.slaHours;
+  const subject = `Return request received — ${input.rtnNumber}`;
+
+  const text = `Hi ${input.customerName || 'there'},
+
+Thanks for submitting a return request. Your reference is ${input.rtnNumber}.
+
+We'll review your request within ${hours} hours and email you the decision. You can track the status here:
+
+${input.trackingUrl}
+
+If you didn't request this, reply to this email immediately so we can investigate.
+
+${BRAND_NAME}`;
+
+  const html = wrapInLayout({
+    preheader: `We received your return request ${input.rtnNumber}. Decision within ${hours} hours.`,
+    bodyHtml: `<p style="margin:0 0 16px 0;">Hi ${name},</p>
+<p style="margin:0 0 16px 0;">Thanks for submitting a return request. Your reference is <strong>${rtn}</strong>.</p>
+<p style="margin:0 0 24px 0;">We'll review your request within <strong>${hours} hours</strong> and email you the decision.</p>
+<p style="margin:0 0 24px 0;">
+<a href="${href}" style="display:inline-block;background:${BRAND_INK};color:#ffffff;text-decoration:none;padding:10px 20px;border-radius:4px;font-weight:500;font-size:14px;">Track return</a>
+</p>
+<p style="margin:0 0 8px 0;font-size:13px;color:${BRAND_MUTED};">Or paste this URL into your browser:</p>
+<p style="margin:0 0 24px 0;font-size:13px;word-break:break-all;color:${BRAND_MUTED};">${href}</p>
+<p style="margin:0;font-size:13px;color:${BRAND_MUTED};">If you didn't request this, reply to this email immediately so we can investigate.</p>`,
+  });
+
+  return { subject, text, html };
+}
+
+// ─── Returns: approved ──────────────────────────────────────────────────────
+
+export interface ReturnApprovedEmailInput {
+  rtnNumber: string;
+  customerName: string;
+  customerShipsBack: boolean;
+  pickupInstructions?: string;
+  trackingUrl: string;
+}
+
+const SHIP_BACK_ADDRESS_LINES = [
+  'Denimisia Returns',
+  'House 42, Road 11, Banani',
+  'Dhaka 1213, Bangladesh',
+  'Phone: +880 1700 000000',
+];
+
+export function returnApproved(input: ReturnApprovedEmailInput): RenderedEmail {
+  const name = escapeHtml(input.customerName || 'there');
+  const rtn = escapeHtml(input.rtnNumber);
+  const href = escapeHtml(input.trackingUrl);
+  const subject = `Return approved — ${input.rtnNumber}`;
+
+  const customerShipsBackText = `Please ship the item(s) back to us within 14 days at the address below. Use a tracked courier and keep the receipt.
+
+${SHIP_BACK_ADDRESS_LINES.join('\n')}
+
+Once we receive the package we'll inspect it and process your refund.`;
+
+  const pickupText = input.pickupInstructions
+    ? input.pickupInstructions
+    : 'We will arrange a pickup using the contact details on file. Our courier will reach out within 1-2 business days to schedule a convenient time.';
+
+  const instructionsText = input.customerShipsBack
+    ? customerShipsBackText
+    : pickupText;
+
+  const text = `Hi ${input.customerName || 'there'},
+
+Good news — your return request ${input.rtnNumber} has been approved.
+
+${instructionsText}
+
+Track the return:
+${input.trackingUrl}
+
+${BRAND_NAME}`;
+
+  const customerShipsBackHtml = `<p style="margin:0 0 12px 0;">Please ship the item(s) back to us within <strong>14 days</strong> at the address below. Use a tracked courier and keep the receipt.</p>
+<div style="margin:0 0 16px 0;padding:12px 16px;background:#f9f9f7;border-radius:4px;font-size:14px;line-height:1.5;">
+${SHIP_BACK_ADDRESS_LINES.map(escapeHtml).join('<br>')}
+</div>
+<p style="margin:0 0 24px 0;font-size:14px;">Once we receive the package we'll inspect it and process your refund.</p>`;
+
+  const pickupHtml = `<p style="margin:0 0 24px 0;">${escapeHtml(
+    input.pickupInstructions ??
+      'We will arrange a pickup using the contact details on file. Our courier will reach out within 1-2 business days to schedule a convenient time.',
+  )}</p>`;
+
+  const instructionsHtml = input.customerShipsBack
+    ? customerShipsBackHtml
+    : pickupHtml;
+
+  const html = wrapInLayout({
+    preheader: `Return ${input.rtnNumber} approved.`,
+    bodyHtml: `<p style="margin:0 0 16px 0;">Hi ${name},</p>
+<p style="margin:0 0 20px 0;">Good news — your return request <strong>${rtn}</strong> has been approved.</p>
+${instructionsHtml}
+<p style="margin:0 0 24px 0;">
+<a href="${href}" style="display:inline-block;background:${BRAND_INK};color:#ffffff;text-decoration:none;padding:10px 20px;border-radius:4px;font-weight:500;font-size:14px;">Track return</a>
+</p>
+<p style="margin:0 0 8px 0;font-size:13px;color:${BRAND_MUTED};">Or paste this URL into your browser:</p>
+<p style="margin:0;font-size:13px;word-break:break-all;color:${BRAND_MUTED};">${href}</p>`,
+  });
+
+  return { subject, text, html };
+}
+
+// ─── Returns: rejected ──────────────────────────────────────────────────────
+
+export interface ReturnRejectedEmailInput {
+  rtnNumber: string;
+  customerName: string;
+  rejectionReason: string;
+  trackingUrl: string;
+}
+
+export function returnRejected(input: ReturnRejectedEmailInput): RenderedEmail {
+  const name = escapeHtml(input.customerName || 'there');
+  const rtn = escapeHtml(input.rtnNumber);
+  const href = escapeHtml(input.trackingUrl);
+  const reason = escapeHtml(input.rejectionReason || 'Not specified');
+  const subject = `Return request not approved — ${input.rtnNumber}`;
+
+  const text = `Hi ${input.customerName || 'there'},
+
+We're sorry — after reviewing your return request ${input.rtnNumber}, we're unable to approve it.
+
+Reason: ${input.rejectionReason || 'Not specified'}
+
+If you'd like to discuss this decision or share more details, reply to this email and our team will look at it again.
+
+You can view the full status here:
+${input.trackingUrl}
+
+${BRAND_NAME}`;
+
+  const html = wrapInLayout({
+    preheader: `Return ${input.rtnNumber} was not approved.`,
+    bodyHtml: `<p style="margin:0 0 16px 0;">Hi ${name},</p>
+<p style="margin:0 0 16px 0;">We're sorry — after reviewing your return request <strong>${rtn}</strong>, we're unable to approve it.</p>
+<div style="margin:0 0 24px 0;padding:12px 16px;background:#f9f9f7;border-radius:4px;font-size:14px;">
+<strong style="display:block;margin-bottom:4px;">Reason</strong>
+${reason}
+</div>
+<p style="margin:0 0 24px 0;">If you'd like to discuss this decision or share more details, reply to this email and our team will look at it again.</p>
+<p style="margin:0 0 24px 0;">
+<a href="${href}" style="display:inline-block;background:${BRAND_INK};color:#ffffff;text-decoration:none;padding:10px 20px;border-radius:4px;font-weight:500;font-size:14px;">View status</a>
+</p>
+<p style="margin:0 0 8px 0;font-size:13px;color:${BRAND_MUTED};">Or paste this URL into your browser:</p>
+<p style="margin:0;font-size:13px;word-break:break-all;color:${BRAND_MUTED};">${href}</p>`,
+  });
+
+  return { subject, text, html };
+}
+
+// ─── Returns: received ──────────────────────────────────────────────────────
+
+export interface ReturnReceivedEmailInput {
+  rtnNumber: string;
+  customerName: string;
+  trackingUrl: string;
+}
+
+export function returnReceived(input: ReturnReceivedEmailInput): RenderedEmail {
+  const name = escapeHtml(input.customerName || 'there');
+  const rtn = escapeHtml(input.rtnNumber);
+  const href = escapeHtml(input.trackingUrl);
+  const subject = `We received your return — ${input.rtnNumber}`;
+
+  const text = `Hi ${input.customerName || 'there'},
+
+Your return package for ${input.rtnNumber} arrived at our warehouse. Thank you.
+
+Next: our team will inspect the item(s) and confirm refund eligibility. We'll email you again once the inspection is complete.
+
+Track the return:
+${input.trackingUrl}
+
+${BRAND_NAME}`;
+
+  const html = wrapInLayout({
+    preheader: `Your return package for ${input.rtnNumber} arrived.`,
+    bodyHtml: `<p style="margin:0 0 16px 0;">Hi ${name},</p>
+<p style="margin:0 0 16px 0;">Your return package for <strong>${rtn}</strong> arrived at our warehouse. Thank you.</p>
+<p style="margin:0 0 24px 0;">Next: our team will inspect the item(s) and confirm refund eligibility. We'll email you again once the inspection is complete.</p>
+<p style="margin:0 0 24px 0;">
+<a href="${href}" style="display:inline-block;background:${BRAND_INK};color:#ffffff;text-decoration:none;padding:10px 20px;border-radius:4px;font-weight:500;font-size:14px;">Track return</a>
+</p>
+<p style="margin:0 0 8px 0;font-size:13px;color:${BRAND_MUTED};">Or paste this URL into your browser:</p>
+<p style="margin:0;font-size:13px;word-break:break-all;color:${BRAND_MUTED};">${href}</p>`,
+  });
+
+  return { subject, text, html };
+}
+
+// ─── Returns: refunded ──────────────────────────────────────────────────────
+
+export interface ReturnRefundedEmailInput {
+  rtnNumber: string;
+  customerName: string;
+  amount: number;
+  method: 'CASH' | 'BANK_TRANSFER';
+  reference: string;
+  trackingUrl: string;
+}
+
+function formatRefundAmount(amount: number): string {
+  const isWhole = Number.isInteger(amount);
+  return `৳${amount.toLocaleString('en-BD', {
+    minimumFractionDigits: isWhole ? 0 : 2,
+    maximumFractionDigits: isWhole ? 0 : 2,
+  })}`;
+}
+
+function formatRefundMethod(method: 'CASH' | 'BANK_TRANSFER'): string {
+  return method === 'BANK_TRANSFER' ? 'Bank Transfer' : 'Cash';
+}
+
+export function returnRefunded(input: ReturnRefundedEmailInput): RenderedEmail {
+  const name = escapeHtml(input.customerName || 'there');
+  const rtn = escapeHtml(input.rtnNumber);
+  const href = escapeHtml(input.trackingUrl);
+  const amountStr = formatRefundAmount(input.amount);
+  const methodStr = formatRefundMethod(input.method);
+  const reference = input.reference?.trim() ? input.reference.trim() : '—';
+  const subject = `Refund issued — ${input.rtnNumber}`;
+
+  const text = `Hi ${input.customerName || 'there'},
+
+Your refund for return ${input.rtnNumber} has been issued.
+
+Amount:    ${amountStr}
+Method:    ${methodStr}
+Reference: ${reference}
+
+Refund details may take 2-3 business days to reflect in your bank account.
+
+Track the return:
+${input.trackingUrl}
+
+${BRAND_NAME}`;
+
+  const html = wrapInLayout({
+    preheader: `Refund of ${amountStr} issued for ${input.rtnNumber}.`,
+    bodyHtml: `<p style="margin:0 0 16px 0;">Hi ${name},</p>
+<p style="margin:0 0 20px 0;">Your refund for return <strong>${rtn}</strong> has been issued.</p>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 24px 0;">
+<tr><td style="padding:6px 0;font-size:14px;color:${BRAND_MUTED};width:120px;">Amount</td><td style="padding:6px 0;font-size:14px;font-weight:600;">${escapeHtml(amountStr)}</td></tr>
+<tr><td style="padding:6px 0;font-size:14px;color:${BRAND_MUTED};">Method</td><td style="padding:6px 0;font-size:14px;">${escapeHtml(methodStr)}</td></tr>
+<tr><td style="padding:6px 0;font-size:14px;color:${BRAND_MUTED};">Reference</td><td style="padding:6px 0;font-size:14px;word-break:break-all;">${escapeHtml(reference)}</td></tr>
+</table>
+<p style="margin:0 0 24px 0;font-size:13px;color:${BRAND_MUTED};">Refund details may take 2-3 business days to reflect in your bank account.</p>
+<p style="margin:0 0 24px 0;">
+<a href="${href}" style="display:inline-block;background:${BRAND_INK};color:#ffffff;text-decoration:none;padding:10px 20px;border-radius:4px;font-weight:500;font-size:14px;">View details</a>
+</p>
+<p style="margin:0 0 8px 0;font-size:13px;color:${BRAND_MUTED};">Or paste this URL into your browser:</p>
+<p style="margin:0;font-size:13px;word-break:break-all;color:${BRAND_MUTED};">${href}</p>`,
   });
 
   return { subject, text, html };

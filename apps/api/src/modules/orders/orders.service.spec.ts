@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { OrdersService } from './orders.service';
+import { OrderNumberService } from './order-number.service';
 import { PrismaService } from '../prisma/prisma.service';
 
 describe('OrdersService', () => {
@@ -15,6 +16,7 @@ describe('OrdersService', () => {
   // two shapes with a loose index signature.
   let prisma: Record<string, any>;
   let eventEmitter: { emit: jest.Mock };
+  let orderNumbers: { generate: jest.Mock };
 
   const mockVariant = {
     id: 'var-1',
@@ -71,6 +73,7 @@ describe('OrdersService', () => {
         create: jest.fn(),
         findMany: jest.fn(),
         findUnique: jest.fn(),
+        findFirst: jest.fn(),
         count: jest.fn(),
         update: jest.fn(),
       },
@@ -101,11 +104,16 @@ describe('OrdersService', () => {
       emit: jest.fn(),
     };
 
+    orderNumbers = {
+      generate: jest.fn().mockResolvedValue('DEN-000123'),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         OrdersService,
         { provide: PrismaService, useValue: prisma },
         { provide: EventEmitter2, useValue: eventEmitter },
+        { provide: OrderNumberService, useValue: orderNumbers },
       ],
     }).compile();
 
@@ -943,6 +951,7 @@ describe('OrdersService', () => {
   describe('lookupForGuest', () => {
     const lookupOrder = {
       id: 'order-1',
+      orderNumber: 'DEN-000123',
       status: 'CONFIRMED',
       subtotal: 1500,
       discount: 0,
@@ -956,7 +965,7 @@ describe('OrdersService', () => {
     };
 
     it('returns the order when (id, email) matches the registered user email case-insensitively', async () => {
-      prisma.order.findUnique.mockResolvedValue(lookupOrder);
+      prisma.order.findFirst.mockResolvedValue(lookupOrder);
 
       const result = await service.lookupForGuest(
         'order-1',
@@ -965,10 +974,11 @@ describe('OrdersService', () => {
 
       expect(result.id).toBe('order-1');
       expect(result.status).toBe('CONFIRMED');
+      expect(result.orderNumber).toBe('DEN-000123');
     });
 
     it('returns the order when (id, email) matches the guestEmail tuple', async () => {
-      prisma.order.findUnique.mockResolvedValue({
+      prisma.order.findFirst.mockResolvedValue({
         ...lookupOrder,
         user: null,
         guestEmail: 'GUEST@example.com',
@@ -983,7 +993,7 @@ describe('OrdersService', () => {
     });
 
     it('throws NotFoundException when the order does not exist', async () => {
-      prisma.order.findUnique.mockResolvedValue(null);
+      prisma.order.findFirst.mockResolvedValue(null);
 
       await expect(
         service.lookupForGuest('missing', 'someone@example.com'),
@@ -991,11 +1001,27 @@ describe('OrdersService', () => {
     });
 
     it('throws NotFoundException with the same message when the email does not match the order — no enumeration leak', async () => {
-      prisma.order.findUnique.mockResolvedValue(lookupOrder);
+      prisma.order.findFirst.mockResolvedValue(lookupOrder);
 
       await expect(
         service.lookupForGuest('order-1', 'someone-else@example.com'),
       ).rejects.toThrow(NotFoundException);
+    });
+
+    it('accepts orderNumber in addition to raw CUID', async () => {
+      prisma.order.findFirst.mockResolvedValue(lookupOrder);
+
+      await service.lookupForGuest('DEN-000123', 'OWNER@example.com');
+
+      // The OR branch must include both id AND orderNumber — caller may
+      // pass either.
+      expect(prisma.order.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            OR: [{ id: 'DEN-000123' }, { orderNumber: 'DEN-000123' }],
+          },
+        }),
+      );
     });
   });
 

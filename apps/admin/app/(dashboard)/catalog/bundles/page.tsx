@@ -200,10 +200,47 @@ export default function BundlesPage() {
   );
 }
 
+interface PickerVariant {
+  readonly size: string;
+  readonly color: string;
+  readonly colorHex?: string | null;
+}
+
 interface PickerProduct {
   readonly id: string;
   readonly name: string;
   readonly slug: string;
+  readonly variants?: readonly PickerVariant[];
+}
+
+// Distinct (color, colorHex) tuples preserving first-seen order.
+function distinctColors(
+  variants: readonly PickerVariant[] | undefined,
+): readonly { color: string; colorHex: string | null }[] {
+  if (!variants) return [];
+  const seen = new Map<string, { color: string; colorHex: string | null }>();
+  for (const v of variants) {
+    const color = (v.color ?? '').trim();
+    if (!color || seen.has(color)) continue;
+    seen.set(color, { color, colorHex: v.colorHex ?? null });
+  }
+  return Array.from(seen.values());
+}
+
+// Distinct sizes across a set of products, preserving each product's
+// declared order. Useful for showing every size the bundle could ship in.
+function unionSizes(products: readonly PickerProduct[]): readonly string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const p of products) {
+    for (const v of p.variants ?? []) {
+      const s = (v.size ?? '').trim();
+      if (!s || seen.has(s)) continue;
+      seen.add(s);
+      out.push(s);
+    }
+  }
+  return out;
 }
 
 interface CreateBundleModalProps {
@@ -222,7 +259,7 @@ function CreateBundleModal({ open, onClose, onCreated }: CreateBundleModalProps)
   const [badgeText, setBadgeText] = useState('Editorial');
   const [image, setImage] = useState('');
   const [bundlePrice, setBundlePrice] = useState('');
-  const [availableSizes, setAvailableSizes] = useState('');
+  const [sizes, setSizes] = useState<readonly string[]>([]);
   const [items, setItems] = useState<
     readonly { productId: string; color: string }[]
   >([]);
@@ -239,7 +276,7 @@ function CreateBundleModal({ open, onClose, onCreated }: CreateBundleModalProps)
       setBadgeText('Editorial');
       setImage('');
       setBundlePrice('');
-      setAvailableSizes('');
+      setSizes([]);
       setItems([]);
       setProductQuery('');
       setFormError('');
@@ -271,8 +308,33 @@ function CreateBundleModal({ open, onClose, onCreated }: CreateBundleModalProps)
       current.map((i) => (i.productId === id ? { ...i, color } : i)),
     );
 
+  const productById = (id: string): PickerProduct | undefined =>
+    productPool.find((p) => p.id === id);
+
   const productNameById = (id: string): string =>
-    productPool.find((p) => p.id === id)?.name ?? id;
+    productById(id)?.name ?? id;
+
+  const selectedProducts = items
+    .map((i) => productById(i.productId))
+    .filter((p): p is PickerProduct => Boolean(p));
+
+  const sizeOptions = unionSizes(selectedProducts);
+
+  // If a product gets unchecked, drop any sizes that no longer appear in the
+  // remaining selection so the submitted list stays consistent.
+  useEffect(() => {
+    setSizes((current) =>
+      current.filter((s) => sizeOptions.includes(s)),
+    );
+    // sizeOptions identity changes per render — depend on its serialization.
+  }, [sizeOptions.join('|')]);
+
+  const toggleSize = (size: string) =>
+    setSizes((current) =>
+      current.includes(size)
+        ? current.filter((s) => s !== size)
+        : [...current, size],
+    );
 
   const filtered = productQuery
     ? productPool.filter((p) =>
@@ -291,18 +353,15 @@ function CreateBundleModal({ open, onClose, onCreated }: CreateBundleModalProps)
       setFormError('Bundle price must be a positive number in BDT');
       return;
     }
-    const sizesList = availableSizes
-      .split(',')
-      .map((s) => s.trim())
-      .filter(Boolean);
-    if (sizesList.length === 0) {
-      setFormError(
-        'Available sizes is required — comma-separated, e.g. "S, M, L"',
-      );
-      return;
-    }
     if (items.length === 0) {
       setFormError('Pick at least one product for the bundle');
+      return;
+    }
+    const sizesList = sizes.filter(Boolean);
+    if (sizesList.length === 0) {
+      setFormError(
+        'Pick at least one available size from the selected products',
+      );
       return;
     }
     const missingColor = items.find((i) => !i.color.trim());
@@ -431,16 +490,41 @@ function CreateBundleModal({ open, onClose, onCreated }: CreateBundleModalProps)
           </Field>
           <Field
             label="Available Sizes"
-            name="availableSizes"
+            name="sizes"
             required
-            hint="Comma-separated."
+            hint={
+              sizeOptions.length === 0
+                ? 'Pick products first.'
+                : 'Tap each size the bundle ships in.'
+            }
           >
-            <TextInput
-              id="availableSizes"
-              value={availableSizes}
-              onChange={(e) => setAvailableSizes(e.target.value)}
-              placeholder="S, M, L"
-            />
+            {sizeOptions.length === 0 ? (
+              <p className="rounded-sm border border-dashed border-outline-variant/30 px-3 py-2 text-[11px] uppercase tracking-[0.15em] text-secondary">
+                No sizes yet
+              </p>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {sizeOptions.map((s) => {
+                  const active = sizes.includes(s);
+                  return (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => toggleSize(s)}
+                      className={
+                        'rounded-sm border px-3 py-1 text-xs uppercase tracking-[0.2em] transition-colors duration-200 ' +
+                        (active
+                          ? 'border-primary bg-primary text-on-primary'
+                          : 'border-outline-variant/30 bg-surface-container-low text-secondary hover:text-on-surface')
+                      }
+                      aria-pressed={active}
+                    >
+                      {s}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </Field>
         </div>
         <Field
@@ -452,34 +536,61 @@ function CreateBundleModal({ open, onClose, onCreated }: CreateBundleModalProps)
           <div className="space-y-3">
             {items.length > 0 && (
               <ul className="space-y-2 rounded-sm border border-outline-variant/30 bg-surface-container-low p-3">
-                {items.map((item) => (
-                  <li
-                    key={item.productId}
-                    className="flex items-center gap-3 text-sm"
-                  >
-                    <span className="flex-1 truncate font-semibold text-on-surface">
-                      {productNameById(item.productId)}
-                    </span>
-                    <input
-                      type="text"
-                      value={item.color}
-                      onChange={(e) =>
-                        setItemColor(item.productId, e.target.value)
-                      }
-                      placeholder="Color, e.g. Black"
-                      maxLength={64}
-                      className="w-40 rounded-sm border border-outline-variant/30 bg-surface-container px-2 py-1 text-xs text-on-surface focus:border-primary focus:outline-none"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => toggle(item.productId)}
-                      className="text-[10px] uppercase tracking-[0.2em] text-secondary hover:text-error"
-                      aria-label={`Remove ${productNameById(item.productId)}`}
+                {items.map((item) => {
+                  const product = productById(item.productId);
+                  const colorOptions = distinctColors(product?.variants);
+                  const activeHex =
+                    colorOptions.find((c) => c.color === item.color)
+                      ?.colorHex ?? null;
+                  return (
+                    <li
+                      key={item.productId}
+                      className="flex items-center gap-3 text-sm"
                     >
-                      remove
-                    </button>
-                  </li>
-                ))}
+                      <span className="flex-1 truncate font-semibold text-on-surface">
+                        {productNameById(item.productId)}
+                      </span>
+                      {colorOptions.length === 0 ? (
+                        <span className="w-40 text-right text-[10px] uppercase tracking-[0.15em] text-error">
+                          No colors configured
+                        </span>
+                      ) : (
+                        <div className="flex w-40 items-center gap-2">
+                          {activeHex && (
+                            <span
+                              aria-hidden
+                              className="h-4 w-4 shrink-0 rounded-full border border-outline-variant/30"
+                              style={{ backgroundColor: activeHex }}
+                            />
+                          )}
+                          <select
+                            value={item.color}
+                            onChange={(e) =>
+                              setItemColor(item.productId, e.target.value)
+                            }
+                            className="w-full rounded-sm border border-outline-variant/30 bg-surface-container px-2 py-1 text-xs text-on-surface focus:border-primary focus:outline-none"
+                            aria-label={`Color for ${productNameById(item.productId)}`}
+                          >
+                            <option value="">Select color…</option>
+                            {colorOptions.map((c) => (
+                              <option key={c.color} value={c.color}>
+                                {c.color}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => toggle(item.productId)}
+                        className="text-[10px] uppercase tracking-[0.2em] text-secondary hover:text-error"
+                        aria-label={`Remove ${productNameById(item.productId)}`}
+                      >
+                        remove
+                      </button>
+                    </li>
+                  );
+                })}
               </ul>
             )}
             <TextInput

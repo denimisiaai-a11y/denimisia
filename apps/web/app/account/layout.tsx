@@ -15,6 +15,7 @@ export const dynamic = 'force-dynamic';
 const ACCOUNT_NAV = [
   { label: 'Profile', href: '/account' },
   { label: 'Orders', href: '/account/orders' },
+  { label: 'Returns', href: '/account/returns' },
   { label: 'Wishlist', href: '/account/wishlist' },
   { label: 'Addresses', href: '/account/addresses' },
 ];

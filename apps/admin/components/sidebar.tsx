@@ -32,6 +32,7 @@ const NAV_GROUPS: readonly NavGroup[] = [
     label: 'Sales',
     items: [
       { href: '/orders', label: 'Orders', icon: 'shopping_cart' },
+      { href: '/returns', label: 'Returns', icon: 'assignment_return' },
       { href: '/discounts', label: 'Discounts', icon: 'sell' },
       { href: '/pos', label: 'Point of Sale', icon: 'point_of_sale' },
     ],
@@ -43,10 +44,11 @@ const NAV_GROUPS: readonly NavGroup[] = [
   {
     label: 'Content',
     items: [
-      { href: '/cms',         label: 'CMS Hub',        icon: 'space_dashboard' },
-      { href: '/cms/media',   label: 'Live Media',     icon: 'auto_awesome' },
-      { href: '/cms/banners', label: 'Banners',        icon: 'view_carousel' },
-      { href: '/cms/blog',    label: 'Blog',           icon: 'article' },
+      { href: '/cms',              label: 'CMS Hub',      icon: 'space_dashboard' },
+      { href: '/cms/media',        label: 'Live Media',   icon: 'auto_awesome' },
+      { href: '/cms/home-banners', label: 'Home Banners', icon: 'view_carousel' },
+      { href: '/cms/banners',      label: 'Promo Banners',icon: 'campaign' },
+      { href: '/cms/blog',         label: 'Blog',         icon: 'article' },
     ],
   },
   {

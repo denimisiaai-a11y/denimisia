@@ -5,6 +5,7 @@ import {
   BadRequestException,
   ForbiddenException,
   ConflictException,
+  InternalServerErrorException,
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Prisma } from '@prisma/client';
@@ -20,6 +21,9 @@ import {
   OrderStatusChangedEvent,
   OrderCancelledEvent,
 } from '../../common/events/order.events';
+import { OrderNumberService } from './order-number.service';
+
+const ORDER_CREATE_MAX_RETRIES = 3;
 
 // Snapshot Json shape written for a bundle order line. The constituent
 // variantId is captured at order time so cancel-restore + audit can walk
@@ -79,6 +83,7 @@ export class OrdersService {
   constructor(
     private prisma: PrismaService,
     private eventEmitter: EventEmitter2,
+    private orderNumbers: OrderNumberService,
   ) {}
 
   // userId is `string | null`. When null, the caller is anonymous and the
@@ -135,38 +140,41 @@ export class OrdersService {
     const total = Math.max(0, subtotal - discountAmount + shippingCost);
     const stockOps = this.collectStockOps(variantLines, bundleLines);
 
-    const order = await this.prisma.$transaction(async (tx) => {
-      await this.lockAndAssertStock(tx, stockOps);
+    const order = await this.createOrderWithNumberRetry((orderNumber) =>
+      this.prisma.$transaction(async (tx) => {
+        await this.lockAndAssertStock(tx, stockOps);
 
-      const created = await tx.order.create({
-        data: {
-          userId,
-          guestEmail: userId ? null : dto.guestEmail,
-          guestName: userId ? null : dto.guestName,
-          guestPhone: userId ? null : dto.guestPhone,
-          shippingAddress: dto.shippingAddress as Prisma.InputJsonValue,
-          billingAddress: dto.billingAddress as
-            | Prisma.InputJsonValue
-            | undefined,
-          subtotal,
-          discount: discountAmount,
-          shippingCost,
-          total,
-          notes: dto.notes,
-          discountId,
-          items: { create: orderItemsData },
-        },
-        include: { items: true },
-      });
+        const created = await tx.order.create({
+          data: {
+            orderNumber,
+            userId,
+            guestEmail: userId ? null : dto.guestEmail,
+            guestName: userId ? null : dto.guestName,
+            guestPhone: userId ? null : dto.guestPhone,
+            shippingAddress: dto.shippingAddress as Prisma.InputJsonValue,
+            billingAddress: dto.billingAddress as
+              | Prisma.InputJsonValue
+              | undefined,
+            subtotal,
+            discount: discountAmount,
+            shippingCost,
+            total,
+            notes: dto.notes,
+            discountId,
+            items: { create: orderItemsData },
+          },
+          include: { items: true },
+        });
 
-      await this.applyStockOps(tx, stockOps, created.id);
+        await this.applyStockOps(tx, stockOps, created.id);
 
-      if (discountId) {
-        await this.atomicReserveDiscount(tx, discountId);
-      }
+        if (discountId) {
+          await this.atomicReserveDiscount(tx, discountId);
+        }
 
-      return created;
-    });
+        return created;
+      }),
+    );
 
     if (userId) {
       const cart = await this.prisma.cart.findUnique({ where: { userId } });
@@ -216,16 +224,22 @@ export class OrdersService {
     return order;
   }
 
-  // Public order lookup gated by (orderId, email). Used by the guest
-  // track-order page. Returns the same 404 whether the order does not
-  // exist or the email does not match the row, so an attacker cannot
-  // enumerate order existence by id alone. Email comparison is case-
-  // insensitive against both the registered user's email and the guest
-  // checkout email tuple.
-  async lookupForGuest(orderId: string, email: string) {
+  // Public order lookup gated by (orderRef, email). Used by the guest
+  // track-order page AND the returns form's guest lookup. `orderRef`
+  // accepts EITHER the orderNumber (DEN-NNNNNN, the customer-facing
+  // identifier from confirmation emails) OR the raw CUID (kept for
+  // backward compatibility with any older email link still in the
+  // wild). The same 404 fires whether the order does not exist or the
+  // email does not match the row, so an attacker cannot enumerate
+  // order existence by id alone. Email comparison is case-insensitive
+  // against both the registered user's email and the guest checkout
+  // email tuple.
+  async lookupForGuest(orderRef: string, email: string) {
     const normEmail = email.toLowerCase();
-    const order = await this.prisma.order.findUnique({
-      where: { id: orderId },
+    const order = await this.prisma.order.findFirst({
+      where: {
+        OR: [{ id: orderRef }, { orderNumber: orderRef }],
+      },
       include: {
         items: { include: ORDER_ITEM_DISPLAY_INCLUDE },
         user: { select: { email: true, firstName: true } },
@@ -245,6 +259,7 @@ export class OrdersService {
 
     return {
       id: order.id,
+      orderNumber: order.orderNumber,
       status: order.status,
       subtotal: order.subtotal,
       discount: order.discount,
@@ -426,6 +441,34 @@ export class OrdersService {
   }
 
   // ─── Helpers ──────────────────────────────────────────────────────────────
+
+  // Wraps a `prisma.order.create` (typically inside a transaction) and
+  // retries on P2002 unique-constraint collisions against orderNumber.
+  // Mirrors `createWithRtnRetry` in returns.service.ts. Two concurrent
+  // creates can ask OrderNumberService.generate() and receive the same
+  // value; the DB unique index catches it, we regenerate, and try
+  // again. After 3 attempts we bail with a 500 rather than spin.
+  private async createOrderWithNumberRetry<T>(
+    fn: (orderNumber: string) => Promise<T>,
+  ): Promise<T> {
+    for (let i = 0; i < ORDER_CREATE_MAX_RETRIES; i++) {
+      const orderNumber = await this.orderNumbers.generate();
+      try {
+        return await fn(orderNumber);
+      } catch (err) {
+        if (
+          err instanceof Prisma.PrismaClientKnownRequestError &&
+          err.code === 'P2002'
+        ) {
+          continue;
+        }
+        throw err;
+      }
+    }
+    throw new InternalServerErrorException(
+      'Could not generate a unique order number after multiple attempts',
+    );
+  }
 
   private assertLineKindPerItem(items: OrderItemDto[]): void {
     for (const item of items) {

@@ -126,9 +126,9 @@ interface OrderItem {
   variant?: { size?: string; color?: string };
   variantLabel?: string;
   quantity: number;
-  unitPrice?: number;
-  price?: number;
-  total?: number;
+  unitPrice?: number | string | null;
+  price?: number | string | null;
+  total?: number | string | null;
   snapshot?: ItemSnapshot;
 }
 
@@ -147,12 +147,22 @@ interface ShippingAddress {
 interface Order {
   id: string;
   orderNumber?: string;
-  user?: { name?: string; email?: string; phone?: string };
+  user?: {
+    id?: string;
+    name?: string;
+    firstName?: string | null;
+    lastName?: string | null;
+    email?: string | null;
+    phone?: string | null;
+  };
   customer?: { name?: string; email?: string; phone?: string };
+  guestName?: string | null;
+  guestEmail?: string | null;
+  guestPhone?: string | null;
   items: OrderItem[];
-  total: number;
-  subtotal?: number;
-  shippingCost?: number;
+  total: number | string;
+  subtotal?: number | string | null;
+  shippingCost?: number | string | null;
   status: OrderStatus;
   shippingAddress?: ShippingAddress;
   paymentMethod?: string;
@@ -161,20 +171,59 @@ interface Order {
   updatedAt?: string;
 }
 
+// Prisma `Decimal` columns (total, subtotal, shippingCost, unitPrice) come
+// across the wire as JSON strings, not numbers. Coerce safely before any math
+// or formatting so the UI never silently renders BDT 0.00 for a real value.
+function toMoney(value: number | string | null | undefined): number {
+  if (value == null) return 0;
+  const n = typeof value === 'string' ? Number(value) : value;
+  return Number.isFinite(n) ? n : 0;
+}
+
 function Currency({
   amount,
   tone = 'default',
 }: {
-  amount: number;
+  amount: number | string | null | undefined;
   tone?: 'default' | 'inverse';
 }) {
-  const formatted = Number.isFinite(amount)
-    ? BDT_FORMATTER.format(amount)
-    : BDT_FORMATTER.format(0);
+  const formatted = BDT_FORMATTER.format(toMoney(amount));
   return (
     <span className={tone === 'inverse' ? 'text-inverse-on-surface' : 'text-on-surface'}>
       {formatted}
     </span>
+  );
+}
+
+// API returns firstName/lastName for registered patrons and guestName for
+// guest checkouts. The admin payload no longer carries a flat `name`, so
+// resolve the display name from whichever shape is present.
+function getCustomerName(order: Order): string {
+  const full = [order.user?.firstName, order.user?.lastName]
+    .filter((part): part is string => Boolean(part && part.trim()))
+    .join(' ')
+    .trim();
+  return (
+    full ||
+    order.user?.name ||
+    order.guestName ||
+    order.customer?.name ||
+    order.shippingAddress?.name ||
+    ''
+  );
+}
+
+function getCustomerEmail(order: Order): string {
+  return order.user?.email || order.guestEmail || order.customer?.email || '';
+}
+
+function getCustomerPhone(order: Order): string {
+  return (
+    order.guestPhone ||
+    order.shippingAddress?.phone ||
+    order.user?.phone ||
+    order.customer?.phone ||
+    ''
   );
 }
 
@@ -263,7 +312,7 @@ export default function OrderDetailPage() {
 
   const openRefundDialog = () => {
     if (!order) return;
-    setRefundAmount(order.total.toFixed(2));
+    setRefundAmount(toMoney(order.total).toFixed(2));
     setRefundReason('REQUESTED_BY_CUSTOMER');
     setRefundNote('');
     setRefundOpen(true);
@@ -275,7 +324,7 @@ export default function OrderDetailPage() {
       setActionBanner({ tone: 'error', message: 'Enter a valid refund amount.' });
       return;
     }
-    if (order && parsed > order.total) {
+    if (order && parsed > toMoney(order.total)) {
       setActionBanner({
         tone: 'error',
         message: 'Refund cannot exceed order total.',
@@ -338,8 +387,8 @@ export default function OrderDetailPage() {
       }
       const displayId = escapeHtml(order.orderNumber ?? order.id.slice(0, 8).toUpperCase());
       const addr = order.shippingAddress;
-      const customerName = escapeHtml(order.user?.name ?? order.customer?.name ?? '');
-      const customerEmail = escapeHtml(order.user?.email ?? order.customer?.email ?? '');
+      const customerName = escapeHtml(getCustomerName(order));
+      const customerEmail = escapeHtml(getCustomerEmail(order));
       const addrLine1 = addr ? escapeHtml(addr.address ?? addr.street ?? '') : '';
       const addrLine2 = addr
         ? escapeHtml(
@@ -351,17 +400,20 @@ export default function OrderDetailPage() {
       const itemsHtml = order.items
         .map((it) => {
           const name = escapeHtml(it.product?.name ?? it.productName ?? 'Unknown Product');
-          const unit = it.unitPrice ?? it.price ?? 0;
-          const total = it.total ?? unit * it.quantity;
+          const unit = toMoney(it.unitPrice ?? it.price);
+          const totalRaw = it.total != null ? toMoney(it.total) : 0;
+          const total = totalRaw > 0 ? totalRaw : unit * it.quantity;
           return `<tr><td style="padding:8px;border-bottom:1px solid #eee">${name}</td><td style="padding:8px;border-bottom:1px solid #eee;text-align:center">${it.quantity}</td><td style="padding:8px;border-bottom:1px solid #eee;text-align:right">${escapeHtml(BDT_FORMATTER.format(unit))}</td><td style="padding:8px;border-bottom:1px solid #eee;text-align:right">${escapeHtml(BDT_FORMATTER.format(total))}</td></tr>`;
         })
         .join('');
-      const subtotalLine = escapeHtml(BDT_FORMATTER.format(order.subtotal ?? order.total));
+      const subtotalLine = escapeHtml(
+        BDT_FORMATTER.format(toMoney(order.subtotal ?? order.total)),
+      );
       const shippingLine =
         order.shippingCost != null
-          ? `<p>Shipping: ${escapeHtml(BDT_FORMATTER.format(order.shippingCost))}</p>`
+          ? `<p>Shipping: ${escapeHtml(BDT_FORMATTER.format(toMoney(order.shippingCost)))}</p>`
           : '';
-      const totalLine = escapeHtml(BDT_FORMATTER.format(order.total));
+      const totalLine = escapeHtml(BDT_FORMATTER.format(toMoney(order.total)));
       const placed = escapeHtml(new Date(order.createdAt).toLocaleDateString());
       const html = `<!doctype html><html><head><meta charset="utf-8"><title>Invoice ${displayId}</title><style>body{font-family:system-ui,sans-serif;padding:32px;color:#1b1c1c}h1{margin:0 0 4px;font-size:22px;letter-spacing:.1em;text-transform:uppercase}.muted{color:#666;font-size:12px}table{width:100%;border-collapse:collapse;margin-top:24px}th{text-align:left;padding:8px;border-bottom:2px solid #111;font-size:11px;letter-spacing:.1em;text-transform:uppercase}.total{font-weight:700;font-size:16px}</style></head><body><h1>Denimisia</h1><p class="muted">Invoice</p><div style="margin-top:16px"><strong>Order #${displayId}</strong><br><span class="muted">Placed ${placed}</span></div><div style="margin-top:16px"><strong>Bill To</strong><br>${customerName}<br>${customerEmail}${addr ? `<br>${addrLine1}<br>${addrLine2}` : ''}</div><table><thead><tr><th>Item</th><th style="text-align:center">Qty</th><th style="text-align:right">Unit</th><th style="text-align:right">Total</th></tr></thead><tbody>${itemsHtml}</tbody></table><div style="margin-top:24px;text-align:right"><p>Subtotal: ${subtotalLine}</p>${shippingLine}<p class="total">Total: ${totalLine}</p></div><script>window.onload=function(){window.print()}</script></body></html>`;
       const doc = win.document;
@@ -423,11 +475,12 @@ export default function OrderDetailPage() {
   };
 
   const getItemUnitPrice = (item: OrderItem): number => {
-    return item.unitPrice ?? item.price ?? 0;
+    return toMoney(item.unitPrice ?? item.price);
   };
 
   const getItemTotal = (item: OrderItem): number => {
-    return item.total ?? getItemUnitPrice(item) * item.quantity;
+    const explicit = item.total != null ? toMoney(item.total) : 0;
+    return explicit > 0 ? explicit : getItemUnitPrice(item) * item.quantity;
   };
 
   if (loading) {
@@ -458,9 +511,9 @@ export default function OrderDetailPage() {
   }
 
   const cfg = STATUS_CONFIG[order.status] ?? STATUS_CONFIG.PENDING;
-  const customerName = order.user?.name ?? order.customer?.name ?? 'Unknown';
-  const customerEmail = order.user?.email ?? order.customer?.email ?? '';
-  const customerPhone = order.user?.phone ?? order.customer?.phone ?? '';
+  const customerName = getCustomerName(order) || 'Unknown';
+  const customerEmail = getCustomerEmail(order);
+  const customerPhone = getCustomerPhone(order);
   const addr = order.shippingAddress;
   const currentIdx = STATUS_FLOW.indexOf(order.status);
   const nextTransitions = computeAllowedNext(order.status);
@@ -495,6 +548,12 @@ export default function OrderDetailPage() {
           </h2>
           <p className="mt-2 font-body text-sm tracking-wide text-secondary">
             Placed {formatDate(order.createdAt)}
+          </p>
+          {/* Internal CUID kept visible on the admin detail page so ops
+              can match it against logs / DB queries. The customer never
+              sees this. */}
+          <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.15em] text-secondary/70">
+            ID: {order.id}
           </p>
         </div>
         <div className="flex items-center gap-3">

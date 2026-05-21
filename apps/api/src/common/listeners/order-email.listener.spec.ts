@@ -8,6 +8,7 @@ import { OrderCreatedEvent } from '../events/order.events';
 
 interface OrderRow {
   id: string;
+  orderNumber: string;
   userId: string | null;
   guestEmail: string | null;
   guestName: string | null;
@@ -55,6 +56,7 @@ describe('OrderEmailListener', () => {
   function makeOrder(overrides: Partial<OrderRow> = {}): OrderRow {
     return {
       id: 'cabcdefghijklmnopqrstuvwx',
+      orderNumber: 'DEN-000042',
       userId: 'user-1',
       guestEmail: null,
       guestName: null,
