@@ -74,6 +74,22 @@ const nextAuth: NextAuthResult = NextAuth({
   session: {
     strategy: 'jwt',
   },
+  // Namespace the cookie so admin (3002) and web (3000) don't clobber each
+  // other's sessions on localhost (cookies are scoped by domain, not port).
+  cookies: {
+    sessionToken: {
+      name: 'denimisia-web.session-token',
+      options: { httpOnly: true, sameSite: 'lax', path: '/', secure: false },
+    },
+    csrfToken: {
+      name: 'denimisia-web.csrf-token',
+      options: { httpOnly: true, sameSite: 'lax', path: '/', secure: false },
+    },
+    callbackUrl: {
+      name: 'denimisia-web.callback-url',
+      options: { sameSite: 'lax', path: '/', secure: false },
+    },
+  },
   secret: process.env.NEXTAUTH_SECRET,
   logger: {
     // NextAuth log spew is dev-only. Production swallows everything that

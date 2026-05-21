@@ -720,6 +720,24 @@ model Banner {
   isActive  Boolean   @default(true)
   startDate DateTime?
   endDate   DateTime?
+  // Popup-only presentation settings. Ignored for top/middle/bottom banners.
+  // Values: 'compact' | 'medium' | 'large' | 'fullscreen'  (deprecated: kept
+  // for backwards compatibility but the storefront now reads the numeric
+  // fields below).
+  popupSize       String  @default("large")
+  popupSizeMobile String  @default("medium")
+  // When true the headline + CTA overlay the image (gradient backdrop).
+  // When false they sit in a white side panel next to the image.
+  textOverlay     Boolean @default(false)
+  // Fine-grained per-banner sizing. Percentages of the viewport.
+  // 0 means "auto" — let content drive the dimension.
+  popupWidthPct        Int    @default(95)
+  popupHeightPct       Int    @default(0)
+  popupWidthPctMobile  Int    @default(95)
+  popupHeightPctMobile Int    @default(0)
+  // How the image fills its container. 'cover' may crop; 'contain' shows
+  // the full subject with letterbox.
+  imageFit             String @default("cover")
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 }

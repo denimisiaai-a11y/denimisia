@@ -29,7 +29,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className="min-h-screen bg-background font-body text-on-surface antialiased">
         <ThemeProvider>
-          <SessionProvider>{children}</SessionProvider>
+          <SessionProvider refetchOnWindowFocus={false} refetchInterval={0}>
+            {children}
+          </SessionProvider>
         </ThemeProvider>
       </body>
     </html>

@@ -6,6 +6,8 @@ import {
   IsArray,
   IsObject,
   IsEnum,
+  IsISO8601,
+  ValidateIf,
   ValidateNested,
   Matches,
   MaxLength,
@@ -121,6 +123,59 @@ export class CreateBannerDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  // Accept null OR an ISO date string (yyyy-mm-dd is ISO 8601 compliant).
+  // The service converts to Date before handing to Prisma.
+  @IsOptional()
+  @ValidateIf((_, v) => v !== null)
+  @IsISO8601()
+  startDate?: string | null;
+
+  @IsOptional()
+  @ValidateIf((_, v) => v !== null)
+  @IsISO8601()
+  endDate?: string | null;
+
+  // Popup-only presentation. Service ignores these for non-popup positions.
+  @IsOptional()
+  @IsEnum(['compact', 'medium', 'large', 'fullscreen'])
+  popupSize?: 'compact' | 'medium' | 'large' | 'fullscreen';
+
+  @IsOptional()
+  @IsEnum(['compact', 'medium', 'large', 'fullscreen'])
+  popupSizeMobile?: 'compact' | 'medium' | 'large' | 'fullscreen';
+
+  @IsOptional()
+  @IsBoolean()
+  textOverlay?: boolean;
+
+  @IsOptional()
+  @IsInt()
+  @Min(20)
+  @Max(100)
+  popupWidthPct?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(100)
+  popupHeightPct?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(20)
+  @Max(100)
+  popupWidthPctMobile?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(100)
+  popupHeightPctMobile?: number;
+
+  @IsOptional()
+  @IsEnum(['cover', 'contain'])
+  imageFit?: 'cover' | 'contain';
 }
 
 export class UpdateBannerDto {
@@ -154,4 +209,54 @@ export class UpdateBannerDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  @IsOptional()
+  @ValidateIf((_, v) => v !== null)
+  @IsISO8601()
+  startDate?: string | null;
+
+  @IsOptional()
+  @ValidateIf((_, v) => v !== null)
+  @IsISO8601()
+  endDate?: string | null;
+
+  @IsOptional()
+  @IsEnum(['compact', 'medium', 'large', 'fullscreen'])
+  popupSize?: 'compact' | 'medium' | 'large' | 'fullscreen';
+
+  @IsOptional()
+  @IsEnum(['compact', 'medium', 'large', 'fullscreen'])
+  popupSizeMobile?: 'compact' | 'medium' | 'large' | 'fullscreen';
+
+  @IsOptional()
+  @IsBoolean()
+  textOverlay?: boolean;
+
+  @IsOptional()
+  @IsInt()
+  @Min(20)
+  @Max(100)
+  popupWidthPct?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(100)
+  popupHeightPct?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(20)
+  @Max(100)
+  popupWidthPctMobile?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(100)
+  popupHeightPctMobile?: number;
+
+  @IsOptional()
+  @IsEnum(['cover', 'contain'])
+  imageFit?: 'cover' | 'contain';
 }

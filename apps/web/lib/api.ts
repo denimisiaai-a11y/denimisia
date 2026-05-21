@@ -576,3 +576,50 @@ export async function getProductSizeChart(
   const json = await res.json();
   return (json.data ?? json) as { rows: SizeChartRow[] };
 }
+
+// ─── Promo Banners ────────────────────────────────────────────────────────────
+
+export type PromoBannerPosition = 'popup' | 'top' | 'middle' | 'bottom';
+export type PromoPopupSize = 'compact' | 'medium' | 'large' | 'fullscreen';
+
+export interface PromoBannerRecord {
+  readonly id: string;
+  readonly title: string;
+  readonly subtitle: string | null;
+  readonly image: string;
+  readonly link: string | null;
+  readonly position: PromoBannerPosition;
+  readonly isActive: boolean;
+  readonly startDate: string | null;
+  readonly endDate: string | null;
+  readonly popupSize: PromoPopupSize;
+  readonly popupSizeMobile: PromoPopupSize;
+  readonly textOverlay: boolean;
+  readonly popupWidthPct: number;
+  readonly popupHeightPct: number;        // 0 = auto
+  readonly popupWidthPctMobile: number;
+  readonly popupHeightPctMobile: number;  // 0 = auto
+  readonly imageFit: 'cover' | 'contain';
+  readonly createdAt: string;
+}
+
+/**
+ * Fetches active banners from the CMS. The API already filters by date
+ * window + isActive=true, so the storefront just trusts the response.
+ * Failure-tolerant: returns [] when the API is down so the storefront
+ * still renders.
+ */
+export async function fetchPromoBanners(): Promise<PromoBannerRecord[]> {
+  try {
+    const res = await fetch(`${API}/cms/banners`, {
+      next: { revalidate: 60, tags: ['promo-banners'] },
+      signal: AbortSignal.timeout(3000),
+    });
+    if (!res.ok) return [];
+    const json = await res.json();
+    const data = json.data ?? json;
+    return Array.isArray(data) ? (data as PromoBannerRecord[]) : [];
+  } catch {
+    return [];
+  }
+}

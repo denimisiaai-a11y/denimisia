@@ -3,6 +3,7 @@ import { buildMetadata } from '@/lib/seo/metadata';
 import { brand } from '@/config/brand';
 import { SectionRenderer, type SectionData } from '@/components/home/section-renderer';
 import { SplashPrerender } from '@/components/splash/splash-prerender';
+import { PromoBanner } from '@/components/promo/promo-banner';
 import { resolveProductImage, resolveHoverImage } from '@/lib/placeholder-images';
 import { fetchCuratedSection, type CuratedItem } from '@/lib/curation';
 import {
@@ -209,12 +210,24 @@ export default async function HomePage() {
 
   const sectionData: SectionData = { newArrivals, trending, bestsellers };
 
+  // Split sections in half so the MIDDLE promo placement sits at a natural
+  // break point in the homepage flow without depending on which specific
+  // section types the admin has configured.
+  const half = Math.floor(sections.length / 2);
+  const firstHalf  = sections.slice(0, half);
+  const secondHalf = sections.slice(half);
+
   return (
     <>
       <SplashPrerender />
-      {sections.map((section) => (
+      {firstHalf.map((section) => (
         <SectionRenderer key={section.id} section={section} data={sectionData} />
       ))}
+      <PromoBanner position="middle" />
+      {secondHalf.map((section) => (
+        <SectionRenderer key={section.id} section={section} data={sectionData} />
+      ))}
+      <PromoBanner position="bottom" />
     </>
   );
 }

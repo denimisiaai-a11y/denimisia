@@ -13,6 +13,28 @@ import {
 const STYLES_SINGLETON_ID = 'singleton';
 type AuditEntity = 'HomepageSectionInstance' | 'GlobalStorefrontStyles';
 
+/**
+ * Coerce ISO date strings in a banner DTO to Date instances Prisma can persist.
+ * Leaves other fields untouched. Null passes through unchanged so the admin
+ * can clear an existing date by sending `null`.
+ */
+function coerceBannerDates<T extends { startDate?: string | null; endDate?: string | null }>(
+  dto: T,
+): Omit<T, 'startDate' | 'endDate'> & { startDate?: Date | null; endDate?: Date | null } {
+  const { startDate, endDate, ...rest } = dto;
+  const out: Record<string, unknown> = { ...rest };
+  if (startDate !== undefined) {
+    out.startDate = startDate === null ? null : new Date(startDate);
+  }
+  if (endDate !== undefined) {
+    out.endDate = endDate === null ? null : new Date(endDate);
+  }
+  return out as Omit<T, 'startDate' | 'endDate'> & {
+    startDate?: Date | null;
+    endDate?: Date | null;
+  };
+}
+
 @Injectable()
 export class CmsService {
   constructor(private prisma: PrismaService) {}
@@ -152,13 +174,13 @@ export class CmsService {
   }
 
   async createBanner(dto: CreateBannerDto) {
-    return this.prisma.banner.create({ data: dto });
+    return this.prisma.banner.create({ data: coerceBannerDates(dto) });
   }
 
   async updateBanner(id: string, dto: UpdateBannerDto) {
     const banner = await this.prisma.banner.findUnique({ where: { id } });
     if (!banner) throw new NotFoundException('Banner not found');
-    return this.prisma.banner.update({ where: { id }, data: dto });
+    return this.prisma.banner.update({ where: { id }, data: coerceBannerDates(dto) });
   }
 
   async deleteBanner(id: string) {
