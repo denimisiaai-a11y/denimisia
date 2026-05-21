@@ -103,9 +103,15 @@ export function SizeAndFitEditor({
 
   if (!type) {
     return (
-      <p className="text-[11px] uppercase tracking-[0.2em] text-secondary">
-        Select a type first.
-      </p>
+      <section className="space-y-3 rounded border border-outline-variant/20 p-4">
+        <header className="text-[10px] font-bold uppercase tracking-[0.2em] text-secondary">
+          Size &amp; Fit
+        </header>
+        <p className="text-sm text-on-surface">
+          Pick a product Type (Pants / Shirts / Jackets) above to unlock the
+          silhouette preview, fit presets, and detailed size chart.
+        </p>
+      </section>
     );
   }
 
