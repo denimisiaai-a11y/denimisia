@@ -432,23 +432,11 @@ async function main() {
   console.log('✅ Banners');
 
   // ─── Homepage Section ────────────────────────────────────────────────────
-  await prisma.homepageSection.upsert({
-    where: { key: 'hero' },
-    update: {},
-    create: {
-      key: 'hero',
-      title: 'Crafted for Character',
-      subtitle: 'Premium Bangladeshi denim built to age with you.',
-      content: {
-        image: '/images/hero-1.jpg',
-        ctaText: 'Shop Now',
-        ctaLink: '/shop/women',
-      },
-      position: 1,
-      isActive: true,
-    },
-  });
-  console.log('✅ Homepage section');
+  // NOTE: The legacy HomepageSection model was removed by the CMS Section
+  // Composer feature (commit 8ee25a0). Homepage sections are now managed via
+  // HomepageSectionInstance + SectionCuration, seeded separately when needed.
+  // Leaving this block disabled to avoid crashing the seed.
+  console.log('⏭️  Homepage section (skipped — legacy model removed)');
 
   // ─── Product Bundles ─────────────────────────────────────────────────────
   const allProducts = await prisma.product.findMany({ select: { id: true, slug: true }, take: 20 });
