@@ -12,7 +12,6 @@
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import serverlessExpress from '@vendia/serverless-express';
-import type { Express } from 'express';
 import { createApp } from '../src/bootstrap';
 
 type ExpressHandler = (req: VercelRequest, res: VercelResponse) => void;
@@ -23,8 +22,8 @@ async function getHandler(): Promise<ExpressHandler> {
   if (cachedHandler) return cachedHandler;
   const app = await createApp();
   await app.init();
-  const expressApp = app.getHttpAdapter().getInstance() as Express;
-  cachedHandler = serverlessExpress({ app: expressApp }) as ExpressHandler;
+  const expressApp = app.getHttpAdapter().getInstance() as unknown;
+  cachedHandler = serverlessExpress({ app: expressApp } as never) as ExpressHandler;
   return cachedHandler;
 }
 
