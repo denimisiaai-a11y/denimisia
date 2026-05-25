@@ -36,6 +36,7 @@ import { HealthModule } from './common/health/health.module';
 import { BulkModule } from './common/bulk/bulk.module';
 import { EmailModule } from './modules/email/email.module';
 import { BotModule } from './modules/bot/bot.module';
+import { InboxModule } from './modules/inbox/inbox.module';
 import { SilhouettesModule } from './modules/silhouettes/silhouettes.module';
 
 @Module({
@@ -75,6 +76,7 @@ import { SilhouettesModule } from './modules/silhouettes/silhouettes.module';
     BulkModule,
     EmailModule,
     BotModule,
+    InboxModule,
     SilhouettesModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
