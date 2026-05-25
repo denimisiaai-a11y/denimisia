@@ -15,6 +15,8 @@ import { BotParserService } from './bot.parser.service';
 import { BotSearchService } from './bot.search.service';
 import { BotSizingService } from './bot.sizing.service';
 import { BotSynonymsService } from './bot.synonyms.service';
+import { BotFallbackService } from './fallback/bot.fallback.service';
+import { PurgeAuditQueryPreviewHandler } from './fallback/purge.handler';
 import { SIZING_FLOW_STEPS, VALID_FIT_PREFS } from './bot.constants';
 import { BotMessageReply, BotContext } from './bot.types';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -28,6 +30,8 @@ export class BotController {
     private readonly search: BotSearchService,
     private readonly sizing: BotSizingService,
     private readonly synonyms: BotSynonymsService,
+    private readonly fallback: BotFallbackService,
+    private readonly purgeHandler: PurgeAuditQueryPreviewHandler,
     private readonly prisma: PrismaService,
   ) {}
 
@@ -107,9 +111,17 @@ export class BotController {
       };
     }
 
+    await this.prisma.botUnrecognizedQuery.create({
+      data: { text, sessionId: ctx.sessionId, gender: ctx.gender ?? null },
+    });
+    const fb = await this.fallback.answer({
+      message: text,
+      sessionId: ctx.sessionId,
+      userId: undefined,
+    });
     return {
-      message: 'I can help find products. For other questions, see contact.',
-      chips: ['Pants', 'Shirts', 'Jackets'],
+      message: fb.message,
+      chips: fb.chips,
       nextContext: ctx,
     };
   }
@@ -191,6 +203,36 @@ export class BotController {
       orderBy: { createdAt: 'desc' },
       take,
     });
+  }
+
+  @Get('admin/fallback/recent')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  async listRecentFallbacks(@Query('limit') limit?: string) {
+    const take = Math.min(Math.max(Number(limit ?? 50), 1), 200);
+    return this.prisma.botLlmAudit.findMany({
+      orderBy: { createdAt: 'desc' },
+      take,
+      select: {
+        id: true,
+        sessionId: true,
+        userId: true,
+        queryPreview: true,
+        success: true,
+        errorCode: true,
+        outputFiltered: true,
+        injectionFlagged: true,
+        retrievedSources: true,
+        createdAt: true,
+      },
+    });
+  }
+
+  @Post('admin/fallback/purge-old-previews')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  async purgeOldFallbackPreviews() {
+    return this.purgeHandler.run({});
   }
 
   @Get('admin/fit-data-coverage')
