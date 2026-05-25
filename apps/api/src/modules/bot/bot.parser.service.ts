@@ -18,6 +18,13 @@ const SIZING_TRIGGERS = [
   'help me find my size',
   'what size am i',
 ];
+const TALK_TO_SUPPORT_PATTERNS: RegExp[] = [
+  /\btalk\s+to\s+(support|a\s+human|a\s+person|someone|customer\s+service)\b/i,
+  /\bspeak\s+to\s+(support|a\s+person|someone|customer\s+service)\b/i,
+  /\bi\s+want\s+to\s+(talk|speak|chat)\s+(to|with)\b/i,
+  /\bleave\s+a\s+message\b/i,
+  /\bcontact\s+(support|the\s+team)\b/i,
+];
 const SINGLE_SILHOUETTE_PAIRS: ReadonlyArray<readonly [string, string]> = [
   ['slim', 'baggy'],
   ['slim', 'relaxed'],
@@ -32,6 +39,7 @@ export class BotParserService {
 
   detectIntent(text: string): BotIntent {
     const lower = text.toLowerCase();
+    if (TALK_TO_SUPPORT_PATTERNS.some((re) => re.test(lower))) return 'talk_to_support';
     if (SIZING_TRIGGERS.some((t) => lower.includes(t))) return 'sizing';
     if (WHATS_NEW_TRIGGERS.some((t) => lower.includes(t))) return 'whats_new';
     if (lower.trim() === '') return 'unknown';

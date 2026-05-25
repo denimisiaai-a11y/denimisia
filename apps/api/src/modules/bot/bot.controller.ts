@@ -53,6 +53,15 @@ export class BotController {
 
     const intent = this.parser.detectIntent(text);
 
+    if (intent === 'talk_to_support') {
+      return {
+        message: 'Got it. Let me connect you to our team.',
+        chips: ['Leave a message'],
+        action: 'offer_handoff',
+        nextContext: { ...ctx, unknownStreak: 0 },
+      };
+    }
+
     if (intent === 'sizing') {
       return this.startSizingFlow(ctx);
     }
