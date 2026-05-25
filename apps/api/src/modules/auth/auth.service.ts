@@ -18,6 +18,7 @@ import {
   buildVerifyEmail,
   buildPasswordResetEmail,
 } from '../email/email-templates';
+import { OAuth2Client } from 'google-auth-library';
 import { RegisterDto, LoginDto } from './auth.dto';
 import { env, isProd } from '../../common/env';
 
@@ -161,6 +162,103 @@ export class AuthService {
     );
     await this.storeRefreshToken(user.id, tokens.refreshToken);
     await this.emitAudit(user.id, 'USER_LOGIN', { email: user.email });
+    return {
+      ...tokens,
+      user: {
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        role: user.role,
+      },
+    };
+  }
+
+  /**
+   * Exchange a Google ID token for our own JWT pair. Called by NextAuth's
+   * `jwt` callback when a user signs in with the GOOGLE provider — never by
+   * the browser directly. The ID token is verified cryptographically against
+   * Google's JWKS, so the trust chain is: browser ↔ Google ↔ our API.
+   *
+   * Auto-creates the User on first sign-in (isVerified=true since Google
+   * already verified the email). Random password means the credentials
+   * provider can't log in until the user runs forgot-password to set one.
+   */
+  async oauthGoogleExchange(idToken: string) {
+    const clientId = env.GOOGLE_CLIENT_ID;
+    if (!clientId) {
+      // Misconfiguration on our side, not the user's fault — but we still
+      // refuse to mint a token so as not to bypass verification.
+      this.logger.error('GOOGLE_CLIENT_ID not set; refusing OAuth exchange');
+      throw new UnauthorizedException('Google sign-in not configured');
+    }
+
+    let email: string;
+    let firstName: string;
+    let lastName: string;
+    try {
+      const client = new OAuth2Client(clientId);
+      const ticket = await client.verifyIdToken({
+        idToken,
+        audience: clientId,
+      });
+      const payload = ticket.getPayload();
+      if (!payload?.email || !payload.email_verified) {
+        throw new UnauthorizedException('Google email not verified');
+      }
+      email = payload.email.toLowerCase();
+      firstName = payload.given_name?.trim() || 'Customer';
+      lastName = payload.family_name?.trim() || '';
+    } catch (err) {
+      if (err instanceof UnauthorizedException) throw err;
+      this.logger.warn(
+        `Google ID token verification failed: ${err instanceof Error ? err.message : 'unknown'}`,
+      );
+      throw new UnauthorizedException('Invalid Google token');
+    }
+
+    let user = await this.prisma.user.findFirst({
+      where: { email, deletedAt: null },
+    });
+    let isNewUser = false;
+    if (!user) {
+      // Random 64-char hex password — user can never sign in with credentials
+      // until they run forgot-password (which overwrites this hash).
+      const randomPassword = randomBytes(32).toString('hex');
+      const passwordHash = await bcrypt.hash(randomPassword, 12);
+      user = await this.prisma.user.create({
+        data: {
+          email,
+          passwordHash,
+          firstName,
+          lastName,
+          isVerified: true,
+        },
+      });
+      isNewUser = true;
+    } else if (!user.isActive) {
+      throw new UnauthorizedException('Account is deactivated');
+    }
+
+    const tv = await this.getOrInitTokenVersion(user.id);
+    const tokens = await this.generateTokens(
+      user.id,
+      user.email,
+      user.role,
+      tv,
+    );
+    await this.storeRefreshToken(user.id, tokens.refreshToken);
+    if (isNewUser) {
+      await this.emitAudit(user.id, 'USER_REGISTER', {
+        email: user.email,
+        role: user.role,
+        provider: 'google',
+      });
+    }
+    await this.emitAudit(user.id, 'USER_LOGIN', {
+      email: user.email,
+      provider: 'google',
+    });
     return {
       ...tokens,
       user: {

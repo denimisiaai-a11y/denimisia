@@ -15,6 +15,7 @@ import {
   ForgotPasswordDto,
   ResetPasswordDto,
   VerifyEmailDto,
+  OAuthGoogleDto,
 } from './auth.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -62,6 +63,21 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ) {
     const result = await this.authService.login(dto);
+    this.setRefreshCookie(res, result.refreshToken);
+    return { accessToken: result.accessToken, user: result.user };
+  }
+
+  // Google OAuth: 10 / 15 min / IP. NextAuth on the web app forwards Google's
+  // verified id_token here; the service verifies it cryptographically before
+  // minting our own JWT pair. Throttle keeps token-replay floods cheap.
+  @Post('oauth/google')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 10, ttl: 900_000 } })
+  async oauthGoogle(
+    @Body() dto: OAuthGoogleDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.authService.oauthGoogleExchange(dto.idToken);
     this.setRefreshCookie(res, result.refreshToken);
     return { accessToken: result.accessToken, user: result.user };
   }

@@ -56,3 +56,10 @@ export class VerifyEmailDto {
   @IsString()
   token: string;
 }
+
+export class OAuthGoogleDto {
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(4096)
+  idToken: string;
+}
