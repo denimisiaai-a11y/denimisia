@@ -460,6 +460,86 @@ function Select({
   );
 }
 
+// ---------- Default-size-chart generator ----------
+//
+// Produces a sensible starter chart based on product type + the variant sizes
+// the user has already entered. Values are industry-standard ballparks the
+// merchandiser can tweak per design; never meant to be authoritative.
+//
+// PANTS expects numeric waist-size keys (24, 26, 28...). For non-numeric
+// keys the row is skipped. SHIRTS/JACKETS use a letter-size lookup
+// (XS..XXL); unknown keys fall through.
+
+const SHIRT_LETTER_DEFAULTS: Record<
+  string,
+  Partial<Record<string, [number, number]>>
+> = {
+  XS:  { chest: [34, 38], shoulder: [14, 15], length: [24, 25], sleeve: [22, 23], bicep: [12, 14], 'hem opening': [36, 40], 'neck width': [14, 15],   'cuff opening': [8, 9],   'armhole depth': [8, 9] },
+  S:   { chest: [36, 40], shoulder: [15, 16], length: [25, 26], sleeve: [23, 24], bicep: [13, 15], 'hem opening': [38, 42], 'neck width': [14.5, 15.5], 'cuff opening': [8, 9],   'armhole depth': [8.5, 9.5] },
+  M:   { chest: [38, 42], shoulder: [16, 17], length: [26, 27], sleeve: [24, 25], bicep: [14, 16], 'hem opening': [40, 44], 'neck width': [15, 16],   'cuff opening': [9, 10],  'armhole depth': [9, 10] },
+  L:   { chest: [40, 44], shoulder: [17, 18], length: [27, 28], sleeve: [25, 26], bicep: [15, 17], 'hem opening': [42, 46], 'neck width': [15.5, 16.5], 'cuff opening': [9, 10],  'armhole depth': [9.5, 10.5] },
+  XL:  { chest: [42, 46], shoulder: [18, 19], length: [28, 29], sleeve: [26, 27], bicep: [16, 18], 'hem opening': [44, 48], 'neck width': [16, 17],   'cuff opening': [10, 11], 'armhole depth': [10, 11] },
+  XXL: { chest: [44, 48], shoulder: [19, 20], length: [29, 30], sleeve: [27, 28], bicep: [17, 19], 'hem opening': [46, 50], 'neck width': [16.5, 17.5], 'cuff opening': [10, 11], 'armhole depth': [10.5, 11.5] },
+};
+
+const JACKET_LETTER_DEFAULTS: Record<
+  string,
+  Partial<Record<string, [number, number]>>
+> = {
+  XS:  { chest: [36, 41], shoulder: [16, 17], length: [25, 26], sleeve: [23, 24], bicep: [13, 16], 'hem opening': [38, 43], 'cuff opening': [9, 10],  'back length': [25, 26], 'armhole depth': [9, 10] },
+  S:   { chest: [38, 43], shoulder: [17, 18], length: [26, 27], sleeve: [24, 25], bicep: [14, 17], 'hem opening': [40, 45], 'cuff opening': [9, 10],  'back length': [26, 27], 'armhole depth': [9.5, 10.5] },
+  M:   { chest: [40, 45], shoulder: [18, 19], length: [27, 28], sleeve: [25, 26], bicep: [15, 18], 'hem opening': [42, 47], 'cuff opening': [10, 11], 'back length': [27, 28], 'armhole depth': [10, 11] },
+  L:   { chest: [42, 47], shoulder: [19, 20], length: [28, 29], sleeve: [26, 27], bicep: [16, 19], 'hem opening': [44, 49], 'cuff opening': [10, 11], 'back length': [28, 29], 'armhole depth': [10.5, 11.5] },
+  XL:  { chest: [44, 49], shoulder: [20, 21], length: [29, 30], sleeve: [27, 28], bicep: [17, 20], 'hem opening': [46, 51], 'cuff opening': [11, 12], 'back length': [29, 30], 'armhole depth': [11, 12] },
+  XXL: { chest: [46, 51], shoulder: [21, 22], length: [30, 31], sleeve: [28, 29], bicep: [18, 21], 'hem opening': [48, 53], 'cuff opening': [11, 12], 'back length': [30, 31], 'armhole depth': [11.5, 12.5] },
+};
+
+function pantsDefaultRow(
+  size: string,
+  dim: string,
+): [number, number] | null {
+  const N = Number(size);
+  if (Number.isNaN(N)) return null;
+  switch (dim) {
+    case 'waist':            return [N, N + 1];
+    case 'hip':              return [N + 9, N + 11];
+    case 'inseam':           return [32, 32];
+    case 'thigh':            return [Math.floor(N / 2) + 9, Math.floor(N / 2) + 11];
+    case 'front rise':       return [11, 11];
+    case 'back rise':        return [14, 14];
+    case 'hem opening':      return [22, 22];
+    case 'waistband height': return [2, 2];
+    default:                 return null;
+  }
+}
+
+export function buildDefaultSizeChart(
+  type: ProductType,
+  variantSizes: string[],
+): ChartRow[] {
+  const dims = SIZE_CHART_DIMENSIONS[type];
+  const rows: ChartRow[] = [];
+  for (const sizeKey of variantSizes) {
+    if (type === 'PANTS') {
+      for (const dim of dims) {
+        const pair = pantsDefaultRow(sizeKey, dim);
+        if (!pair) continue;
+        rows.push({ sizeKey, dimension: dim, bodyValueIn: pair[0], garmentValueIn: pair[1] });
+      }
+    } else {
+      const table = type === 'SHIRTS' ? SHIRT_LETTER_DEFAULTS : JACKET_LETTER_DEFAULTS;
+      const entry = table[sizeKey.toUpperCase()];
+      if (!entry) continue;
+      for (const dim of dims) {
+        const pair = entry[dim];
+        if (!pair) continue;
+        rows.push({ sizeKey, dimension: dim, bodyValueIn: pair[0], garmentValueIn: pair[1] });
+      }
+    }
+  }
+  return rows;
+}
+
 // ---------- SizeChartBlock ----------
 
 interface SizeChartBlockProps {
@@ -571,13 +651,32 @@ function SizeChartBlock({
         <p className="text-[10px] uppercase tracking-widest text-secondary">
           Detailed size chart
         </p>
-        <button
-          type="button"
-          onClick={onUnitToggle}
-          className="text-[10px] uppercase tracking-widest text-secondary underline"
-        >
-          {unit === 'in' ? 'Show in cm' : 'Show in inches'}
-        </button>
+        <div className="flex items-center gap-4">
+          <button
+            type="button"
+            onClick={() => {
+              const next = buildDefaultSizeChart(type, variantSizes);
+              if (value.length > 0) {
+                const ok = window.confirm(
+                  'Replace the current size chart with auto-generated defaults?',
+                );
+                if (!ok) return;
+              }
+              onChange(next);
+            }}
+            className="text-[10px] uppercase tracking-widest text-secondary underline hover:text-primary"
+            title={`Generate industry-standard ${type.toLowerCase()} measurements for the entered sizes`}
+          >
+            Auto-fill defaults
+          </button>
+          <button
+            type="button"
+            onClick={onUnitToggle}
+            className="text-[10px] uppercase tracking-widest text-secondary underline"
+          >
+            {unit === 'in' ? 'Show in cm' : 'Show in inches'}
+          </button>
+        </div>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-sm border border-outline-variant/20">

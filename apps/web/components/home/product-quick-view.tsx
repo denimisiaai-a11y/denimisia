@@ -9,6 +9,7 @@ import { X, ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
 import { formatPrice } from '@/lib/utils';
 import { useIsMobile } from '@/lib/mobile/use-media-query';
 import { useCart } from '@/stores/cart';
+import { prefetchProduct } from '@/lib/product-prefetch';
 
 interface ProductData {
   name: string;
@@ -30,8 +31,6 @@ interface ProductQuickViewProps {
 // render an obvious "placeholder" feel.
 const FALLBACK_DESCRIPTION =
   'Tap "View full details" for fit notes, materials, and care.';
-
-const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api/v1';
 
 interface FullVariant {
   id: string;
@@ -63,21 +62,18 @@ interface ColorSwatch {
 }
 
 /** Lazy-fetch the full product on open so quick view renders the same
- *  variants / description / flags as the detail page. Returns null until
+ *  variants / description / flags as the detail page. Resolves from the
+ *  shared in-memory cache (warmed by hover/focus prefetch on cards), so an
+ *  intentional QuickView open is typically instant. Returns null until
  *  loaded; callers should fall back to the basic card data in the meantime. */
 function useFullProduct(slug: string): FullProduct | null {
   const [data, setData] = useState<FullProduct | null>(null);
   useEffect(() => {
     let cancelled = false;
-    fetch(`${API}/products/${slug}`)
-      .then((r) => r.json())
-      .then((json) => {
-        if (cancelled) return;
-        if (json?.success) setData(json.data as FullProduct);
-      })
-      .catch(() => {
-        /* swallow — caller falls back to card-level data */
-      });
+    void prefetchProduct(slug).then((value) => {
+      if (cancelled) return;
+      if (value) setData(value as FullProduct);
+    });
     return () => {
       cancelled = true;
     };

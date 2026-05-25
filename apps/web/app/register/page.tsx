@@ -169,7 +169,6 @@ export default function RegisterPage() {
               placeholder="curator@denimisia.com"
               autoComplete="email"
               required
-              uppercase
             />
 
             <FieldUnderline

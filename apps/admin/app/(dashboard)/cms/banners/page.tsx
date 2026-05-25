@@ -51,7 +51,7 @@ const EMPTY_FORM: BannerFormData = {
   subtitle: '',
   image: '',
   link: '',
-  position: 'top',
+  position: 'middle',
   isActive: true,
   startDate: '',
   endDate: '',
@@ -314,7 +314,6 @@ export default function BannersPage() {
                 className="w-full border-0 border-b border-outline-variant/25 bg-transparent py-2 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-0"
               >
                 <option value="popup">Popup (modal, 10s delay)</option>
-                <option value="top">Top (above navbar)</option>
                 <option value="middle">Middle (between sections)</option>
                 <option value="bottom">Bottom (before footer)</option>
               </select>

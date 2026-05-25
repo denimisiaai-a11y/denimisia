@@ -1,6 +1,7 @@
 import NextAuth from 'next-auth';
 import type { NextAuthResult } from 'next-auth';
 import Credentials from 'next-auth/providers/credentials';
+import Google from 'next-auth/providers/google';
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api/v1';
 
@@ -49,9 +50,58 @@ const nextAuth: NextAuthResult = NextAuth({
         }
       },
     }),
+    // Google sign-in. The actual session minting happens in the `jwt` callback
+    // below — Google's id_token is forwarded to our API, which verifies it
+    // against Google's JWKS and returns our own JWT pair. NextAuth v5
+    // auto-reads AUTH_GOOGLE_ID / AUTH_GOOGLE_SECRET from env.
+    Google({
+      // Force ID-token issuance even on subsequent sign-ins (some auth flows
+      // skip it after the first). Without an id_token the exchange below
+      // can't run.
+      authorization: {
+        params: {
+          prompt: 'select_account',
+          access_type: 'offline',
+        },
+      },
+    }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, account }) {
+      // First sign-in via Google: exchange the verified Google ID token for
+      // our API's JWT pair. On all subsequent calls `account` is undefined
+      // and we just pass the cached token through.
+      if (account?.provider === 'google' && account.id_token) {
+        try {
+          const res = await fetch(`${API}/auth/oauth/google`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ idToken: account.id_token }),
+          });
+          if (!res.ok) {
+            throw new Error(`oauth/google exchange failed: ${res.status}`);
+          }
+          const json = await res.json();
+          if (!json.success) {
+            throw new Error('oauth/google exchange returned success=false');
+          }
+          const { accessToken, user: apiUser } = json.data;
+          token.id = apiUser.id;
+          token.email = apiUser.email;
+          token.name = `${apiUser.firstName} ${apiUser.lastName}`.trim();
+          token.accessToken = accessToken;
+          token.role = apiUser.role;
+          return token;
+        } catch (err) {
+          // Throwing here causes NextAuth to send the user back to the login
+          // page with ?error=Configuration. Surfacing a real diagnostic in
+          // dev only — production users just see the redirect.
+          if (process.env.NODE_ENV !== 'production') {
+            console.error('Google OAuth exchange failed:', err);
+          }
+          throw err;
+        }
+      }
       if (user) {
         token.id = user.id;
         token.accessToken = (user as any).accessToken;

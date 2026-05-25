@@ -1,4 +1,11 @@
-import { IsEmail, IsString, MinLength, IsNotEmpty } from 'class-validator';
+import {
+  IsEmail,
+  IsString,
+  MinLength,
+  IsNotEmpty,
+  IsOptional,
+  MaxLength,
+} from 'class-validator';
 
 export class RegisterDto {
   @IsEmail()
@@ -15,6 +22,11 @@ export class RegisterDto {
   @IsString()
   @IsNotEmpty()
   lastName: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(32)
+  phone?: string;
 }
 
 export class LoginDto {
@@ -43,4 +55,11 @@ export class ResetPasswordDto {
 export class VerifyEmailDto {
   @IsString()
   token: string;
+}
+
+export class OAuthGoogleDto {
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(4096)
+  idToken: string;
 }

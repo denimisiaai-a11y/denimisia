@@ -1,5 +1,6 @@
 import {
   IsString,
+  MaxLength,
   IsNotEmpty,
   IsOptional,
   IsBoolean,
@@ -388,4 +389,15 @@ export class ProductQueryDto {
   @IsOptional()
   @IsString()
   color?: string;
+
+  /**
+   * Free-text search. Comma-separated tokens are OR-combined. Each token
+   * matches against product name, product slug, and any variant SKU
+   * (prefix match) so admins can paste a list like "20007,2121" to pull
+   * a few specific products.
+   */
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  search?: string;
 }

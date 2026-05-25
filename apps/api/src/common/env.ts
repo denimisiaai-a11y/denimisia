@@ -79,6 +79,12 @@ const envSchema = z.object({
   // customer-facing site without a trailing slash.
   STOREFRONT_URL: z.string().url().default('http://localhost:3000'),
 
+  // Google OAuth — optional. Required only when the web app's "Sign in with
+  // Google" button is enabled. Must match the Client ID configured in the
+  // Google Cloud Console OAuth 2.0 client, since the API verifies that the
+  // ID token's `aud` claim matches before trusting the email.
+  GOOGLE_CLIENT_ID: z.string().optional(),
+
   // Rate limiting
   THROTTLE_TTL_MS: z.coerce.number().int().positive().default(60000),
   THROTTLE_LIMIT: z.coerce.number().int().positive().default(60),
