@@ -7,6 +7,7 @@ import { ProductQuickView } from './product-quick-view';
 import { WishlistButton } from '@/components/ui/wishlist-button';
 import { StarBadge } from '@/components/ui/star-badge';
 import { Carousel } from '@/components/mobile/carousel';
+import { prefetchProduct } from '@/lib/product-prefetch';
 
 interface ProductData {
   id?: string;
@@ -51,8 +52,13 @@ export function NewArrivalsGrid({ products }: NewArrivalsGridProps) {
             setOpenIndex(index);
           }
         }}
-        onMouseEnter={() => setHoverIndex(index)}
+        onMouseEnter={() => {
+          setHoverIndex(index);
+          void prefetchProduct(product.slug);
+        }}
         onMouseLeave={() => setHoverIndex((current) => (current === index ? null : current))}
+        onFocus={() => void prefetchProduct(product.slug)}
+        onTouchStart={() => void prefetchProduct(product.slug)}
         className="group block cursor-pointer text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-ink"
         aria-label={`Quick view ${product.name}`}
       >

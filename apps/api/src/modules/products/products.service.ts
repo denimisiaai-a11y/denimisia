@@ -1,12 +1,15 @@
 import {
   Injectable,
+  Logger,
   NotFoundException,
   ConflictException,
   BadRequestException,
 } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
 import { TagDimension } from '@prisma/client';
+import type { Redis } from 'ioredis';
 import { PrismaService } from '../prisma/prisma.service';
+import { InjectRedis } from '../redis/redis.decorator';
 import {
   CreateProductDto,
   UpdateProductDto,
@@ -15,6 +18,12 @@ import {
   ProductQueryDto,
 } from './products.dto';
 import { REQUIRED_DIMENSIONS_FOR_TYPE } from '../bot/bot.constants';
+
+// 60s is enough to absorb a viewer flipping through 10-20 product cards in
+// quick succession (the QuickView prefetch use case) without serving stale
+// admin edits for noticeably long. Bump only if admin write rate drops.
+const FIND_BY_SLUG_TTL_SECONDS = 60;
+const FIND_BY_SLUG_KEY = (slug: string) => `product:slug:${slug}`;
 
 /**
  * Shared include for listing endpoints (featured, new-arrivals, trending,
@@ -49,7 +58,32 @@ const PRODUCT_LIST_INCLUDE = {
 
 @Injectable()
 export class ProductsService {
-  constructor(private prisma: PrismaService) {}
+  private readonly logger = new Logger(ProductsService.name);
+
+  constructor(
+    private prisma: PrismaService,
+    @InjectRedis() private redis: Redis,
+  ) {}
+
+  private async invalidateSlugCache(slug: string | null | undefined): Promise<void> {
+    if (!slug) return;
+    try {
+      await this.redis.del(FIND_BY_SLUG_KEY(slug));
+    } catch (err) {
+      // Cache invalidation is best-effort; never block the write path.
+      this.logger.warn(
+        `redis del failed for slug=${slug}: ${err instanceof Error ? err.message : 'unknown'}`,
+      );
+    }
+  }
+
+  private async invalidateByProductId(productId: string): Promise<void> {
+    const p = await this.prisma.product.findUnique({
+      where: { id: productId },
+      select: { slug: true },
+    });
+    await this.invalidateSlugCache(p?.slug);
+  }
 
   // ─── Public ───────────────────────────────────────────────────────────────
 
@@ -91,6 +125,22 @@ export class ProductsService {
       where.variants = {
         some: { ...variantWhere, color: { in: colors, mode: 'insensitive' } },
       };
+    }
+    if (query.search) {
+      // Comma-separated tokens OR-combined. Each token matches name (icontains),
+      // slug (icontains), or any variant SKU (prefix, icase) so admins can paste
+      // "20007,2121" to pull a few specific products.
+      const tokens = query.search
+        .split(',')
+        .map((t) => t.trim())
+        .filter(Boolean);
+      if (tokens.length > 0) {
+        where.OR = tokens.flatMap((token) => [
+          { name: { contains: token, mode: 'insensitive' } },
+          { slug: { contains: token.toLowerCase() } },
+          { variants: { some: { sku: { startsWith: token, mode: 'insensitive' } } } },
+        ]);
+      }
     }
 
     const [products, total] = await Promise.all([
@@ -192,6 +242,17 @@ export class ProductsService {
   }
 
   async findBySlug(slug: string) {
+    const cacheKey = FIND_BY_SLUG_KEY(slug);
+    try {
+      const cached = await this.redis.get(cacheKey);
+      if (cached) return JSON.parse(cached);
+    } catch (err) {
+      // On cache read failure fall through to DB — never block reads on Redis.
+      this.logger.warn(
+        `redis get failed for ${cacheKey}: ${err instanceof Error ? err.message : 'unknown'}`,
+      );
+    }
+
     const product = await this.prisma.product.findUnique({
       where: { slug },
       include: {
@@ -220,6 +281,19 @@ export class ProductsService {
     });
     if (!product || !product.isActive)
       throw new NotFoundException('Product not found');
+
+    try {
+      await this.redis.set(
+        cacheKey,
+        JSON.stringify(product),
+        'EX',
+        FIND_BY_SLUG_TTL_SECONDS,
+      );
+    } catch (err) {
+      this.logger.warn(
+        `redis set failed for ${cacheKey}: ${err instanceof Error ? err.message : 'unknown'}`,
+      );
+    }
     return product;
   }
 
@@ -315,7 +389,7 @@ export class ProductsService {
   }
 
   async update(id: string, dto: UpdateProductDto) {
-    await this.findById(id);
+    const existing = await this.findById(id);
     const { productTags, sizeCharts, type, ...rest } = dto;
 
     // If type is being set, enforce the same required-tag coverage that
@@ -329,17 +403,20 @@ export class ProductsService {
     // Fast path: no tags / size-chart replacement — preserve the original
     // single-call shape so existing callers / tests stay valid.
     if (productTags === undefined && sizeCharts === undefined) {
-      return this.prisma.product.update({
+      const updated = await this.prisma.product.update({
         where: { id },
         data: { ...rest, ...(type !== undefined ? { type } : {}) },
         include: { variants: true, category: true },
       });
+      await this.invalidateSlugCache(existing.slug);
+      if (updated.slug !== existing.slug) await this.invalidateSlugCache(updated.slug);
+      return updated;
     }
 
     // Replace-strategy: deleteMany then createMany for each collection the
     // caller provided. An undefined collection means "leave existing
     // rows alone"; an empty array means "delete all rows".
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       await tx.product.update({
         where: { id },
         data: { ...rest, ...(type !== undefined ? { type } : {}) },
@@ -383,6 +460,11 @@ export class ProductsService {
         },
       });
     });
+    await this.invalidateSlugCache(existing.slug);
+    if (result?.slug && result.slug !== existing.slug) {
+      await this.invalidateSlugCache(result.slug);
+    }
+    return result;
   }
 
   /**
@@ -420,19 +502,23 @@ export class ProductsService {
   }
 
   async softDelete(id: string) {
-    await this.findById(id);
-    return this.prisma.product.update({
+    const existing = await this.findById(id);
+    const updated = await this.prisma.product.update({
       where: { id },
       data: { isActive: false },
     });
+    await this.invalidateSlugCache(existing.slug);
+    return updated;
   }
 
   async addVariant(productId: string, dto: CreateVariantDto) {
     await this.findById(productId);
     await this.assertVariantImagesMatchColor(productId, dto.color, dto.images);
-    return this.prisma.productVariant.create({
+    const created = await this.prisma.productVariant.create({
       data: { ...dto, productId },
     });
+    await this.invalidateByProductId(productId);
+    return created;
   }
 
   async updateVariant(
@@ -453,10 +539,12 @@ export class ProductsService {
         variantId,
       );
     }
-    return this.prisma.productVariant.update({
+    const updated = await this.prisma.productVariant.update({
       where: { id: variantId },
       data: dto,
     });
+    await this.invalidateByProductId(productId);
+    return updated;
   }
 
   /**
@@ -501,6 +589,7 @@ export class ProductsService {
   async deleteVariant(productId: string, variantId: string) {
     await this.findVariant(productId, variantId);
     await this.prisma.productVariant.delete({ where: { id: variantId } });
+    await this.invalidateByProductId(productId);
   }
 
   // ─── Helpers ──────────────────────────────────────────────────────────────

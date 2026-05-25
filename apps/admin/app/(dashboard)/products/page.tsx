@@ -242,7 +242,7 @@ export default function ProductsPage() {
             </span>
             <input
               type="text"
-              placeholder="Filter by garment name..."
+              placeholder="Filter by name or SKU — comma-separated, e.g. 20007, 2121"
               value={search}
               onChange={(e) => {
                 setSearch(e.target.value);
