@@ -1133,6 +1133,7 @@ model InboxThread {
   lastAdminEmailAt           DateTime?
   consecutiveAdminMessages   Int       @default(0)
   customerLastSeenAt         DateTime?
+  botPausedUntil             DateTime?
 
   messages        InboxMessage[]
   magicLinks      InboxMagicLink[]

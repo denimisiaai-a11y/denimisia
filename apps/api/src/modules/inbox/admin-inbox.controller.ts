@@ -116,6 +116,25 @@ export class AdminInboxController {
     return { ok: true };
   }
 
+  @Post('threads/:id/pause-bot')
+  async pauseBot(
+    @Param('id') id: string,
+    @Body() body: { minutes?: number },
+  ): Promise<{ botPausedUntil: string }> {
+    this.checkFlag();
+    const minutes = Math.max(1, Math.min(60, body.minutes ?? 5));
+    const until = new Date(Date.now() + minutes * 60 * 1000);
+    await this.thread.setBotPaused(id, until);
+    return { botPausedUntil: until.toISOString() };
+  }
+
+  @Post('threads/:id/resume-bot')
+  async resumeBot(@Param('id') id: string): Promise<{ ok: true }> {
+    this.checkFlag();
+    await this.thread.setBotPaused(id, null);
+    return { ok: true };
+  }
+
   @Post('threads/:id/bot-suggest')
   async botSuggestEndpoint(
     @Param('id') _id: string,

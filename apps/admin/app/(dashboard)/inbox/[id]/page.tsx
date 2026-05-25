@@ -24,6 +24,7 @@ interface ThreadDetail {
   lastMessageAt: string;
   consecutiveAdminMessages: number;
   customerLastSeenAt: string | null;
+  botPausedUntil: string | null;
   messages: Message[];
 }
 
@@ -110,6 +111,41 @@ export default function InboxDetailPage() {
     await reload();
   };
 
+  const pauseBot = async (): Promise<void> => {
+    if (!token) return;
+    await adminPost(`/inbox/admin/threads/${id}/pause-bot`, { minutes: 5 }, token);
+    await reload();
+  };
+
+  const resumeBot = async (): Promise<void> => {
+    if (!token) return;
+    await adminPost(`/inbox/admin/threads/${id}/resume-bot`, {}, token);
+    await reload();
+  };
+
+  const pausedUntilTs = thread?.botPausedUntil
+    ? new Date(thread.botPausedUntil).getTime()
+    : 0;
+  const [pauseRemaining, setPauseRemaining] = useState(0);
+  useEffect(() => {
+    if (!pausedUntilTs) {
+      setPauseRemaining(0);
+      return;
+    }
+    const tick = (): void => {
+      const r = Math.max(0, pausedUntilTs - Date.now());
+      setPauseRemaining(r);
+    };
+    tick();
+    const handle = setInterval(tick, 1000);
+    return () => clearInterval(handle);
+  }, [pausedUntilTs]);
+  const isBotPaused = pauseRemaining > 0;
+  const remainingLabel =
+    pauseRemaining > 0
+      ? `${Math.floor(pauseRemaining / 60_000)}:${String(Math.floor((pauseRemaining % 60_000) / 1000)).padStart(2, '0')}`
+      : '';
+
   const botReply = async (customerMessage: string): Promise<void> => {
     if (!token) return;
     setError('');
@@ -147,13 +183,34 @@ export default function InboxDetailPage() {
         </div>
         <div className="space-x-2">
           {thread.status === 'OPEN' ? (
-            <button
-              type="button"
-              onClick={() => void close()}
-              className="rounded bg-surface-container-highest px-3 py-1 text-xs font-semibold uppercase tracking-widest text-on-surface hover:bg-surface-container-high"
-            >
-              Mark resolved
-            </button>
+            <>
+              {isBotPaused ? (
+                <button
+                  type="button"
+                  onClick={() => void resumeBot()}
+                  className="rounded bg-amber-500/15 px-3 py-1 text-xs font-semibold uppercase tracking-widest text-amber-700 hover:bg-amber-500/25"
+                  title="Bot is paused — click to resume now"
+                >
+                  Bot paused · {remainingLabel} · resume
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => void pauseBot()}
+                  className="rounded bg-surface-container-highest px-3 py-1 text-xs font-semibold uppercase tracking-widest text-on-surface hover:bg-surface-container-high"
+                  title="Pause the bot for 5 minutes so you can handle this thread"
+                >
+                  Pause bot (5 min)
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => void close()}
+                className="rounded bg-surface-container-highest px-3 py-1 text-xs font-semibold uppercase tracking-widest text-on-surface hover:bg-surface-container-high"
+              >
+                Mark resolved
+              </button>
+            </>
           ) : (
             <button
               type="button"

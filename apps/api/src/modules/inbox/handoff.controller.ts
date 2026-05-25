@@ -132,6 +132,9 @@ export class HandoffController {
       lastAdminEmailAt: t.lastAdminEmailAt,
     });
 
+    // Kick the bot to reply immediately (unless admin has it paused).
+    this.autoReply.trigger(threadId);
+
     return { id: msg.id };
   }
 

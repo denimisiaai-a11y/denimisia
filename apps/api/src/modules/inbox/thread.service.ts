@@ -61,4 +61,11 @@ export class ThreadService {
   async get(threadId: string): Promise<InboxThread | null> {
     return this.prisma.inboxThread.findUnique({ where: { id: threadId } });
   }
+
+  async setBotPaused(threadId: string, until: Date | null): Promise<void> {
+    await this.prisma.inboxThread.update({
+      where: { id: threadId },
+      data: { botPausedUntil: until },
+    });
+  }
 }
