@@ -71,7 +71,7 @@ export function ManageCollectionModal({ open, collectionId, onClose, onChanged }
     setLoading(true);
     setError('');
     try {
-      const c = await adminFetch<CollectionDetail>(`/collections/${collectionId}`, token);
+      const c = await adminFetch<CollectionDetail>(`/collections/admin/${collectionId}`, token);
       setData(c);
       setName(c.name);
       setSlug(c.slug);
