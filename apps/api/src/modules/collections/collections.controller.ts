@@ -16,6 +16,8 @@ import {
   CreateCollectionDto,
   UpdateCollectionDto,
   AddProductsToCollectionDto,
+  ReorderProductsDto,
+  UpsertLookbookItemDto,
 } from './collections.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -24,6 +26,8 @@ import { Roles, Role } from '../../common/decorators/roles.decorator';
 @Controller('collections')
 export class CollectionsController {
   constructor(private collectionsService: CollectionsService) {}
+
+  // ─── Public reads ──────────────────────────────────────────────────────────
 
   @Get()
   @PublicCache(120, 600)
@@ -36,6 +40,30 @@ export class CollectionsController {
   findBySlug(@Param('slug') slug: string) {
     return this.collectionsService.findBySlug(slug);
   }
+
+  @Get(':slug/resolved')
+  @PublicCache(60, 300)
+  findResolved(@Param('slug') slug: string) {
+    return this.collectionsService.findBySlugResolved(slug);
+  }
+
+  // ─── Admin reads ───────────────────────────────────────────────────────────
+
+  @Get('admin/all')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  findAllAdmin() {
+    return this.collectionsService.findAllAdmin();
+  }
+
+  @Get('admin/:id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  findByIdAdmin(@Param('id') id: string) {
+    return this.collectionsService.findByIdAdmin(id);
+  }
+
+  // ─── Admin writes ──────────────────────────────────────────────────────────
 
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -59,6 +87,8 @@ export class CollectionsController {
     return this.collectionsService.delete(id);
   }
 
+  // ─── Product attachment ────────────────────────────────────────────────────
+
   @Post(':id/products')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN, Role.SUPER_ADMIN)
@@ -78,5 +108,35 @@ export class CollectionsController {
     @Param('productId') productId: string,
   ) {
     return this.collectionsService.removeProduct(id, productId);
+  }
+
+  @Patch(':id/products/reorder')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  reorderProducts(
+    @Param('id') id: string,
+    @Body() dto: ReorderProductsDto,
+  ) {
+    return this.collectionsService.reorderProducts(id, dto.productIds);
+  }
+
+  // ─── Lookbook ──────────────────────────────────────────────────────────────
+
+  @Post(':id/lookbook')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  addLookbookItem(
+    @Param('id') id: string,
+    @Body() dto: UpsertLookbookItemDto,
+  ) {
+    return this.collectionsService.upsertLookbookItem(id, dto);
+  }
+
+  @Delete('lookbook/:lookbookId')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  removeLookbookItem(@Param('lookbookId') lookbookId: string) {
+    return this.collectionsService.removeLookbookItem(lookbookId);
   }
 }
