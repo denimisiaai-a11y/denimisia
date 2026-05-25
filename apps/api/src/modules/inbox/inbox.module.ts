@@ -6,6 +6,7 @@ import { BotModule } from '../bot/bot.module';
 import { MagicLinkService } from './magic-link.service';
 import { IdentityCaptureService } from './identity-capture.service';
 import { ThreadService } from './thread.service';
+import { MessageService } from './message.service';
 
 @Module({
   imports: [
@@ -15,7 +16,7 @@ import { ThreadService } from './thread.service';
     JwtModule.register({}),
   ],
   controllers: [],
-  providers: [MagicLinkService, IdentityCaptureService, ThreadService],
-  exports: [MagicLinkService, IdentityCaptureService, ThreadService],
+  providers: [MagicLinkService, IdentityCaptureService, ThreadService, MessageService],
+  exports: [MagicLinkService, IdentityCaptureService, ThreadService, MessageService],
 })
 export class InboxModule {}
