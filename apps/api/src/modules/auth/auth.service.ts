@@ -114,6 +114,7 @@ export class AuthService {
         passwordHash,
         firstName: dto.firstName,
         lastName: dto.lastName,
+        phone: dto.phone?.trim() || null,
       },
     });
 

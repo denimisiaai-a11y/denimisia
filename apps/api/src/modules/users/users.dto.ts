@@ -6,6 +6,8 @@ import {
   IsBoolean,
   IsIn,
   IsObject,
+  MaxLength,
+  ValidateIf,
 } from 'class-validator';
 import { ProductType } from '@prisma/client';
 
@@ -25,6 +27,12 @@ export class UpdateProfileDto {
   @IsString()
   @IsNotEmpty()
   lastName?: string;
+
+  @IsOptional()
+  @ValidateIf((_, v) => v !== null)
+  @IsString()
+  @MaxLength(32)
+  phone?: string | null;
 }
 
 export class CreateAddressDto {

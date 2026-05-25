@@ -38,6 +38,7 @@ export class UsersService {
         email: true,
         firstName: true,
         lastName: true,
+        phone: true,
         role: true,
         isVerified: true,
         createdAt: true,
@@ -85,12 +86,14 @@ export class UsersService {
       data: {
         firstName: dto.firstName,
         lastName: dto.lastName,
+        phone: dto.phone === undefined ? undefined : dto.phone?.trim() || null,
       },
       select: {
         id: true,
         email: true,
         firstName: true,
         lastName: true,
+        phone: true,
         role: true,
         isVerified: true,
       },
