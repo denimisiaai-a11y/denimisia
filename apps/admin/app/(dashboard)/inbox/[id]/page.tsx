@@ -38,6 +38,7 @@ export default function InboxDetailPage() {
   const [error, setError] = useState('');
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
+  const [pauseRemaining, setPauseRemaining] = useState(0);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const reload = useCallback(async () => {
@@ -70,6 +71,23 @@ export default function InboxDetailPage() {
     }, 5000);
     return () => clearInterval(handle);
   }, [reload]);
+
+  const pausedUntilTs = thread?.botPausedUntil
+    ? new Date(thread.botPausedUntil).getTime()
+    : 0;
+  useEffect(() => {
+    if (!pausedUntilTs) {
+      setPauseRemaining(0);
+      return;
+    }
+    const tick = (): void => {
+      const r = Math.max(0, pausedUntilTs - Date.now());
+      setPauseRemaining(r);
+    };
+    tick();
+    const handle = setInterval(tick, 1000);
+    return () => clearInterval(handle);
+  }, [pausedUntilTs]);
 
   if (!thread && loading) {
     return <p className="p-6 text-sm text-secondary">Loading…</p>;
@@ -123,23 +141,6 @@ export default function InboxDetailPage() {
     await reload();
   };
 
-  const pausedUntilTs = thread?.botPausedUntil
-    ? new Date(thread.botPausedUntil).getTime()
-    : 0;
-  const [pauseRemaining, setPauseRemaining] = useState(0);
-  useEffect(() => {
-    if (!pausedUntilTs) {
-      setPauseRemaining(0);
-      return;
-    }
-    const tick = (): void => {
-      const r = Math.max(0, pausedUntilTs - Date.now());
-      setPauseRemaining(r);
-    };
-    tick();
-    const handle = setInterval(tick, 1000);
-    return () => clearInterval(handle);
-  }, [pausedUntilTs]);
   const isBotPaused = pauseRemaining > 0;
   const remainingLabel =
     pauseRemaining > 0
