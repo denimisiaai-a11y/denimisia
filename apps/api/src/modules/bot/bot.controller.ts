@@ -16,6 +16,7 @@ import { BotSearchService } from './bot.search.service';
 import { BotSizingService } from './bot.sizing.service';
 import { BotSynonymsService } from './bot.synonyms.service';
 import { BotFallbackService } from './fallback/bot.fallback.service';
+import { PurgeAuditQueryPreviewHandler } from './fallback/purge.handler';
 import { SIZING_FLOW_STEPS, VALID_FIT_PREFS } from './bot.constants';
 import { BotMessageReply, BotContext } from './bot.types';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -30,6 +31,7 @@ export class BotController {
     private readonly sizing: BotSizingService,
     private readonly synonyms: BotSynonymsService,
     private readonly fallback: BotFallbackService,
+    private readonly purgeHandler: PurgeAuditQueryPreviewHandler,
     private readonly prisma: PrismaService,
   ) {}
 
@@ -224,6 +226,13 @@ export class BotController {
         createdAt: true,
       },
     });
+  }
+
+  @Post('admin/fallback/purge-old-previews')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  async purgeOldFallbackPreviews() {
+    return this.purgeHandler.run({});
   }
 
   @Get('admin/fit-data-coverage')

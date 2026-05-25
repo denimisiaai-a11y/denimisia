@@ -5,6 +5,7 @@ import { BotSearchService } from './bot.search.service';
 import { BotSizingService } from './bot.sizing.service';
 import { BotSynonymsService } from './bot.synonyms.service';
 import { BotFallbackService } from './fallback/bot.fallback.service';
+import { PurgeAuditQueryPreviewHandler } from './fallback/purge.handler';
 import { PrismaService } from '../prisma/prisma.service';
 
 describe('BotController', () => {
@@ -27,6 +28,9 @@ describe('BotController', () => {
       chips: ['Track my order', 'Leave a message'],
     }),
   };
+  const purgeHandler = {
+    run: jest.fn().mockResolvedValue({ purged: 0 }),
+  };
   const prisma = {
     botUnrecognizedQuery: { create: jest.fn(), findMany: jest.fn() },
     botSynonym: {
@@ -38,7 +42,7 @@ describe('BotController', () => {
   };
 
   beforeEach(async () => {
-    Object.values({ parser, search, sizing, synonyms, fallback, prisma }).forEach((m) =>
+    Object.values({ parser, search, sizing, synonyms, fallback, purgeHandler, prisma }).forEach((m) =>
       Object.values(m).forEach((fn: any) => fn.mockClear?.()),
     );
     parser.detectContradictions.mockReturnValue([]);
@@ -50,6 +54,7 @@ describe('BotController', () => {
         { provide: BotSizingService, useValue: sizing },
         { provide: BotSynonymsService, useValue: synonyms },
         { provide: BotFallbackService, useValue: fallback },
+        { provide: PurgeAuditQueryPreviewHandler, useValue: purgeHandler },
         { provide: PrismaService, useValue: prisma },
       ],
     }).compile();

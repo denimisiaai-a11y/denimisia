@@ -15,6 +15,7 @@ import { KbRetriever } from './fallback/kb.retriever';
 import { PromptBuilder } from './fallback/prompt.builder';
 import { CloudflareAiClient } from './fallback/cloudflare-ai.client';
 import { AuditLog } from './fallback/audit.log';
+import { PurgeAuditQueryPreviewHandler } from './fallback/purge.handler';
 
 @Module({
   imports: [PrismaModule],
@@ -34,6 +35,7 @@ import { AuditLog } from './fallback/audit.log';
     PromptBuilder,
     CloudflareAiClient,
     AuditLog,
+    PurgeAuditQueryPreviewHandler,
   ],
   exports: [
     BotSynonymsService,
