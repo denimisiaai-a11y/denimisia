@@ -27,3 +27,14 @@ export async function adminFetch<T>(
   const json = await res.json();
   return (json.data ?? json) as T;
 }
+
+export async function adminPost<T>(
+  path: string,
+  body: unknown,
+  token?: string,
+): Promise<T> {
+  return adminFetch<T>(path, token, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}

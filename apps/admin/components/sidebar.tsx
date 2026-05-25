@@ -61,6 +61,7 @@ const NAV_GROUPS: readonly NavGroup[] = [
   {
     label: 'Chat Bot',
     items: [
+      { href: '/inbox', label: 'Inbox', icon: 'inbox' },
       { href: '/bot/synonyms', label: 'Synonyms', icon: 'spellcheck' },
       { href: '/bot/unrecognized', label: 'Unrecognized', icon: 'help' },
     ],
