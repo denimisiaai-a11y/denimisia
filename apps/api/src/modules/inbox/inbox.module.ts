@@ -7,6 +7,7 @@ import { MagicLinkService } from './magic-link.service';
 import { IdentityCaptureService } from './identity-capture.service';
 import { ThreadService } from './thread.service';
 import { MessageService } from './message.service';
+import { RateLimit } from './rate-limit.guard';
 
 @Module({
   imports: [
@@ -16,7 +17,7 @@ import { MessageService } from './message.service';
     JwtModule.register({}),
   ],
   controllers: [],
-  providers: [MagicLinkService, IdentityCaptureService, ThreadService, MessageService],
-  exports: [MagicLinkService, IdentityCaptureService, ThreadService, MessageService],
+  providers: [MagicLinkService, IdentityCaptureService, ThreadService, MessageService, RateLimit],
+  exports: [MagicLinkService, IdentityCaptureService, ThreadService, MessageService, RateLimit],
 })
 export class InboxModule {}
