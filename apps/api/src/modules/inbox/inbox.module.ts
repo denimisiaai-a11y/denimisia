@@ -5,6 +5,7 @@ import { EmailModule } from '../email/email.module';
 import { BotModule } from '../bot/bot.module';
 import { MagicLinkService } from './magic-link.service';
 import { IdentityCaptureService } from './identity-capture.service';
+import { ThreadService } from './thread.service';
 
 @Module({
   imports: [
@@ -14,7 +15,7 @@ import { IdentityCaptureService } from './identity-capture.service';
     JwtModule.register({}),
   ],
   controllers: [],
-  providers: [MagicLinkService, IdentityCaptureService],
-  exports: [MagicLinkService, IdentityCaptureService],
+  providers: [MagicLinkService, IdentityCaptureService, ThreadService],
+  exports: [MagicLinkService, IdentityCaptureService, ThreadService],
 })
 export class InboxModule {}
