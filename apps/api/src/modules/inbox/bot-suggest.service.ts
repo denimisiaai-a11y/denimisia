@@ -1,6 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { BotParserService } from '../bot/bot.parser.service';
-import { BotSearchService } from '../bot/bot.search.service';
+import { BotFallbackService } from '../bot/fallback/bot.fallback.service';
 
 export interface SuggestOutput {
   body: string;
@@ -9,36 +8,16 @@ export interface SuggestOutput {
 
 @Injectable()
 export class BotSuggestService {
-  constructor(
-    private readonly parser: BotParserService,
-    private readonly search: BotSearchService,
-  ) {}
+  constructor(private readonly fallback: BotFallbackService) {}
 
   async suggest(customerMessage: string): Promise<SuggestOutput> {
-    const intent = this.parser.detectIntent(customerMessage);
-    if (intent === 'find') {
-      const slots = await this.parser.extractSlots(customerMessage);
-      const products = await this.search.searchBySlots(slots);
-      if (products.length === 0) {
-        return {
-          body: "I couldn't find a match for that. Want me to suggest something similar?",
-        };
-      }
-      const list = products
-        .map((p) => `${p.name} - BDT ${p.price.toString()}`)
-        .join('\n');
-      return { body: `Here are some options:\n\n${list}` };
-    }
-    if (intent === 'whats_new') {
-      const products = await this.search.findWhatsNew();
-      if (products.length === 0) {
-        return { body: 'New pieces are landing soon — check denimisiabd.com/new.' };
-      }
-      const list = products
-        .map((p) => `- ${p.name}`)
-        .join('\n');
-      return { body: `Just landed:\n\n${list}` };
-    }
-    return { body: '', note: 'no draft available for this message' };
+    // Use the LLM fallback so answers are grounded against the FAQ and
+    // product taxonomy instead of dumb keyword-based catalog dumps.
+    // (Same LLM that handles the customer-facing chatbot unknown-intent path.)
+    const out = await this.fallback.answer({
+      message: customerMessage,
+      sessionId: `admin-suggest`,
+    });
+    return { body: out.message };
   }
 }

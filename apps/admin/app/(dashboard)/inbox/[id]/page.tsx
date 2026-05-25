@@ -110,15 +110,19 @@ export default function InboxDetailPage() {
     await reload();
   };
 
-  const botSuggest = async (customerMessage: string): Promise<void> => {
+  const botReply = async (customerMessage: string): Promise<void> => {
     if (!token) return;
-    const res = await adminPost<{ body: string; note?: string }>(
-      `/inbox/admin/threads/${id}/bot-suggest`,
-      { customerMessage },
-      token,
-    );
-    if (res.body) setDraft(res.body);
-    else setError(res.note ?? 'No draft suggested');
+    setError('');
+    try {
+      await adminPost<{ id: string; body: string }>(
+        `/inbox/admin/threads/${id}/bot-reply`,
+        { customerMessage },
+        token,
+      );
+      await reload();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Bot reply failed');
+    }
   };
 
   return (
@@ -190,10 +194,10 @@ export default function InboxDetailPage() {
               {!isAdminSide ? (
                 <button
                   type="button"
-                  onClick={() => void botSuggest(m.body)}
+                  onClick={() => void botReply(m.body)}
                   className="ml-1 text-[10px] uppercase tracking-widest text-secondary underline hover:text-primary"
                 >
-                  Reply with bot
+                  Let bot reply
                 </button>
               ) : null}
             </div>

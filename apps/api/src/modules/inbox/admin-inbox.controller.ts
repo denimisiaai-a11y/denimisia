@@ -125,6 +125,41 @@ export class AdminInboxController {
     return this.botSuggest.suggest(body.customerMessage);
   }
 
+  @Post('threads/:id/bot-reply')
+  async botReplyEndpoint(
+    @Param('id') id: string,
+    @Body() body: { customerMessage: string },
+  ): Promise<{ id: string; body: string }> {
+    this.checkFlag();
+    const t = await this.thread.get(id);
+    if (!t) throw new BadRequestException('thread not found');
+
+    const draft = await this.botSuggest.suggest(body.customerMessage);
+    if (!draft.body || draft.body.trim().length === 0) {
+      throw new BadRequestException('bot could not generate a reply');
+    }
+
+    const isFirstAdminReply = t.consecutiveAdminMessages === 0;
+    const msg = await this.message.append({
+      threadId: id,
+      sender: MessageSender.BOT,
+      body: draft.body,
+    });
+    this.broadcaster.publishThread(id, msg);
+
+    await this.emailNotifier.notifyCustomerOfAdminReply({
+      threadId: id,
+      customerEmail: t.guestEmail,
+      customerName: t.guestName,
+      body: draft.body,
+      isFirstAdminReply,
+      consecutiveAdminMessages: t.consecutiveAdminMessages + 1,
+      customerLastSeenAt: t.customerLastSeenAt,
+    });
+
+    return { id: msg.id, body: draft.body };
+  }
+
   @Post('jobs/inactivity-close')
   async runInactivityClose(): Promise<{ closed: number }> {
     this.checkFlag();
