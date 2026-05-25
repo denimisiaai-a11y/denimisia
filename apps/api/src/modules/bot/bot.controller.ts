@@ -15,6 +15,7 @@ import { BotParserService } from './bot.parser.service';
 import { BotSearchService } from './bot.search.service';
 import { BotSizingService } from './bot.sizing.service';
 import { BotSynonymsService } from './bot.synonyms.service';
+import { BotFallbackService } from './fallback/bot.fallback.service';
 import { SIZING_FLOW_STEPS, VALID_FIT_PREFS } from './bot.constants';
 import { BotMessageReply, BotContext } from './bot.types';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -28,6 +29,7 @@ export class BotController {
     private readonly search: BotSearchService,
     private readonly sizing: BotSizingService,
     private readonly synonyms: BotSynonymsService,
+    private readonly fallback: BotFallbackService,
     private readonly prisma: PrismaService,
   ) {}
 
@@ -107,9 +109,17 @@ export class BotController {
       };
     }
 
+    await this.prisma.botUnrecognizedQuery.create({
+      data: { text, sessionId: ctx.sessionId, gender: ctx.gender ?? null },
+    });
+    const fb = await this.fallback.answer({
+      message: text,
+      sessionId: ctx.sessionId,
+      userId: undefined,
+    });
     return {
-      message: 'I can help find products. For other questions, see contact.',
-      chips: ['Pants', 'Shirts', 'Jackets'],
+      message: fb.message,
+      chips: fb.chips,
       nextContext: ctx,
     };
   }

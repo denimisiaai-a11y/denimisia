@@ -4,6 +4,7 @@ import { BotParserService } from './bot.parser.service';
 import { BotSearchService } from './bot.search.service';
 import { BotSizingService } from './bot.sizing.service';
 import { BotSynonymsService } from './bot.synonyms.service';
+import { BotFallbackService } from './fallback/bot.fallback.service';
 import { PrismaService } from '../prisma/prisma.service';
 
 describe('BotController', () => {
@@ -20,6 +21,12 @@ describe('BotController', () => {
     allForDimension: jest.fn(),
     invalidate: jest.fn(),
   };
+  const fallback = {
+    answer: jest.fn().mockResolvedValue({
+      message: 'fallback reply',
+      chips: ['Track my order', 'Leave a message'],
+    }),
+  };
   const prisma = {
     botUnrecognizedQuery: { create: jest.fn(), findMany: jest.fn() },
     botSynonym: {
@@ -31,7 +38,7 @@ describe('BotController', () => {
   };
 
   beforeEach(async () => {
-    Object.values({ parser, search, sizing, synonyms, prisma }).forEach((m) =>
+    Object.values({ parser, search, sizing, synonyms, fallback, prisma }).forEach((m) =>
       Object.values(m).forEach((fn: any) => fn.mockClear?.()),
     );
     parser.detectContradictions.mockReturnValue([]);
@@ -42,6 +49,7 @@ describe('BotController', () => {
         { provide: BotSearchService, useValue: search },
         { provide: BotSizingService, useValue: sizing },
         { provide: BotSynonymsService, useValue: synonyms },
+        { provide: BotFallbackService, useValue: fallback },
         { provide: PrismaService, useValue: prisma },
       ],
     }).compile();
@@ -109,6 +117,22 @@ describe('BotController', () => {
       context: { sessionId: 's1' },
     } as any);
     expect(r.message).toMatch(/didn't catch/i);
+    expect(prisma.botUnrecognizedQuery.create).toHaveBeenCalled();
+  });
+
+  it('delegates to BotFallbackService when intent is unknown', async () => {
+    parser.detectIntent.mockReturnValue('unknown');
+    const r = await controller.message({
+      text: 'what is your return policy',
+      context: { sessionId: 's2' },
+    } as any);
+    expect(fallback.answer).toHaveBeenCalledWith({
+      message: 'what is your return policy',
+      sessionId: 's2',
+      userId: undefined,
+    });
+    expect(r.message).toBe('fallback reply');
+    expect(r.chips).toEqual(['Track my order', 'Leave a message']);
     expect(prisma.botUnrecognizedQuery.create).toHaveBeenCalled();
   });
 
