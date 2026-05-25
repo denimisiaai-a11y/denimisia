@@ -15,7 +15,10 @@ export interface RunOptions {
 export class CloudflareAiClient {
   private readonly logger = new Logger(CloudflareAiClient.name);
 
-  constructor(private readonly fetchImpl: typeof fetch = fetch) {}
+  // Public so tests can swap it. NestJS DI cannot resolve a `typeof fetch`
+  // constructor parameter (no matching provider), so the indirection is a
+  // property bound to the global fetch.
+  fetchImpl: typeof fetch = globalThis.fetch.bind(globalThis);
 
   async run(model: string, systemPrompt: string, userMessage: string, opts: RunOptions = {}): Promise<string> {
     const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;

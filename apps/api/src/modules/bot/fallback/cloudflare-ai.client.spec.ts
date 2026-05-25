@@ -8,7 +8,8 @@ describe('CloudflareAiClient', () => {
     fetchMock.mockReset();
     process.env.CLOUDFLARE_ACCOUNT_ID = 'acc_test';
     process.env.CLOUDFLARE_AI_TOKEN = 'tok_test';
-    client = new CloudflareAiClient(fetchMock as unknown as typeof fetch);
+    client = new CloudflareAiClient();
+    client.fetchImpl = fetchMock as unknown as typeof fetch;
   });
 
   it('posts to the Workers AI endpoint with the bearer token', async () => {
