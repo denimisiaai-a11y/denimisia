@@ -15,6 +15,8 @@ import { EmailNotifier } from './email-notifier.service';
 import { BotSuggestService } from './bot-suggest.service';
 import { HandoffController } from './handoff.controller';
 import { AdminInboxController } from './admin-inbox.controller';
+import { InactivityCloseHandler } from './inactivity-job.handler';
+import { InboxDigestHandler } from './digest-job.handler';
 
 @Module({
   imports: [
@@ -35,6 +37,8 @@ import { AdminInboxController } from './admin-inbox.controller';
     MessageBroadcaster,
     EmailNotifier,
     BotSuggestService,
+    InactivityCloseHandler,
+    InboxDigestHandler,
   ],
   exports: [
     MagicLinkService,
@@ -46,6 +50,8 @@ import { AdminInboxController } from './admin-inbox.controller';
     MessageBroadcaster,
     EmailNotifier,
     BotSuggestService,
+    InactivityCloseHandler,
+    InboxDigestHandler,
   ],
 })
 export class InboxModule {}

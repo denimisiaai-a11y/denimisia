@@ -19,6 +19,8 @@ import { MessageService } from './message.service';
 import { MessageBroadcaster } from './message.broadcaster';
 import { EmailNotifier } from './email-notifier.service';
 import { BotSuggestService } from './bot-suggest.service';
+import { InactivityCloseHandler } from './inactivity-job.handler';
+import { InboxDigestHandler } from './digest-job.handler';
 import {
   MessageSender,
   ThreadCloseReason,
@@ -38,6 +40,8 @@ export class AdminInboxController {
     private readonly broadcaster: MessageBroadcaster,
     private readonly emailNotifier: EmailNotifier,
     private readonly botSuggest: BotSuggestService,
+    private readonly inactivity: InactivityCloseHandler,
+    private readonly digest: InboxDigestHandler,
   ) {}
 
   private checkFlag(): void {
@@ -116,6 +120,18 @@ export class AdminInboxController {
   ): Promise<{ body: string; note?: string }> {
     this.checkFlag();
     return this.botSuggest.suggest(body.customerMessage);
+  }
+
+  @Post('jobs/inactivity-close')
+  async runInactivityClose(): Promise<{ closed: number }> {
+    this.checkFlag();
+    return this.inactivity.run({});
+  }
+
+  @Post('jobs/digest')
+  async runDigest(): Promise<{ sent: boolean; openCount: number }> {
+    this.checkFlag();
+    return this.digest.run({});
   }
 
   @Sse('stream')
