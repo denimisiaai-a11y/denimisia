@@ -35,7 +35,15 @@ dist
 # Local dev artefacts
 dev-server.log
 dev-server.err.log
+start-dev.log
+start-test.log
 playwright-report/
+test-results/
+
+# Catalog import source material — large binaries (PDFs, DOCX, ZIPs, raw
+# product photos, manifests). Kept locally for re-runs of one-off import
+# scripts, never committed.
+docs/imports/
 
 # Debug
 npm-debug.log*
