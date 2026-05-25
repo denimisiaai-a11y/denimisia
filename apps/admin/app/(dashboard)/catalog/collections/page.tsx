@@ -2,6 +2,7 @@
 
 import Image from 'next/image';
 import { useCallback, useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { adminFetch } from '@/lib/api';
 import { PageShell } from '@/components/page-shell';
@@ -15,8 +16,10 @@ import {
   SurfaceHeader,
 } from '@/components/admin-ui';
 import { Modal, ConfirmModal } from '@/components/modal';
-import { Checkbox, Field, TextArea, TextInput, slugify } from '@/components/form';
+import { Field, TextInput, slugify } from '@/components/form';
 import { ManageCollectionModal } from './manage-collection-modal';
+
+type CollectionType = 'DROP' | 'EDIT' | 'AUTO' | 'PROMO';
 
 interface Collection {
   readonly id: string;
@@ -24,6 +27,7 @@ interface Collection {
   readonly slug: string;
   readonly description: string | null;
   readonly image: string | null;
+  readonly type?: CollectionType;
   readonly isActive: boolean;
   readonly startDate: string | null;
   readonly endDate: string | null;
@@ -31,7 +35,23 @@ interface Collection {
   readonly _count?: { readonly products: number };
 }
 
+const TYPE_TONE: Record<CollectionType, 'success' | 'info' | 'neutral' | 'warning'> = {
+  DROP: 'info',
+  EDIT: 'neutral',
+  AUTO: 'success',
+  PROMO: 'warning',
+};
+
+function computeStatus(c: Collection): { label: string; tone: 'success' | 'info' | 'warning' | 'neutral' } {
+  if (!c.isActive) return { label: 'Hidden', tone: 'warning' };
+  const now = Date.now();
+  if (c.startDate && new Date(c.startDate).getTime() > now) return { label: 'Scheduled', tone: 'info' };
+  if (c.endDate && new Date(c.endDate).getTime() < now) return { label: 'Ended', tone: 'neutral' };
+  return { label: 'Live', tone: 'success' };
+}
+
 export default function CollectionsPage() {
+  const router = useRouter();
   const { data: session } = useSession();
   const token = (session as { accessToken?: string } | null)?.accessToken;
 
@@ -48,7 +68,7 @@ export default function CollectionsPage() {
     setLoading(true);
     setError('');
     try {
-      const data = await adminFetch<Collection[]>('/collections', token);
+      const data = await adminFetch<Collection[]>('/collections/admin/all', token);
       setCollections(data);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load collections');
@@ -67,9 +87,7 @@ export default function CollectionsPage() {
     if (!token || !confirmDeleteId) return;
     setDeleting(true);
     try {
-      await adminFetch(`/collections/${confirmDeleteId}`, token, {
-        method: 'DELETE',
-      });
+      await adminFetch(`/collections/${confirmDeleteId}`, token, { method: 'DELETE' });
       setConfirmDeleteId(null);
       await load();
     } catch (e) {
@@ -83,7 +101,7 @@ export default function CollectionsPage() {
   return (
     <PageShell
       title="Collections"
-      description="Seasonal drops, featured edits, and curated launches."
+      description="Seasonal drops, curated edits, automated rails, and promotional groupings."
       breadcrumbs={[{ label: 'Catalog' }, { label: 'Collections' }]}
       actions={
         <PrimaryButton icon="add" onClick={() => setModalOpen(true)}>
@@ -109,7 +127,13 @@ export default function CollectionsPage() {
         ) : (
           <ul className="divide-y divide-outline-variant/10">
             {collections.map((c) => (
-              <CollectionRow key={c.id} collection={c} onDelete={requestDelete} onManage={() => setManageId(c.id)} />
+              <CollectionRow
+                key={c.id}
+                collection={c}
+                onDelete={requestDelete}
+                onOpenEditor={() => router.push(`/catalog/collections/${c.id}`)}
+                onLegacyEdit={() => setManageId(c.id)}
+              />
             ))}
           </ul>
         )}
@@ -118,9 +142,9 @@ export default function CollectionsPage() {
       <CreateCollectionModal
         open={modalOpen}
         onClose={() => setModalOpen(false)}
-        onCreated={() => {
+        onCreated={(id) => {
           setModalOpen(false);
-          void load();
+          router.push(`/catalog/collections/${id}`);
         }}
       />
 
@@ -148,21 +172,29 @@ export default function CollectionsPage() {
 function CollectionRow({
   collection,
   onDelete,
-  onManage,
+  onOpenEditor,
+  onLegacyEdit,
 }: {
   readonly collection: Collection;
   readonly onDelete: (id: string) => void;
-  readonly onManage: () => void;
+  readonly onOpenEditor: () => void;
+  readonly onLegacyEdit: () => void;
 }) {
-  const productCount =
-    collection._count?.products ?? collection.products?.length ?? 0;
+  const productCount = collection._count?.products ?? collection.products?.length ?? 0;
+  const status = computeStatus(collection);
+  const collectionType: CollectionType = collection.type ?? 'EDIT';
 
   return (
     <li
-      onClick={onManage}
+      onClick={onOpenEditor}
       role="button"
       tabIndex={0}
-      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onManage(); } }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onOpenEditor();
+        }
+      }}
       className="flex cursor-pointer items-center justify-between px-6 py-4 transition-colors duration-300 ease-editorial hover:bg-surface-container-low"
     >
       <div className="flex items-center gap-4">
@@ -186,10 +218,8 @@ function CollectionRow({
             <p className="font-body text-sm font-semibold text-on-surface">
               {collection.name}
             </p>
-            <StatusChip
-              label={collection.isActive ? 'Active' : 'Draft'}
-              tone={collection.isActive ? 'success' : 'neutral'}
-            />
+            <StatusChip label={collectionType} tone={TYPE_TONE[collectionType]} />
+            <StatusChip label={status.label} tone={status.tone} />
           </div>
           <p className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.15em] text-secondary">
             /{collection.slug} · {productCount} products
@@ -197,17 +227,30 @@ function CollectionRow({
         </div>
       </div>
       <div className="flex items-center gap-1">
+        <a
+          href={`https://denimisiabd.com/collections/${collection.slug}`}
+          target="_blank"
+          rel="noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          aria-label="View on storefront"
+          className="flex h-8 w-8 items-center justify-center text-secondary transition-colors duration-300 ease-editorial hover:text-on-surface"
+        >
+          <span className="material-symbols-outlined text-base" aria-hidden>
+            open_in_new
+          </span>
+        </a>
         <button
           type="button"
           onClick={(e) => {
             e.stopPropagation();
-            onManage();
+            onLegacyEdit();
           }}
-          aria-label="Edit"
+          aria-label="Quick edit (legacy modal)"
+          title="Quick edit (legacy)"
           className="flex h-8 w-8 items-center justify-center text-secondary transition-colors duration-300 ease-editorial hover:text-on-surface"
         >
           <span className="material-symbols-outlined text-base" aria-hidden>
-            edit
+            edit_note
           </span>
         </button>
         <button
@@ -231,7 +274,7 @@ function CollectionRow({
 interface CreateCollectionModalProps {
   readonly open: boolean;
   readonly onClose: () => void;
-  readonly onCreated: () => void;
+  readonly onCreated: (id: string) => void;
 }
 
 function CreateCollectionModal({ open, onClose, onCreated }: CreateCollectionModalProps) {
@@ -240,10 +283,7 @@ function CreateCollectionModal({ open, onClose, onCreated }: CreateCollectionMod
 
   const [name, setName] = useState('');
   const [slug, setSlug] = useState('');
-  const [description, setDescription] = useState('');
-  const [isActive, setIsActive] = useState(true);
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+  const [type, setType] = useState<CollectionType>('EDIT');
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState('');
 
@@ -251,10 +291,7 @@ function CreateCollectionModal({ open, onClose, onCreated }: CreateCollectionMod
     if (!open) {
       setName('');
       setSlug('');
-      setDescription('');
-      setIsActive(true);
-      setStartDate('');
-      setEndDate('');
+      setType('EDIT');
       setFormError('');
     }
   }, [open]);
@@ -268,18 +305,15 @@ function CreateCollectionModal({ open, onClose, onCreated }: CreateCollectionMod
     setSubmitting(true);
     setFormError('');
     try {
-      await adminFetch('/collections', token, {
+      const created = await adminFetch<{ id: string }>('/collections', token, {
         method: 'POST',
         body: JSON.stringify({
           name: name.trim(),
           slug: slug.trim(),
-          description: description.trim() || undefined,
-          isActive,
-          startDate: startDate ? new Date(startDate).toISOString() : undefined,
-          endDate: endDate ? new Date(endDate).toISOString() : undefined,
+          type,
         }),
       });
-      onCreated();
+      onCreated(created.id);
     } catch (e) {
       setFormError(e instanceof Error ? e.message : 'Create failed');
     } finally {
@@ -292,7 +326,7 @@ function CreateCollectionModal({ open, onClose, onCreated }: CreateCollectionMod
       open={open}
       onClose={onClose}
       title="New Collection"
-      description="Group products into a seasonal drop or curated edit."
+      description="Pick a name and type. Configure everything else on the next screen."
       footer={
         <>
           <button
@@ -302,8 +336,8 @@ function CreateCollectionModal({ open, onClose, onCreated }: CreateCollectionMod
           >
             Cancel
           </button>
-          <PrimaryButton icon="check" onClick={submit} disabled={submitting}>
-            {submitting ? 'Creating…' : 'Create'}
+          <PrimaryButton icon="arrow_forward" onClick={submit} disabled={submitting}>
+            {submitting ? 'Creating…' : 'Create & Configure'}
           </PrimaryButton>
         </>
       }
@@ -326,39 +360,29 @@ function CreateCollectionModal({ open, onClose, onCreated }: CreateCollectionMod
             id="slug"
             value={slug}
             onChange={(e) => setSlug(slugify(e.target.value))}
+            placeholder="spring-26"
           />
         </Field>
-        <Field label="Description" name="description">
-          <TextArea
-            id="description"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            rows={2}
-          />
+        <Field
+          label="Type"
+          name="type"
+          required
+        >
+          <select
+            id="type"
+            value={type}
+            onChange={(e) => setType(e.target.value as CollectionType)}
+            className="w-full bg-surface-container border border-outline-variant/30 px-3 py-2 text-sm text-on-surface focus:border-on-surface outline-none"
+          >
+            <option value="DROP">DROP — time-bound campaign (Spring '26, Eid)</option>
+            <option value="EDIT">EDIT — evergreen style (Baggy Fit, Wide Leg)</option>
+            <option value="AUTO">AUTO — rule-driven (Bestsellers, New Arrivals)</option>
+            <option value="PROMO">PROMO — discount-linked (B2G1, Flash Sale)</option>
+          </select>
         </Field>
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Start Date" name="startDate">
-            <TextInput
-              id="startDate"
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-            />
-          </Field>
-          <Field label="End Date" name="endDate">
-            <TextInput
-              id="endDate"
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-            />
-          </Field>
-        </div>
-        <Checkbox
-          label="Active — visible on storefront"
-          checked={isActive}
-          onChange={(e) => setIsActive(e.target.checked)}
-        />
+        <p className="font-mono text-[10px] uppercase tracking-[0.15em] text-secondary">
+          You'll set hero images, products, schedule, SEO on the next screen.
+        </p>
       </div>
     </Modal>
   );
