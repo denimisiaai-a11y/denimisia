@@ -13,6 +13,7 @@ import { ImageAttachService } from './image-attach.service';
 import { MessageBroadcaster } from './message.broadcaster';
 import { EmailNotifier } from './email-notifier.service';
 import { BotSuggestService } from './bot-suggest.service';
+import { HandoffController } from './handoff.controller';
 
 @Module({
   imports: [
@@ -22,7 +23,7 @@ import { BotSuggestService } from './bot-suggest.service';
     MediaModule,
     JwtModule.register({}),
   ],
-  controllers: [],
+  controllers: [HandoffController],
   providers: [
     MagicLinkService,
     IdentityCaptureService,

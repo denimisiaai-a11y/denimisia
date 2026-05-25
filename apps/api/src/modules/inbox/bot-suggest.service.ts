@@ -25,7 +25,7 @@ export class BotSuggestService {
         };
       }
       const list = products
-        .map((p: { name: string; price: number }) => `${p.name} - BDT ${p.price}`)
+        .map((p) => `${p.name} - BDT ${p.price.toString()}`)
         .join('\n');
       return { body: `Here are some options:\n\n${list}` };
     }
@@ -35,7 +35,7 @@ export class BotSuggestService {
         return { body: 'New pieces are landing soon — check denimisiabd.com/new.' };
       }
       const list = products
-        .map((p: { name: string }) => `- ${p.name}`)
+        .map((p) => `- ${p.name}`)
         .join('\n');
       return { body: `Just landed:\n\n${list}` };
     }
