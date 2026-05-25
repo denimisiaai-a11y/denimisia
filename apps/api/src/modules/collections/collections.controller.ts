@@ -10,6 +10,7 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
+import { PublicCache } from '../../common/decorators/cache.decorator';
 import { CollectionsService } from './collections.service';
 import {
   CreateCollectionDto,
@@ -25,11 +26,13 @@ export class CollectionsController {
   constructor(private collectionsService: CollectionsService) {}
 
   @Get()
+  @PublicCache(120, 600)
   findAll() {
     return this.collectionsService.findAll();
   }
 
   @Get(':slug')
+  @PublicCache(120, 600)
   findBySlug(@Param('slug') slug: string) {
     return this.collectionsService.findBySlug(slug);
   }

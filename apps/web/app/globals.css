@@ -328,7 +328,8 @@ html {
   pointer-events: none;
 }
 html[data-splash-skip] #denimisia-splash-prerender,
-html[data-splash-handed-off] #denimisia-splash-prerender {
+html[data-splash-handed-off] #denimisia-splash-prerender,
+html[data-edit-mode='1'] #denimisia-splash-prerender {
   display: none;
 }
 
@@ -369,4 +370,14 @@ html[data-splash-handed-off] #denimisia-splash-prerender {
 @keyframes denimisiaQvCloseIn {
   from { opacity: 0; transform: translate3d(0, -8px, 0); }
   to   { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
+/* CMS edit-mode preview: storefront loaded with ?edit=1 inside admin's iframe.
+   Storefront hero/banner sections use a 40% dark overlay (bg-ink/40) for text
+   contrast on photography. That overlay makes the preview pane in the admin
+   look black, which is hostile for visual editing. Strip the overlay so the
+   admin can see the actual artwork they are uploading. Live site (no edit=1)
+   keeps the overlay intact. */
+html[data-edit-mode='1'] .bg-ink\/40 {
+  background-color: transparent !important;
 }

@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
 import { BundleCard } from '@/components/ui/bundle-card';
+import { getBundles, type Bundle } from '@/lib/api';
 import { PLACEHOLDER_BUNDLES } from '@/lib/placeholder-bundles';
+import { bundleToView } from '@/lib/bundle-view';
 import { SlotHero } from '@/components/slot/slot-hero';
 import { PLACEHOLDER_HERO } from '@/lib/placeholder-images';
 
@@ -20,8 +22,21 @@ const CATEGORIES = [
   { key: 'seasonal', label: 'Seasonal' },
 ] as const;
 
-export default function BundlesPage() {
-  const bundles = PLACEHOLDER_BUNDLES;
+async function fetchRealBundles(): Promise<Bundle[]> {
+  try {
+    return await getBundles();
+  } catch {
+    return [];
+  }
+}
+
+export default async function BundlesPage() {
+  const real = await fetchRealBundles();
+
+  // Prefer admin-created bundles; fall back to placeholder catalog only when
+  // the API has no bundles yet so the page never goes empty pre-launch.
+  const bundles =
+    real.length > 0 ? real.map(bundleToView) : PLACEHOLDER_BUNDLES;
 
   return (
     <div className="bg-paper pb-32">
@@ -71,6 +86,12 @@ export default function BundlesPage() {
               slug={bundle.slug}
               image={bundle.heroImage}
               badgeText={bundle.badgeText}
+              eyebrow={bundle.eyebrow}
+              tagline={bundle.tagline}
+              originalPrice={bundle.originalPrice}
+              bundlePrice={bundle.bundlePrice}
+              savingsPercent={bundle.savingsPercent}
+              itemCount={bundle.items.length}
             />
           ))}
         </div>

@@ -11,6 +11,7 @@ import {
   HttpStatus,
   Req,
 } from '@nestjs/common';
+import { PublicCache } from '../../common/decorators/cache.decorator';
 import { CmsService } from './cms.service';
 import {
   CreateBannerDto,
@@ -36,16 +37,19 @@ export class CmsController {
   // ─── Public ────────────────────────────────────────────────────────────────
 
   @Get('banners')
+  @PublicCache(60, 300)
   listBanners() {
     return this.cmsService.listActiveBanners();
   }
 
   @Get('homepage/sections/active')
+  @PublicCache(60, 300)
   listActiveHomepageSections() {
     return this.cmsService.listActiveSections();
   }
 
   @Get('homepage/styles')
+  @PublicCache(300, 1800)
   getStyles() {
     return this.cmsService.getStyles();
   }

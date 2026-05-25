@@ -10,6 +10,7 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
+import { PublicCache } from '../../common/decorators/cache.decorator';
 import { CategoriesService } from './categories.service';
 import { CreateCategoryDto, UpdateCategoryDto } from './categories.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -21,11 +22,13 @@ export class CategoriesController {
   constructor(private categoriesService: CategoriesService) {}
 
   @Get()
+  @PublicCache(300, 900)
   findAll() {
     return this.categoriesService.findAll();
   }
 
   @Get(':slug')
+  @PublicCache(300, 900)
   findBySlug(@Param('slug') slug: string) {
     return this.categoriesService.findBySlug(slug);
   }

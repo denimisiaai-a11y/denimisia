@@ -134,11 +134,20 @@ function resolveAdminTarget(): string | null {
 export function SlotDraftListener(): null {
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    const inIframe = window.self !== window.top;
-    if (!inIframe) return;
 
     const params = new URLSearchParams(window.location.search);
-    if (params.get('edit') !== '1') return;
+    const isEditUrl = params.get('edit') === '1';
+
+    // Flag <html> whenever URL signals edit mode (direct or iframe). CSS uses
+    // this to hide the splash prerender overlay + contrast tints so admins
+    // can actually see the slot content they are editing.
+    if (isEditUrl) {
+      document.documentElement.dataset.editMode = '1';
+    }
+
+    const inIframe = window.self !== window.top;
+    if (!inIframe) return;
+    if (!isEditUrl) return;
 
     function onMessage(e: MessageEvent): void {
       if (!ALLOWED_PARENT_ORIGINS.includes(e.origin)) return;

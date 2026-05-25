@@ -561,9 +561,20 @@ function SizeChartBlock({
 }: SizeChartBlockProps) {
   if (variantSizes.length === 0) {
     return (
-      <p className="text-[11px] uppercase tracking-[0.2em] text-secondary">
-        Add at least one variant size first.
-      </p>
+      <div className="space-y-3">
+        <p className="text-[10px] uppercase tracking-widest text-secondary">
+          Detailed size chart
+        </p>
+        <p className="text-sm text-on-surface">
+          Add at least one variant size (in the Variants section above) to
+          enable the size chart matrix. Each row maps a size to body +
+          garment measurements per dimension.
+        </p>
+        <p className="text-[11px] text-secondary">
+          Dimensions for {type}:{' '}
+          {SIZE_CHART_DIMENSIONS[type].join(', ')}
+        </p>
+      </div>
     );
   }
   const dims = SIZE_CHART_DIMENSIONS[type];
