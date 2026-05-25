@@ -11,6 +11,7 @@ import { MessageService } from './message.service';
 import { RateLimit } from './rate-limit.guard';
 import { ImageAttachService } from './image-attach.service';
 import { MessageBroadcaster } from './message.broadcaster';
+import { EmailNotifier } from './email-notifier.service';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { MessageBroadcaster } from './message.broadcaster';
     RateLimit,
     ImageAttachService,
     MessageBroadcaster,
+    EmailNotifier,
   ],
   exports: [
     MagicLinkService,
@@ -38,6 +40,7 @@ import { MessageBroadcaster } from './message.broadcaster';
     RateLimit,
     ImageAttachService,
     MessageBroadcaster,
+    EmailNotifier,
   ],
 })
 export class InboxModule {}
