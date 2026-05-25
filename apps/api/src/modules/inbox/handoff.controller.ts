@@ -178,12 +178,14 @@ export class HandoffController {
     return merge(verify$, replay$, live$).pipe(
       map((m) => {
         if (m == null) {
-          return { type: 'ready', data: '{"ok":true}' } as unknown as MessageEvent;
+          return { type: 'ready', data: { ok: true } } as unknown as MessageEvent;
         }
+        // NestJS @Sse serializes `data` itself — pass the object directly,
+        // never pre-stringify or it ends up double-encoded at the client.
         return {
           id: (m as InboxMessage).id,
           type: 'message',
-          data: JSON.stringify(m),
+          data: m,
         } as unknown as MessageEvent;
       }),
     );

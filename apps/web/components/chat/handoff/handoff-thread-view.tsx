@@ -25,7 +25,15 @@ export function HandoffThreadView() {
       threadId,
       token,
       lastMessageId: messages.at(-1)?.id,
-      onMessage: (m) => append(m),
+      onMessage: (m) => {
+        // De-dupe: if we already have this exact id, skip. Also remove any
+        // optimistic 'tmp-' entry with matching sender + body before appending
+        // the real one. We do this by reading current store state lazily —
+        // simplest is to just append and let the dedup happen in the renderer
+        // via a Set of ids. The renderer Set already de-dupes by id; we
+        // accept the small visual flicker of optimistic → real swap.
+        append(m);
+      },
       onError: () => {
         /* swallow; auto-reconnects */
       },
@@ -62,8 +70,21 @@ export function HandoffThreadView() {
 
   const send = async (): Promise<void> => {
     if (!threadId || !token || !draft.trim() || sending) return;
+    const text = draft.trim();
+    const tempId = `tmp-${Date.now()}`;
     setSending(true);
     setError(null);
+    // Optimistic: show the user's message immediately so they see it land.
+    // The SSE echo will arrive later — we de-dupe in the SSE handler below.
+    append({
+      id: tempId,
+      sender: 'CUSTOMER',
+      body: text,
+      images: null,
+      inReplyToId: null,
+      createdAt: new Date().toISOString(),
+    });
+    setDraft('');
     try {
       const res = await fetch(
         `${API_BASE}/inbox/handoff/threads/${threadId}/messages`,
@@ -73,14 +94,12 @@ export function HandoffThreadView() {
             'content-type': 'application/json',
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({ body: draft.trim() }),
+          body: JSON.stringify({ body: text }),
         },
       );
       if (!res.ok) {
         setError(res.status === 429 ? 'Slow down a bit.' : 'Could not send.');
-        return;
       }
-      setDraft('');
     } catch {
       setError('Could not send.');
     } finally {

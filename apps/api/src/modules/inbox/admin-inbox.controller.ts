@@ -143,7 +143,7 @@ export class AdminInboxController {
           ({
             id: evt.message.id,
             type: 'admin-event',
-            data: JSON.stringify(evt),
+            data: evt,
           }) as unknown as MessageEvent,
       ),
     );
