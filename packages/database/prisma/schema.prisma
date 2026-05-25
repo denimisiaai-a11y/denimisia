@@ -1064,3 +1064,37 @@ model BotUnrecognizedQuery {
 
   @@index([createdAt])
 }
+
+model BotLlmQuota {
+  date         DateTime @id @db.Date
+  neuronsUsed  Int      @default(0)
+  callCount    Int      @default(0)
+  updatedAt    DateTime @updatedAt
+}
+
+model BotLlmCache {
+  queryHash         String   @id
+  reply             String   @db.Text
+  retrievedSources  Json
+  createdAt         DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+model BotLlmAudit {
+  id                String   @id @default(cuid())
+  sessionId         String
+  userId            String?
+  promptHash        String
+  replyHash         String
+  retrievedSources  Json
+  success           Boolean
+  errorCode         String?
+  outputFiltered    Boolean  @default(false)
+  injectionFlagged  Boolean  @default(false)
+  queryPreview      String?  @db.VarChar(200)
+  createdAt         DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([userId])
+}
