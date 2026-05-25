@@ -12,6 +12,7 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
+import { PublicCache } from '../../common/decorators/cache.decorator';
 import { ProductsService } from './products.service';
 import {
   CreateProductDto,
@@ -31,11 +32,13 @@ export class ProductsController {
   // ─── Public ───────────────────────────────────────────────────────────────
 
   @Get()
+  @PublicCache()
   findAll(@Query() query: ProductQueryDto) {
     return this.productsService.findAll(query);
   }
 
   @Get('facets')
+  @PublicCache(300, 900)
   getFacets() {
     return this.productsService.getFacets();
   }
@@ -48,27 +51,32 @@ export class ProductsController {
    */
   @Get('slugs')
   @Throttle({ default: { limit: 10, ttl: 60000 } })
+  @PublicCache(600, 1800)
   getSlugs(@Query('cursor') cursor?: string, @Query('limit') limit?: string) {
     const take = Math.min(Math.max(Number(limit) || 1000, 1), 2000);
     return this.productsService.getSlugFeed({ cursor, limit: take });
   }
 
   @Get('featured')
+  @PublicCache(120, 600)
   findFeatured() {
     return this.productsService.findFeatured();
   }
 
   @Get('new-arrivals')
+  @PublicCache(120, 600)
   findNewArrivals() {
     return this.productsService.findNewArrivals();
   }
 
   @Get('trending')
+  @PublicCache(120, 600)
   findTrending() {
     return this.productsService.findTrending();
   }
 
   @Get(':slug')
+  @PublicCache()
   findBySlug(@Param('slug') slug: string) {
     return this.productsService.findBySlug(slug);
   }
@@ -77,6 +85,7 @@ export class ProductsController {
   // populated via the admin CRUD. Public so the bot + PDP size guide can
   // both render it without auth.
   @Get(':id/size-chart')
+  @PublicCache(600, 1800)
   getSizeChart(@Param('id') id: string) {
     return this.productsService.getSizeChart(id);
   }
