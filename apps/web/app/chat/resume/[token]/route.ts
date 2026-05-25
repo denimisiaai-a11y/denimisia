@@ -9,7 +9,7 @@ export async function GET(
   const { token } = await ctx.params;
 
   try {
-    const verify = await fetch(`${API_BASE}/api/v1/inbox/handoff/magic/verify`, {
+    const verify = await fetch(`${API_BASE}/inbox/handoff/magic/verify`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ token }),

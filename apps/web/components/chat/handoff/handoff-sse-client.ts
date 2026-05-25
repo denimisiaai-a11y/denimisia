@@ -19,7 +19,7 @@ export function openThreadStream(opts: OpenStreamOpts): () => void {
   const connect = (): void => {
     if (closed) return;
     const url = new URL(
-      `${API_BASE}/api/v1/inbox/handoff/threads/${opts.threadId}/stream`,
+      `${API_BASE}/inbox/handoff/threads/${opts.threadId}/stream`,
     );
     url.searchParams.set('token', opts.token);
     if (lastSeen) url.searchParams.set('lastMessageId', lastSeen);

@@ -40,7 +40,7 @@ export function HandoffThreadView() {
     void (async () => {
       try {
         const res = await fetch(
-          `${API_BASE}/api/v1/inbox/handoff/threads/${threadId}/messages`,
+          `${API_BASE}/inbox/handoff/threads/${threadId}/messages`,
           { headers: { Authorization: `Bearer ${token}` } },
         );
         if (!res.ok) return;
@@ -66,7 +66,7 @@ export function HandoffThreadView() {
     setError(null);
     try {
       const res = await fetch(
-        `${API_BASE}/api/v1/inbox/handoff/threads/${threadId}/messages`,
+        `${API_BASE}/inbox/handoff/threads/${threadId}/messages`,
         {
           method: 'POST',
           headers: {

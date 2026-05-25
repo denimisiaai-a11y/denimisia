@@ -38,7 +38,7 @@ export function GuestIdentityForm() {
     }
     setSubmitting(true);
     try {
-      const res = await fetch(`${API_BASE}/api/v1/inbox/handoff/start`, {
+      const res = await fetch(`${API_BASE}/inbox/handoff/start`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
