@@ -42,7 +42,7 @@ export class EmailNotifier {
   }
 
   private nudgeThreshold(): number {
-    return parseInt(process.env.INBOX_EMAIL_NUDGE_THRESHOLD ?? '3', 10);
+    return parseInt(process.env.INBOX_EMAIL_NUDGE_THRESHOLD ?? '4', 10);
   }
 
   async notifyAdminOfCustomerMessage(input: NotifyAdminInput): Promise<void> {
