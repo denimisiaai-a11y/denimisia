@@ -146,6 +146,55 @@ describe('BotController', () => {
     expect(prisma.botUnrecognizedQuery.create).toHaveBeenCalled();
   });
 
+  it('escapes the sizing flow when the user changes topic', async () => {
+    parser.detectIntent.mockReturnValue('unknown');
+    const r = await controller.message({
+      text: 'what is your return policy',
+      context: {
+        sessionId: 's3',
+        flow: { name: 'sizing', step: 'type', type: 'PANTS', collected: {} },
+      },
+    } as any);
+    expect(fallback.answer).toHaveBeenCalled();
+    expect(r.message).toBe('fallback reply');
+    expect(r.nextContext.flow).toBeUndefined();
+  });
+
+  it('routes to fallback when slot search yields nothing on a question-like input', async () => {
+    parser.detectIntent.mockReturnValue('find');
+    parser.extractSlots.mockResolvedValue({
+      size: 'S',
+      tags: [],
+    });
+    search.searchBySlots.mockResolvedValue([]);
+    const r = await controller.message({
+      text: "what's your policy",
+      context: { sessionId: 's4' },
+    } as any);
+    expect(fallback.answer).toHaveBeenCalledWith({
+      message: "what's your policy",
+      sessionId: 's4',
+      userId: undefined,
+    });
+    expect(r.message).toBe('fallback reply');
+  });
+
+  it('keeps "no matches" reply for a real product query that returns zero results', async () => {
+    parser.detectIntent.mockReturnValue('find');
+    parser.extractSlots.mockResolvedValue({
+      type: 'PANTS',
+      color: 'magenta',
+      tags: [],
+    });
+    search.searchBySlots.mockResolvedValue([]);
+    const r = await controller.message({
+      text: 'magenta pants',
+      context: { sessionId: 's5' },
+    } as any);
+    expect(fallback.answer).not.toHaveBeenCalled();
+    expect(r.message).toMatch(/no matches/i);
+  });
+
   describe('admin endpoints', () => {
     it('listAllSynonyms returns all rows ordered', async () => {
       const rows = [{ id: 'a', dimension: 'color', canonical: 'black', aliases: [] }];

@@ -38,10 +38,17 @@ export class BotController {
   @Post('message')
   async message(@Body() dto: BotMessageDto): Promise<BotMessageReply> {
     const { text } = dto;
-    const ctx = dto.context as BotContext;
+    let ctx = dto.context as BotContext;
 
+    // Escape from the sizing flow if the user typed something that clearly
+    // is not a valid answer for the current step (e.g. they got curious and
+    // asked an unrelated question). Without this, the flow traps the user
+    // because every subsequent message routes through advanceSizingFlow.
     if (ctx.flow?.name === 'sizing') {
-      return this.advanceSizingFlow(text, ctx);
+      if (this.looksLikeSizingAnswer(text, ctx.flow.step)) {
+        return this.advanceSizingFlow(text, ctx);
+      }
+      ctx = { ...ctx, flow: undefined };
     }
 
     const intent = this.parser.detectIntent(text);
@@ -97,6 +104,29 @@ export class BotController {
       }
 
       const products = await this.search.searchBySlots(slots);
+
+      // The rule-based parser is greedy and sometimes extracts spurious
+      // slots from natural-language questions (e.g. "what's your policy"
+      // extracts size:S from the apostrophe-s). When the search yields
+      // nothing AND the input reads like a question, route to the LLM
+      // fallback so the user gets a real answer instead of the misleading
+      // "No matches in stock" reply.
+      if (products.length === 0 && this.looksLikeQuestion(text)) {
+        await this.prisma.botUnrecognizedQuery.create({
+          data: { text, sessionId: ctx.sessionId, gender: ctx.gender ?? null },
+        });
+        const fb = await this.fallback.answer({
+          message: text,
+          sessionId: ctx.sessionId,
+          userId: undefined,
+        });
+        return {
+          message: fb.message,
+          chips: fb.chips,
+          nextContext: ctx,
+        };
+      }
+
       const echo = formatSlotEcho(slots);
       return {
         message: products.length
@@ -271,6 +301,42 @@ export class BotController {
       missingCharts,
       missingFitLandmarks,
     };
+  }
+
+  // Heuristic: the message reads like a natural-language question or an
+  // FAQ-style query rather than a product filter. Used to short-circuit the
+  // rule-based parser when it would produce nonsense slot extractions, and
+  // to escape from active flows when the user changes topic.
+  private looksLikeQuestion(text: string): boolean {
+    const t = text.toLowerCase().trim();
+    if (t.endsWith('?')) return true;
+    if (/^(what|how|when|where|why|who|do|does|is|are|can|could|should|will|would|may|might|i mean)\b/.test(t)) {
+      return true;
+    }
+    if (
+      /\b(policy|policies|return|returns|refund|refunds|payment|pay|cod|shipping|ship|delivery|deliver|contact|hours|address|email|phone|warranty|exchange|exchanges|track|tracking|order|orders)\b/.test(t)
+    ) {
+      return true;
+    }
+    return false;
+  }
+
+  // Whether the user's input plausibly answers the current sizing-flow step.
+  // For the 'type' step we accept the three product categories; for numeric
+  // steps we accept a number; for the fit-preference step we accept the
+  // known preference labels. Anything else means the user has changed topic.
+  private looksLikeSizingAnswer(text: string, step: string): boolean {
+    const t = text.toLowerCase().trim();
+    if (step === 'type') {
+      return /^(pants?|shirts?|jackets?)$/.test(t);
+    }
+    if (['waist', 'inseam', 'chest', 'length', 'hip', 'shoulder'].includes(step)) {
+      return /^\d+(\.\d+)?$/.test(t);
+    }
+    if (step === 'fitPref' || step === 'fit_pref') {
+      return /^(slim|regular|baggy|fitted|oversized)$/.test(t);
+    }
+    return true; // unknown step — be permissive
   }
 
   private startSizingFlow(context: BotContext): BotMessageReply {
