@@ -216,23 +216,113 @@ model Category {
 
 // ─── Collection ───────────────────────────────────────────────────────────────
 
+enum CollectionType {
+  DROP
+  EDIT
+  AUTO
+  PROMO
+}
+
+enum HeroLayout {
+  FULL_BLEED
+  SPLIT
+  VIDEO
+  MINIMAL
+}
+
+enum CollectionSort {
+  MANUAL
+  NEWEST
+  PRICE_ASC
+  PRICE_DESC
+  BESTSELLING
+}
+
 model Collection {
-  id          String             @id @default(cuid())
-  name        String
-  slug        String             @unique
-  description String?
-  image       String?
-  isActive    Boolean            @default(true)
-  startDate   DateTime?
-  endDate     DateTime?
-  products    CollectionProduct[]
-  sectionCurations SectionCuration[]
-  createdAt   DateTime           @default(now())
-  updatedAt   DateTime           @updatedAt
-  deletedAt   DateTime?
+  id                 String              @id @default(cuid())
+  // BASICS
+  name               String
+  slug               String              @unique
+  subtitle           String?
+  description        String?
+  internalNote       String?
+  type               CollectionType      @default(EDIT)
+
+  // VISUALS
+  image              String?
+  heroImageDesktop   String?
+  heroImageMobile    String?
+  heroVideo          String?
+  heroTextColor      String              @default("light")
+  heroOverlay        Int                 @default(30)
+  heroAlign          String              @default("left")
+  backgroundColor    String?
+
+  // LAYOUT
+  heroLayout         HeroLayout          @default(FULL_BLEED)
+  gridColumnsDesktop Int                 @default(3)
+  gridColumnsMobile  Int                 @default(2)
+  defaultSort        CollectionSort      @default(MANUAL)
+  showFilters        Boolean             @default(true)
+  filterConfig       Json?
+  showCountdown      Boolean             @default(false)
+  showSocialProof    Boolean             @default(false)
+  showRelated        Boolean             @default(true)
+
+  // SCHEDULE & VISIBILITY
+  isActive           Boolean             @default(true)
+  startDate          DateTime?
+  endDate            DateTime?
+  timezone           String              @default("Asia/Dhaka")
+  prelaunchTeaser    Boolean             @default(false)
+  postEndBehavior    String              @default("hide")
+  postEndRedirect    String?
+  visibility         String              @default("public")
+  passwordHash       String?
+
+  // PRODUCTS
+  products           CollectionProduct[]
+  autoRules          Json?
+
+  // MARKETING / SEO
+  seoTitle           String?
+  seoDescription     String?
+  ogImage            String?
+  showInNav          Boolean             @default(false)
+  navOrder           Int                 @default(0)
+  isFeaturedHome     Boolean             @default(false)
+  homepageSlot       Int?
+  showAsRail         Boolean             @default(false)
+  railTitle          String?
+  promoCode          String?
+  utmSource          String?
+
+  // RELATIONS
+  sectionCurations   SectionCuration[]
+  lookbook           CollectionLookbook[]
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  deletedAt          DateTime?
 
   @@index([deletedAt])
   @@index([isActive])
+  @@index([type])
+  @@index([showInNav])
+  @@index([isFeaturedHome])
+}
+
+model CollectionLookbook {
+  id           String     @id @default(cuid())
+  collectionId String
+  collection   Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  imageUrl     String
+  caption      String?
+  altText      String?
+  position     Int        @default(0)
+  hotspots     Json?
+  createdAt    DateTime   @default(now())
+
+  @@index([collectionId])
 }
 
 model CollectionProduct {
