@@ -328,7 +328,8 @@ html {
   pointer-events: none;
 }
 html[data-splash-skip] #denimisia-splash-prerender,
-html[data-splash-handed-off] #denimisia-splash-prerender {
+html[data-splash-handed-off] #denimisia-splash-prerender,
+html[data-edit-mode='1'] #denimisia-splash-prerender {
   display: none;
 }
 
