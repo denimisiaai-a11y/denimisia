@@ -11,7 +11,6 @@ import { SplashGate } from '@/components/splash/splash-gate';
 import { SlotDraftListener } from '@/components/slot-draft-listener';
 import { ChatBubble } from '@/components/chat/chat-bubble';
 import { PromoPopup } from '@/components/promo/promo-popup';
-import { PromoBanner } from '@/components/promo/promo-banner';
 import { JsonLd } from '@/components/seo/json-ld';
 import { defaultMetadata } from '@/lib/seo/metadata';
 import { seoEnv } from '@/lib/seo/env';
@@ -81,9 +80,6 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <Providers>
           <SplashProvider>
             <SplashGate />
-            {/* Sitewide promo strip — renders only when a banner with
-                position="top" is active in the CMS, otherwise null. */}
-            <PromoBanner position="top" />
             <Navbar />
             <main>{children}</main>
             <Footer />
