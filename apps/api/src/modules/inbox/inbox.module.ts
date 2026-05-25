@@ -10,6 +10,7 @@ import { ThreadService } from './thread.service';
 import { MessageService } from './message.service';
 import { RateLimit } from './rate-limit.guard';
 import { ImageAttachService } from './image-attach.service';
+import { MessageBroadcaster } from './message.broadcaster';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { ImageAttachService } from './image-attach.service';
     MessageService,
     RateLimit,
     ImageAttachService,
+    MessageBroadcaster,
   ],
   exports: [
     MagicLinkService,
@@ -35,6 +37,7 @@ import { ImageAttachService } from './image-attach.service';
     MessageService,
     RateLimit,
     ImageAttachService,
+    MessageBroadcaster,
   ],
 })
 export class InboxModule {}
