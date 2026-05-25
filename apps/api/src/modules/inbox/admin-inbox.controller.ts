@@ -9,6 +9,7 @@ import {
   Sse,
   ServiceUnavailableException,
   BadRequestException,
+  Header,
 } from '@nestjs/common';
 import { Observable, map } from 'rxjs';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -51,6 +52,7 @@ export class AdminInboxController {
   }
 
   @Get('threads')
+  @Header('Cache-Control', 'no-store, no-cache, must-revalidate')
   async list(@Query('status') status?: string): Promise<InboxThread[]> {
     this.checkFlag();
     const filter = status === 'CLOSED' ? ThreadStatus.CLOSED : ThreadStatus.OPEN;
@@ -58,6 +60,7 @@ export class AdminInboxController {
   }
 
   @Get('threads/:id')
+  @Header('Cache-Control', 'no-store, no-cache, must-revalidate')
   async detail(@Param('id') id: string): Promise<(InboxThread & { messages: InboxMessage[] }) | null> {
     this.checkFlag();
     const t = await this.thread.get(id);

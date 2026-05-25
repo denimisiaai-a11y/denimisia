@@ -24,8 +24,11 @@ export function HandoffThreadView() {
       if (!threadId || !token) return;
       try {
         const res = await fetch(
-          `${API_BASE}/inbox/handoff/threads/${threadId}/messages`,
-          { headers: { Authorization: `Bearer ${token}` } },
+          `${API_BASE}/inbox/handoff/threads/${threadId}/messages?t=${Date.now()}`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+            cache: 'no-store',
+          },
         );
         if (!res.ok) return;
         const data = (await res.json()) as { data?: HandoffMessage[] };

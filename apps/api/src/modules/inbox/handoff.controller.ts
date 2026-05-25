@@ -13,6 +13,7 @@ import {
   Sse,
   Query,
   Logger,
+  Header,
 } from '@nestjs/common';
 import { Observable, map, from, merge } from 'rxjs';
 import { IdentityCaptureService } from './identity-capture.service';
@@ -144,6 +145,9 @@ export class HandoffController {
   }
 
   @Get('handoff/threads/:id/messages')
+  @Header('Cache-Control', 'no-store, no-cache, must-revalidate')
+  @Header('Pragma', 'no-cache')
+  @Header('CDN-Cache-Control', 'no-store')
   async listMessages(
     @Param('id') threadId: string,
     @Headers('authorization') auth: string,
