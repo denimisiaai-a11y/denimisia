@@ -140,6 +140,9 @@ export function SlotDraftListener(): null {
     const params = new URLSearchParams(window.location.search);
     if (params.get('edit') !== '1') return;
 
+    // Flag <html> so CSS can lighten contrast overlays for in-iframe editing
+    document.documentElement.dataset.editMode = '1';
+
     function onMessage(e: MessageEvent): void {
       if (!ALLOWED_PARENT_ORIGINS.includes(e.origin)) return;
       if (isDraftMessage(e.data)) {
