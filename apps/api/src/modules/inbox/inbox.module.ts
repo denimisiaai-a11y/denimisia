@@ -4,6 +4,7 @@ import { PrismaModule } from '../prisma/prisma.module';
 import { EmailModule } from '../email/email.module';
 import { BotModule } from '../bot/bot.module';
 import { MagicLinkService } from './magic-link.service';
+import { IdentityCaptureService } from './identity-capture.service';
 
 @Module({
   imports: [
@@ -13,7 +14,7 @@ import { MagicLinkService } from './magic-link.service';
     JwtModule.register({}),
   ],
   controllers: [],
-  providers: [MagicLinkService],
-  exports: [MagicLinkService],
+  providers: [MagicLinkService, IdentityCaptureService],
+  exports: [MagicLinkService, IdentityCaptureService],
 })
 export class InboxModule {}
