@@ -50,7 +50,7 @@ export function SplashGate() {
                 layout: { duration: 1.2, ease: EASE_EXPO_OUT },
                 default: { duration: 1.2, ease: EASE_EXPO_OUT },
               }}
-              className="text-[4.2rem] font-semibold uppercase tracking-[0.3em] text-white md:text-[6.3rem]"
+              className="text-[clamp(2.2rem,11vw,4.2rem)] font-semibold uppercase tracking-[0.18em] text-white md:text-[6.3rem] md:tracking-[0.3em]"
             >
               DENIMISIA
             </motion.span>
