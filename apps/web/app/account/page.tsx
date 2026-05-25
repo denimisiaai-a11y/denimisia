@@ -18,9 +18,22 @@ async function getProfile(accessToken: string) {
 }
 
 export default async function ProfilePage() {
+  // Layout guarantees session is non-null (it redirects to /login otherwise).
+  // Still, defensively coerce in case a Google sign-in produced a session
+  // without an API accessToken — degrade to a friendly empty state instead
+  // of throwing, which would trigger the global "Something came loose" page.
   const session = await auth();
-  const profile = session?.accessToken ? await getProfile(session.accessToken) : null;
+  const accessToken = (session as { accessToken?: string } | null)?.accessToken;
 
+  if (!accessToken) {
+    return (
+      <p className="text-sm text-muted">
+        Your session is missing API credentials. Please sign out and sign in again.
+      </p>
+    );
+  }
+
+  const profile = await getProfile(accessToken);
   if (!profile) {
     return <p className="text-sm text-muted">Unable to load profile.</p>;
   }
@@ -34,7 +47,7 @@ export default async function ProfilePage() {
         lastName: profile.lastName,
         phone: profile.phone ?? null,
       }}
-      accessToken={session!.accessToken as string}
+      accessToken={accessToken}
     />
   );
 }
