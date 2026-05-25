@@ -203,6 +203,29 @@ export class BotController {
     });
   }
 
+  @Get('admin/fallback/recent')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  async listRecentFallbacks(@Query('limit') limit?: string) {
+    const take = Math.min(Math.max(Number(limit ?? 50), 1), 200);
+    return this.prisma.botLlmAudit.findMany({
+      orderBy: { createdAt: 'desc' },
+      take,
+      select: {
+        id: true,
+        sessionId: true,
+        userId: true,
+        queryPreview: true,
+        success: true,
+        errorCode: true,
+        outputFiltered: true,
+        injectionFlagged: true,
+        retrievedSources: true,
+        createdAt: true,
+      },
+    });
+  }
+
   @Get('admin/fit-data-coverage')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN, Role.SUPER_ADMIN)
