@@ -38,7 +38,7 @@ export class EmailNotifier {
   ) {}
 
   private adminEmail(): string {
-    return process.env.INBOX_ADMIN_EMAIL ?? 'contact@codeblock.studio';
+    return process.env.INBOX_ADMIN_EMAIL ?? 'Denimisia.ai@gmail.com';
   }
 
   private nudgeThreshold(): number {

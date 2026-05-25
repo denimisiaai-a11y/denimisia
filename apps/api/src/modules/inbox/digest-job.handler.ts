@@ -34,7 +34,7 @@ export class InboxDigestHandler {
     });
     try {
       await this.email.send({
-        to: process.env.INBOX_ADMIN_EMAIL ?? 'contact@codeblock.studio',
+        to: process.env.INBOX_ADMIN_EMAIL ?? 'Denimisia.ai@gmail.com',
         ...rendered,
       });
       return { sent: true, openCount: threads.length };
