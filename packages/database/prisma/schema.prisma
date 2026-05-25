@@ -139,6 +139,7 @@ model User {
   passwordHash String
   firstName    String
   lastName     String
+  phone        String?
   role         Role      @default(CUSTOMER)
   isVerified   Boolean   @default(false)
   // Durable switch for deactivating a user without soft-deleting them.
