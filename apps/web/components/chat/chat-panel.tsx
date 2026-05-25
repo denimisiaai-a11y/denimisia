@@ -3,9 +3,13 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { X } from 'lucide-react';
+import { useSession } from 'next-auth/react';
 import { sendBotMessage } from '@/lib/api';
 import { formatPrice } from '@/lib/utils';
 import { useChatStore } from './use-chat-store';
+import { GuestIdentityForm } from './handoff/guest-identity-form';
+import { PhonePrompt } from './handoff/phone-prompt';
+import { HandoffThreadView } from './handoff/handoff-thread-view';
 
 function genId(): string {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
@@ -16,15 +20,43 @@ function genId(): string {
 
 const GREETING_CHIPS = ['Pants', 'Shirts', 'Jackets', "What's new", 'Help me find my size'];
 
+interface SessionUser {
+  id?: string;
+  email?: string | null;
+  phone?: string | null;
+}
+
+const HANDOFF_CHIP_RE = /^(leave a message|talk to support|yes,?\s*connect me)$/i;
+
 export function ChatPanel() {
+  const { data: session } = useSession();
   const messages = useChatStore((s) => s.messages);
   const pushMessage = useChatStore((s) => s.pushMessage);
   const context = useChatStore((s) => s.context);
   const setContext = useChatStore((s) => s.setContext);
   const setOpen = useChatStore((s) => s.setOpen);
+  const threadStatus = useChatStore((s) => s.threadStatus);
+  const setThreadStatus = useChatStore((s) => s.setThreadStatus);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const bottomRef = useRef<HTMLDivElement | null>(null);
+
+  // When the user opts into the handoff, decide whether to skip the identity
+  // form (logged-in user with phone on file) or which form to show.
+  function startHandoff(): void {
+    const user = session?.user as SessionUser | undefined;
+    if (user?.email) {
+      if (user.phone) {
+        // Phone on file — go straight to active by hitting start endpoint via PhonePrompt with prefilled phone.
+        // Simpler path: still use PhonePrompt with the existing phone prefilled so user can confirm.
+        setThreadStatus('collecting_phone');
+      } else {
+        setThreadStatus('collecting_phone');
+      }
+    } else {
+      setThreadStatus('collecting_identity');
+    }
+  }
 
   useEffect(() => {
     if (messages.length === 0) {
@@ -42,9 +74,24 @@ export function ChatPanel() {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  function handleChip(label: string): void {
+    if (HANDOFF_CHIP_RE.test(label.trim())) {
+      startHandoff();
+      return;
+    }
+    void send(label);
+  }
+
   async function send(text: string) {
     const trimmed = text.trim();
     if (!trimmed || sending) return;
+    // If the user manually types a handoff phrase, route to the form.
+    if (HANDOFF_CHIP_RE.test(trimmed)) {
+      pushMessage({ id: genId(), role: 'user', text: trimmed, ts: Date.now() });
+      setInput('');
+      startHandoff();
+      return;
+    }
     setSending(true);
     pushMessage({ id: genId(), role: 'user', text: trimmed, ts: Date.now() });
     setInput('');
@@ -66,6 +113,13 @@ export function ChatPanel() {
         chips: reply.chips,
         inputHint: reply.input,
       });
+      if (
+        (reply as { action?: string }).action === 'offer_handoff' ||
+        reply.chips?.some((c) => HANDOFF_CHIP_RE.test(c))
+      ) {
+        // Surface the entry chip but don't auto-open the form — let the user click.
+        // The chip click handler picks it up.
+      }
     } catch {
       pushMessage({
         id: genId(),
@@ -97,6 +151,14 @@ export function ChatPanel() {
         </button>
       </header>
 
+      {threadStatus === 'collecting_identity' ? (
+        <div className="flex-1 overflow-y-auto"><GuestIdentityForm /></div>
+      ) : threadStatus === 'collecting_phone' ? (
+        <div className="flex-1 overflow-y-auto"><PhonePrompt /></div>
+      ) : threadStatus === 'active' ? (
+        <HandoffThreadView />
+      ) : (
+      <>
       <div className="flex-1 space-y-3 overflow-y-auto p-3">
         {messages.map((m) => (
           <div
@@ -149,7 +211,7 @@ export function ChatPanel() {
                   <button
                     key={c}
                     type="button"
-                    onClick={() => send(c)}
+                    onClick={() => handleChip(c)}
                     disabled={sending}
                     className="rounded-full border border-border px-3 py-1 text-xs text-ink transition-colors hover:bg-muted-bg disabled:cursor-not-allowed disabled:opacity-50"
                   >
@@ -187,6 +249,15 @@ export function ChatPanel() {
           Send
         </button>
       </form>
+      <button
+        type="button"
+        onClick={startHandoff}
+        className="border-t border-border bg-muted-bg/40 px-3 py-2 text-[11px] uppercase tracking-widest text-muted transition-colors hover:bg-muted-bg"
+      >
+        Talk to support
+      </button>
+      </>
+      )}
     </div>
   );
 }

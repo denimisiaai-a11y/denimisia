@@ -1,6 +1,6 @@
 import { ProductType } from '@prisma/client';
 
-export type BotIntent = 'find' | 'whats_new' | 'sizing' | 'unknown';
+export type BotIntent = 'find' | 'whats_new' | 'sizing' | 'talk_to_support' | 'unknown';
 
 export interface ParsedSlots {
   type?: ProductType;
@@ -18,6 +18,7 @@ export interface BotContext {
     type: ProductType;
     collected: Record<string, number | string>;
   };
+  unknownStreak?: number;
 }
 
 export interface BotMessageReply {
@@ -25,5 +26,6 @@ export interface BotMessageReply {
   products?: unknown[];
   chips?: string[];
   input?: 'text' | 'numeric';
+  action?: 'offer_handoff';
   nextContext: BotContext;
 }

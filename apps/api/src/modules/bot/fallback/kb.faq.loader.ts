@@ -28,7 +28,8 @@ export class KbFaqLoader implements OnModuleInit {
 
   private parse(raw: string): FaqChunk[] {
     const out: FaqChunk[] = [];
-    const lines = raw.split('\n');
+    // Handle LF and CRLF — git auto-converts faq.md on Windows checkouts.
+    const lines = raw.split(/\r?\n/);
     let heading: string | null = null;
     let buffer: string[] = [];
     const flush = (): void => {

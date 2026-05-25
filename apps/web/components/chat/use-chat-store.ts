@@ -1,18 +1,38 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { BotContext, ChatMessage } from './chat.types';
+import type { HandoffMessage } from './handoff/types';
 
 const TTL_MS = 24 * 60 * 60 * 1000;
+
+export type ThreadStatus =
+  | 'idle'
+  | 'collecting_identity'
+  | 'collecting_phone'
+  | 'active'
+  | 'closed';
 
 interface ChatState {
   open: boolean;
   messages: ChatMessage[];
   context: BotContext;
   lastUpdatedAt: number;
+
+  // Handoff state
+  threadId: string | null;
+  threadToken: string | null;
+  threadStatus: ThreadStatus;
+  threadMessages: HandoffMessage[];
+
   setOpen: (open: boolean) => void;
   pushMessage: (msg: ChatMessage) => void;
   setContext: (ctx: BotContext) => void;
   reset: () => void;
+
+  setThreadStatus: (status: ThreadStatus) => void;
+  setThreadActive: (threadId: string, token: string) => void;
+  appendThreadMessage: (msg: HandoffMessage) => void;
+  endThread: () => void;
 }
 
 function newSessionId(): string {
@@ -29,6 +49,12 @@ export const useChatStore = create<ChatState>()(
       messages: [],
       context: { sessionId: newSessionId() },
       lastUpdatedAt: Date.now(),
+
+      threadId: null,
+      threadToken: null,
+      threadStatus: 'idle',
+      threadMessages: [],
+
       setOpen: (open) => set({ open }),
       pushMessage: (msg) =>
         set({ messages: [...get().messages, msg], lastUpdatedAt: Date.now() }),
@@ -37,6 +63,34 @@ export const useChatStore = create<ChatState>()(
         set({
           messages: [],
           context: { sessionId: newSessionId() },
+          lastUpdatedAt: Date.now(),
+          threadId: null,
+          threadToken: null,
+          threadStatus: 'idle',
+          threadMessages: [],
+        }),
+
+      setThreadStatus: (threadStatus) =>
+        set({ threadStatus, lastUpdatedAt: Date.now() }),
+      setThreadActive: (threadId, threadToken) =>
+        set({
+          threadId,
+          threadToken,
+          threadStatus: 'active',
+          threadMessages: [],
+          lastUpdatedAt: Date.now(),
+        }),
+      appendThreadMessage: (msg) =>
+        set({
+          threadMessages: [...get().threadMessages, msg],
+          lastUpdatedAt: Date.now(),
+        }),
+      endThread: () =>
+        set({
+          threadId: null,
+          threadToken: null,
+          threadStatus: 'idle',
+          threadMessages: [],
           lastUpdatedAt: Date.now(),
         }),
     }),
@@ -47,6 +101,10 @@ export const useChatStore = create<ChatState>()(
         if (Date.now() - state.lastUpdatedAt > TTL_MS) {
           state.messages = [];
           state.context = { sessionId: newSessionId() };
+          state.threadId = null;
+          state.threadToken = null;
+          state.threadStatus = 'idle';
+          state.threadMessages = [];
           state.lastUpdatedAt = Date.now();
         }
       },

@@ -1098,3 +1098,73 @@ model BotLlmAudit {
   @@index([createdAt])
   @@index([userId])
 }
+
+enum ThreadStatus {
+  OPEN
+  CLOSED
+}
+
+enum ThreadCloseReason {
+  ADMIN_RESOLVED
+  CUSTOMER_RESOLVED
+  INACTIVE_14D
+}
+
+enum MessageSender {
+  CUSTOMER
+  ADMIN
+  BOT
+}
+
+model InboxThread {
+  id              String              @id @default(cuid())
+  status          ThreadStatus        @default(OPEN)
+  closeReason     ThreadCloseReason?
+  closedAt        DateTime?
+
+  userId          String?
+  guestName       String
+  guestEmail      String
+  guestPhone      String
+
+  openedAt        DateTime            @default(now())
+  lastMessageAt   DateTime            @default(now())
+
+  lastAdminEmailAt           DateTime?
+  consecutiveAdminMessages   Int       @default(0)
+  customerLastSeenAt         DateTime?
+
+  messages        InboxMessage[]
+  magicLinks      InboxMagicLink[]
+
+  @@index([status, lastMessageAt])
+  @@index([guestEmail])
+  @@index([userId])
+}
+
+model InboxMessage {
+  id          String         @id @default(cuid())
+  threadId    String
+  thread      InboxThread    @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  sender      MessageSender
+  body        String         @db.Text
+  images      Json?
+  createdAt   DateTime       @default(now())
+
+  inReplyToId String?
+  inReplyTo   InboxMessage?  @relation("ReplyTo", fields: [inReplyToId], references: [id])
+  replies     InboxMessage[] @relation("ReplyTo")
+
+  @@index([threadId, createdAt])
+}
+
+model InboxMagicLink {
+  token       String         @id
+  threadId    String
+  thread      InboxThread    @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  createdAt   DateTime       @default(now())
+  expiresAt   DateTime
+
+  @@index([threadId])
+  @@index([expiresAt])
+}

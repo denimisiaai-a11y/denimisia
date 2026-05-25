@@ -554,3 +554,75 @@ ${BRAND_NAME}`;
 
   return { subject, text, html };
 }
+
+// ─── Inbox handoff emails ───────────────────────────────────────────────────
+
+export interface InboxNewMessageAdminInput {
+  threadId: string;
+  customerName: string;
+  preview: string;
+}
+
+export function inboxNewMessageAdmin(input: InboxNewMessageAdminInput): RenderedEmail {
+  const adminUrl = `https://admin.denimisiabd.com/inbox/${input.threadId}`;
+  const name = escapeHtml(input.customerName);
+  const preview = escapeHtml(input.preview);
+  const subject = `[Denimisia inbox] New message from ${input.customerName}`;
+  const text = `${input.customerName} sent a new message:\n\n"${input.preview}"\n\nOpen the thread: ${adminUrl}`;
+  const html = `<p>${name} sent a new message:</p><blockquote style="border-left:3px solid #ddd;padding-left:12px;margin:12px 0;">${preview}</blockquote><p><a href="${adminUrl}">Open the thread</a></p>`;
+  return { subject, text, html };
+}
+
+export interface InboxFirstReplyCustomerInput {
+  customerName: string;
+  body: string;
+  magicLinkUrl: string;
+}
+
+export function inboxFirstReplyToCustomer(input: InboxFirstReplyCustomerInput): RenderedEmail {
+  const name = escapeHtml(input.customerName);
+  const body = escapeHtml(input.body);
+  const subject = `Denimisia support replied to your message`;
+  const text = `Hi ${input.customerName},\n\nWe replied to your message:\n\n"${input.body}"\n\nView the conversation: ${input.magicLinkUrl}\n\n— Denimisia`;
+  const html = `<p>Hi ${name},</p><p>We replied to your message:</p><blockquote style="border-left:3px solid #ddd;padding-left:12px;margin:12px 0;">${body}</blockquote><p><a href="${input.magicLinkUrl}">View the conversation</a></p><p>— Denimisia</p>`;
+  return { subject, text, html };
+}
+
+export interface InboxNudgeCustomerInput {
+  customerName: string;
+  pendingCount: number;
+  magicLinkUrl: string;
+}
+
+export function inboxNudgeToCustomer(input: InboxNudgeCustomerInput): RenderedEmail {
+  const name = escapeHtml(input.customerName);
+  const subject = `You have ${input.pendingCount} new messages from Denimisia`;
+  const text = `Hi ${input.customerName},\n\nDenimisia support has sent ${input.pendingCount} new messages while you were away. Tap to view: ${input.magicLinkUrl}\n\n— Denimisia`;
+  const html = `<p>Hi ${name},</p><p>Denimisia support has sent <strong>${input.pendingCount}</strong> new messages while you were away.</p><p><a href="${input.magicLinkUrl}">View the conversation</a></p><p>— Denimisia</p>`;
+  return { subject, text, html };
+}
+
+export interface InboxAdminDigestInput {
+  openCount: number;
+  oldestOpenSince: string;
+  threads: Array<{ id: string; customerName: string; lastMessageAt: string }>;
+}
+
+export function inboxAdminDigest(input: InboxAdminDigestInput): RenderedEmail {
+  const subject = `[Denimisia inbox] ${input.openCount} open conversations`;
+  const lines = input.threads
+    .map(
+      (t) =>
+        `- ${t.customerName} (${t.lastMessageAt}) https://admin.denimisiabd.com/inbox/${t.id}`,
+    )
+    .join('\n');
+  const text = `Daily inbox summary:\n\nOpen threads: ${input.openCount}\nOldest open: ${input.oldestOpenSince}\n\n${lines}`;
+  const htmlLines = input.threads
+    .map(
+      (t) =>
+        `<li><a href="https://admin.denimisiabd.com/inbox/${t.id}">${escapeHtml(t.customerName)}</a> · ${t.lastMessageAt}</li>`,
+    )
+    .join('');
+  const html = `<p>Daily inbox summary:</p><p>Open threads: <strong>${input.openCount}</strong><br/>Oldest open: ${input.oldestOpenSince}</p><ul>${htmlLines}</ul>`;
+  return { subject, text, html };
+}

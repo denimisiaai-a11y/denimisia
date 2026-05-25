@@ -18,6 +18,6 @@ import { R2StorageService } from './r2-storage.service';
   imports: [ConfigModule, PrismaModule],
   controllers: [MediaController],
   providers: [MediaService, MediaProcessingService, R2StorageService],
-  exports: [MediaService],
+  exports: [MediaService, R2StorageService],
 })
 export class MediaModule {}

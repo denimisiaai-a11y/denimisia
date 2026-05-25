@@ -1,16 +1,30 @@
 'use client';
 
-import { usePathname } from 'next/navigation';
+import { useEffect } from 'react';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { MessageCircle, X } from 'lucide-react';
 import { useChatStore } from './use-chat-store';
 import { ChatPanel } from './chat-panel';
 
 export function ChatBubble() {
   const pathname = usePathname();
+  const search = useSearchParams();
   const open = useChatStore((s) => s.open);
   const setOpen = useChatStore((s) => s.setOpen);
+  const setThreadActive = useChatStore((s) => s.setThreadActive);
 
-  // Hide on checkout — we don't want the bubble competing with payment focus.
+  // Magic-link resume: /chat/resume/[token] verifies the token and redirects
+  // here with ?chat=<id>&chatToken=<token>. Pick that up and restore the
+  // thread without a round trip to the form.
+  useEffect(() => {
+    const chatId = search?.get('chat');
+    const chatToken = search?.get('chatToken');
+    if (chatId && chatToken) {
+      setThreadActive(chatId, chatToken);
+      setOpen(true);
+    }
+  }, [search, setThreadActive, setOpen]);
+
   if (pathname?.startsWith('/checkout')) return null;
 
   return (
