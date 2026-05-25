@@ -17,6 +17,7 @@ import { HandoffController } from './handoff.controller';
 import { AdminInboxController } from './admin-inbox.controller';
 import { InactivityCloseHandler } from './inactivity-job.handler';
 import { InboxDigestHandler } from './digest-job.handler';
+import { AutoReplyService } from './auto-reply.service';
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { InboxDigestHandler } from './digest-job.handler';
     BotSuggestService,
     InactivityCloseHandler,
     InboxDigestHandler,
+    AutoReplyService,
   ],
   exports: [
     MagicLinkService,
@@ -52,6 +54,7 @@ import { InboxDigestHandler } from './digest-job.handler';
     BotSuggestService,
     InactivityCloseHandler,
     InboxDigestHandler,
+    AutoReplyService,
   ],
 })
 export class InboxModule {}

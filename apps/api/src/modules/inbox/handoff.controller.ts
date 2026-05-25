@@ -23,6 +23,7 @@ import { MagicLinkService } from './magic-link.service';
 import { MessageBroadcaster } from './message.broadcaster';
 import { EmailNotifier } from './email-notifier.service';
 import { RateLimit } from './rate-limit.guard';
+import { AutoReplyService } from './auto-reply.service';
 import { MessageSender, ThreadCloseReason, InboxMessage } from '@prisma/client';
 import { ImageRef } from './inbox.types';
 
@@ -52,6 +53,7 @@ export class HandoffController {
     private readonly broadcaster: MessageBroadcaster,
     private readonly emailNotifier: EmailNotifier,
     private readonly rateLimit: RateLimit,
+    private readonly autoReply: AutoReplyService,
   ) {}
 
   private checkFlag(): void {
@@ -154,6 +156,10 @@ export class HandoffController {
   ): Promise<InboxMessage[]> {
     this.checkFlag();
     await this.requireToken(auth, threadId);
+    // While the customer is actively polling, opportunistically check whether
+    // an auto-bot-reply is due for this thread. Fire-and-forget so the GET
+    // returns immediately.
+    this.autoReply.trigger(threadId);
     return this.message.list(threadId);
   }
 
