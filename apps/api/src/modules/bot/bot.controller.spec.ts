@@ -114,14 +114,19 @@ describe('BotController', () => {
     expect(r.nextContext.flow?.step).toBe('waist');
   });
 
-  it('logs unrecognized query when nothing parses', async () => {
+  it('logs unrecognized query and delegates to fallback when nothing parses', async () => {
     parser.detectIntent.mockReturnValue('find');
     parser.extractSlots.mockResolvedValue({ tags: [] });
     const r = await controller.message({
       text: 'lorem ipsum',
       context: { sessionId: 's1' },
     } as any);
-    expect(r.message).toMatch(/didn't catch/i);
+    expect(fallback.answer).toHaveBeenCalledWith({
+      message: 'lorem ipsum',
+      sessionId: 's1',
+      userId: undefined,
+    });
+    expect(r.message).toBe('fallback reply');
     expect(prisma.botUnrecognizedQuery.create).toHaveBeenCalled();
   });
 

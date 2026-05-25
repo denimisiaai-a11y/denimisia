@@ -84,15 +84,14 @@ export class BotController {
         await this.prisma.botUnrecognizedQuery.create({
           data: { text, sessionId: ctx.sessionId, gender: ctx.gender ?? null },
         });
+        const fb = await this.fallback.answer({
+          message: text,
+          sessionId: ctx.sessionId,
+          userId: undefined,
+        });
         return {
-          message: "I didn't catch that. Pick a category to start?",
-          chips: [
-            'Pants',
-            'Shirts',
-            'Jackets',
-            "What's new",
-            'Help me find my size',
-          ],
+          message: fb.message,
+          chips: fb.chips,
           nextContext: ctx,
         };
       }
