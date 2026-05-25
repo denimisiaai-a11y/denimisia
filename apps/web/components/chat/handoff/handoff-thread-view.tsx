@@ -1,51 +1,27 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useChatStore } from '../use-chat-store';
-import { openThreadStream } from './handoff-sse-client';
 import type { HandoffMessage } from './types';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? '';
+const POLL_MS = 3000;
 
 export function HandoffThreadView() {
   const threadId = useChatStore((s) => s.threadId);
   const token = useChatStore((s) => s.threadToken);
   const messages = useChatStore((s) => s.threadMessages);
   const append = useChatStore((s) => s.appendThreadMessage);
+  const setThreadMessages = useChatStore((s) => s.setThreadMessages);
 
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  // Subscribe to the SSE stream
-  useEffect(() => {
-    if (!threadId || !token) return;
-    const close = openThreadStream({
-      threadId,
-      token,
-      lastMessageId: messages.at(-1)?.id,
-      onMessage: (m) => {
-        // De-dupe: if we already have this exact id, skip. Also remove any
-        // optimistic 'tmp-' entry with matching sender + body before appending
-        // the real one. We do this by reading current store state lazily —
-        // simplest is to just append and let the dedup happen in the renderer
-        // via a Set of ids. The renderer Set already de-dupes by id; we
-        // accept the small visual flicker of optimistic → real swap.
-        append(m);
-      },
-      onError: () => {
-        /* swallow; auto-reconnects */
-      },
-    });
-    return close;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [threadId, token]);
-
-  // Initial fetch of any existing messages
-  useEffect(() => {
-    if (!threadId || !token) return;
-    void (async () => {
+  const fetchMessages = useCallback(
+    async (opts: { keepRecentOptimistic?: boolean }) => {
+      if (!threadId || !token) return;
       try {
         const res = await fetch(
           `${API_BASE}/inbox/handoff/threads/${threadId}/messages`,
@@ -54,15 +30,43 @@ export function HandoffThreadView() {
         if (!res.ok) return;
         const data = (await res.json()) as { data?: HandoffMessage[] };
         const list = data.data ?? (data as unknown as HandoffMessage[]);
-        if (Array.isArray(list)) {
-          for (const m of list) append(m);
+        if (!Array.isArray(list)) return;
+        if (!opts.keepRecentOptimistic) {
+          // On first mount: drop ALL optimistic-only messages so we don't
+          // resurrect ghosts from a previous session.
+          setThreadMessages(list);
+          return;
         }
+        // Subsequent polls: keep recent tmps (last 10s) that haven't been
+        // echoed back yet, so the user's just-sent bubble stays put.
+        const tmps = useChatStore
+          .getState()
+          .threadMessages.filter((m) => {
+            if (!m.id.startsWith('tmp-')) return false;
+            const ts = parseInt(m.id.slice(4), 10);
+            if (Number.isNaN(ts) || Date.now() - ts > 10_000) return false;
+            return !list.some(
+              (real) => real.body === m.body && real.sender === m.sender,
+            );
+          });
+        setThreadMessages([...list, ...tmps]);
       } catch {
         /* ignore */
       }
-    })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [threadId, token]);
+    },
+    [threadId, token, setThreadMessages],
+  );
+
+  // Initial fetch on mount (replace everything) + poll every 3s while open.
+  useEffect(() => {
+    if (!threadId || !token) return;
+    void fetchMessages({ keepRecentOptimistic: false });
+    const handle = setInterval(() => {
+      if (document.visibilityState === 'visible')
+        void fetchMessages({ keepRecentOptimistic: true });
+    }, POLL_MS);
+    return () => clearInterval(handle);
+  }, [threadId, token, fetchMessages]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });

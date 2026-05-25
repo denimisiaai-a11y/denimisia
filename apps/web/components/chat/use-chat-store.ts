@@ -32,6 +32,7 @@ interface ChatState {
   setThreadStatus: (status: ThreadStatus) => void;
   setThreadActive: (threadId: string, token: string) => void;
   appendThreadMessage: (msg: HandoffMessage) => void;
+  setThreadMessages: (msgs: HandoffMessage[]) => void;
   endThread: () => void;
 }
 
@@ -80,11 +81,17 @@ export const useChatStore = create<ChatState>()(
           threadMessages: [],
           lastUpdatedAt: Date.now(),
         }),
-      appendThreadMessage: (msg) =>
+      appendThreadMessage: (msg) => {
+        const existing = get().threadMessages;
+        // De-dupe by id — polling replays the same messages every tick
+        if (existing.some((m) => m.id === msg.id)) return;
         set({
-          threadMessages: [...get().threadMessages, msg],
+          threadMessages: [...existing, msg],
           lastUpdatedAt: Date.now(),
-        }),
+        });
+      },
+      setThreadMessages: (msgs) =>
+        set({ threadMessages: msgs, lastUpdatedAt: Date.now() }),
       endThread: () =>
         set({
           threadId: null,
