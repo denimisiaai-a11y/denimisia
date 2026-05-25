@@ -16,7 +16,11 @@ import {
   sortProducts,
 } from '@/lib/collections';
 import { CollectionHero } from './_components/collection-hero';
-import { CollectionGrid } from './_components/collection-grid';
+import { CollectionGrid, CollectionGridWithLookbook } from './_components/collection-grid';
+import { CountdownBanner } from './_components/countdown-banner';
+import { LookbookBreak } from './_components/lookbook-break';
+import { PromoBanner } from './_components/promo-banner';
+import { RelatedCollections } from './_components/related-collections';
 
 export async function generateMetadata({
   params,
@@ -126,6 +130,10 @@ export default async function CollectionPage({
 
         <CollectionHero collection={api} />
 
+        {api.showCountdown && api.endDate && (
+          <CountdownBanner endDate={api.endDate} />
+        )}
+
         <div className="mx-auto max-w-[1440px] px-6 py-16 lg:px-12">
           <nav className="mb-6 flex items-center gap-1 text-xs text-muted">
             <Link href="/" className="transition-colors hover:text-ink">
@@ -147,6 +155,12 @@ export default async function CollectionPage({
             </div>
           )}
 
+          {api.type === 'PROMO' && (
+            <div className="mb-12 mx-auto max-w-2xl">
+              <PromoBanner collection={api} />
+            </div>
+          )}
+
           {api.description && (
             <div className="mx-auto mb-12 max-w-2xl text-center">
               <p className="text-sm leading-relaxed text-muted">{api.description}</p>
@@ -162,7 +176,21 @@ export default async function CollectionPage({
             </p>
           </div>
 
-          <CollectionGrid collection={api} products={sortedProducts} />
+          {api.lookbook.length === 0 ? (
+            <CollectionGrid collection={api} products={sortedProducts} />
+          ) : (
+            <CollectionGridWithLookbook
+              collection={api}
+              products={sortedProducts}
+              lookbook={api.lookbook}
+            />
+          )}
+
+          {api.showRelated && (
+            <div className="mt-20">
+              <RelatedCollections currentSlug={slug} />
+            </div>
+          )}
         </div>
       </div>
     );

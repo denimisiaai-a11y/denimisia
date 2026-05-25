@@ -6,6 +6,8 @@ import { SplashPrerender } from '@/components/splash/splash-prerender';
 import { PromoBanner } from '@/components/promo/promo-banner';
 import { resolveProductImage, resolveHoverImage } from '@/lib/placeholder-images';
 import { fetchCuratedSection, type CuratedItem } from '@/lib/curation';
+import { getFeaturedHomeCollections } from '@/lib/collections';
+import { DropsCarousel } from '@/components/home/drops-carousel';
 import {
   fetchHomepageSections,
   type HomepageSection,
@@ -38,11 +40,17 @@ interface CollectionResponse {
 
 async function fetchCollection(slug: string): Promise<ApiProduct[]> {
   try {
-    const res = await fetch(`${API}/collections/${slug}`, { next: { revalidate: 60 } });
+    // Use /resolved so AUTO collections (bestsellers, new-arrivals) auto-populate
+    // from rules. EDIT/DROP/PROMO still return their manual product list.
+    const res = await fetch(`${API}/collections/${slug}/resolved`, {
+      next: { revalidate: 60 },
+    });
     if (!res.ok) return [];
     const json = await res.json();
-    if (!json.success) return [];
-    const collection: CollectionResponse = json.data;
+    const collection: CollectionResponse | null = json?.success
+      ? json.data
+      : (json as CollectionResponse | null);
+    if (!collection) return [];
     return collection.products.map((cp) => cp.product);
   } catch {
     return [];
@@ -172,6 +180,7 @@ export default async function HomePage() {
     curatedNewArrivals,
     curatedBestsellers,
     curatedTrending,
+    featuredDrops,
   ] = await Promise.all([
     fetchHomepageSections(),
     fetchCollection('new-arrivals'),
@@ -183,6 +192,7 @@ export default async function HomePage() {
     fetchCuratedSection('home', 'new_arrivals_section'),
     fetchCuratedSection('home', 'bestsellers_section'),
     fetchCuratedSection('home', 'trending_section'),
+    getFeaturedHomeCollections(),
   ]);
 
   const sections = sectionsFromApi.length > 0 ? sectionsFromApi : FALLBACK_SECTIONS;
@@ -220,6 +230,7 @@ export default async function HomePage() {
   return (
     <>
       <SplashPrerender />
+      {featuredDrops.length > 0 && <DropsCarousel collections={featuredDrops} />}
       {firstHalf.map((section) => (
         <SectionRenderer key={section.id} section={section} data={sectionData} />
       ))}
