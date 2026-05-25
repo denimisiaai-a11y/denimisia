@@ -14,6 +14,7 @@ import { MessageBroadcaster } from './message.broadcaster';
 import { EmailNotifier } from './email-notifier.service';
 import { BotSuggestService } from './bot-suggest.service';
 import { HandoffController } from './handoff.controller';
+import { AdminInboxController } from './admin-inbox.controller';
 
 @Module({
   imports: [
@@ -23,7 +24,7 @@ import { HandoffController } from './handoff.controller';
     MediaModule,
     JwtModule.register({}),
   ],
-  controllers: [HandoffController],
+  controllers: [HandoffController, AdminInboxController],
   providers: [
     MagicLinkService,
     IdentityCaptureService,
