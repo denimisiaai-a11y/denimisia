@@ -5,7 +5,8 @@ import { useChatStore } from '../use-chat-store';
 import type { HandoffMessage } from './types';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? '';
-const POLL_MS = 3000;
+const POLL_MS = 1500;
+const POST_SEND_FAST_POLLS_MS = [600, 1500, 2800];
 
 export function HandoffThreadView() {
   const threadId = useChatStore((s) => s.threadId);
@@ -106,6 +107,14 @@ export function HandoffThreadView() {
       );
       if (!res.ok) {
         setError(res.status === 429 ? 'Slow down a bit.' : 'Could not send.');
+      } else {
+        // Burst-poll for ~3 seconds to catch the bot's auto-reply ASAP
+        // without waiting for the regular polling cadence to tick.
+        for (const delay of POST_SEND_FAST_POLLS_MS) {
+          setTimeout(() => {
+            void fetchMessages({ keepRecentOptimistic: true });
+          }, delay);
+        }
       }
     } catch {
       setError('Could not send.');
