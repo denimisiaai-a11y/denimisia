@@ -308,12 +308,21 @@ export class AuthService {
   }
 
   /**
-   * Read the token version for a user. Redis is the hot path; on miss we
-   * fall through to the authoritative DB column and backfill the cache.
+   * Read the token version for a user. Redis is the hot path; on miss OR
+   * Redis outage we fall through to the authoritative DB column. The cache
+   * backfill is also best-effort — losing it means the next call re-hits
+   * Postgres, not that sign-in fails.
    */
   async getOrInitTokenVersion(userId: string): Promise<number> {
     const key = AUTH_TV_KEY(userId);
-    const current = await this.redis.get(key);
+    let current: string | null = null;
+    try {
+      current = await this.redis.get(key);
+    } catch (err) {
+      this.logger.warn(
+        `Redis unavailable for token-version read (userId=${userId}): ${err instanceof Error ? err.message : 'unknown'}`,
+      );
+    }
     if (current !== null) {
       const parsed = Number.parseInt(current, 10);
       if (Number.isFinite(parsed)) return parsed;
@@ -323,7 +332,13 @@ export class AuthService {
       select: { tokenVersion: true },
     });
     const tv = row?.tokenVersion ?? 0;
-    await this.redis.setex(key, AUTH_TV_TTL_SECONDS, String(tv));
+    try {
+      await this.redis.setex(key, AUTH_TV_TTL_SECONDS, String(tv));
+    } catch (err) {
+      this.logger.warn(
+        `Redis unavailable for token-version backfill (userId=${userId}): ${err instanceof Error ? err.message : 'unknown'}`,
+      );
+    }
     return tv;
   }
 
@@ -362,7 +377,17 @@ export class AuthService {
   private async storeRefreshToken(userId: string, refreshToken: string) {
     const hash = await bcrypt.hash(refreshToken, 10);
     const ttl = 7 * 24 * 60 * 60; // 7 days in seconds
-    await this.redis.setex(`refresh:${userId}`, ttl, hash);
+    try {
+      await this.redis.setex(`refresh:${userId}`, ttl, hash);
+    } catch (err) {
+      // Best-effort: if Redis is unreachable the user still gets a valid
+      // access token, but refresh + server-side logout become no-ops until
+      // Redis is restored. We log loudly so this never goes unnoticed in
+      // production. See OPERATIONS.md for the Upstash provisioning step.
+      this.logger.warn(
+        `Redis unavailable for refresh-token store (userId=${userId}): ${err instanceof Error ? err.message : 'unknown'}. Sign-in will succeed but refresh/logout are degraded.`,
+      );
+    }
   }
 
   // ─── Password Reset ──────────────────────────────────────────────────────────
