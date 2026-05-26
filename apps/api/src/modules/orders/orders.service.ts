@@ -8,7 +8,11 @@ import {
   InternalServerErrorException,
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { Prisma } from '@prisma/client';
+import { Prisma, Role } from '@prisma/client';
+import {
+  normalizeAndValidate,
+  prependPhoneToArray,
+} from '../../common/phone.util';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   CreateOrderDto,
@@ -140,6 +144,93 @@ export class OrdersService {
     const total = Math.max(0, subtotal - discountAmount + shippingCost);
     const stockOps = this.collectStockOps(variantLines, bundleLines);
 
+    // ── Determine effectiveUserId (match-or-create for guest path) ───────────
+    // For signed-in users: pass through the userId as-is.
+    // For guests: look for an existing User matched by email or phone. If a
+    // SHADOW user is matched, fill blanks (firstName, phones). If a CLAIMED
+    // user is matched, attach only — never mutate a real account's profile.
+    // If no match, upsert a new shadow User (race-safe via email unique index).
+    let effectiveUserId: string;
+    if (userId !== null) {
+      effectiveUserId = userId;
+    } else {
+      const emailLower = dto.guestEmail!.trim().toLowerCase();
+      const phoneResult = normalizeAndValidate(dto.guestPhone!);
+      const normalizedPhone = phoneResult.ok ? phoneResult.phone : '';
+
+      const candidate = await this.prisma.user.findFirst({
+        where: {
+          deletedAt: null,
+          OR: [
+            { email: emailLower },
+            ...(normalizedPhone ? [{ phones: { has: normalizedPhone } }] : []),
+          ],
+        },
+        orderBy: { createdAt: 'asc' },
+        select: {
+          id: true,
+          email: true,
+          firstName: true,
+          lastName: true,
+          phones: true,
+          claimedAt: true,
+        },
+      });
+
+      if (candidate) {
+        effectiveUserId = candidate.id;
+        if (candidate.claimedAt === null) {
+          // SHADOW: fill-blanks update — only write what is missing or changed
+          const updates: Prisma.UserUpdateInput = {};
+          if (!candidate.firstName && dto.guestName) {
+            updates.firstName = dto.guestName.trim();
+          }
+          if (normalizedPhone) {
+            const newPhones = prependPhoneToArray(
+              candidate.phones,
+              normalizedPhone,
+            );
+            if (
+              newPhones.length !== candidate.phones.length ||
+              newPhones[0] !== candidate.phones[0]
+            ) {
+              updates.phones = newPhones;
+            }
+          }
+          if (Object.keys(updates).length > 0) {
+            await this.prisma.user.update({
+              where: { id: candidate.id },
+              data: updates,
+            });
+          }
+        }
+        // CLAIMED: attach only, intentionally skip profile mutation to prevent
+        // email/phone spoofing from injecting contact info into a real account.
+        this.logger.log(
+          `guest checkout matched user ${candidate.id} (state=${candidate.claimedAt ? 'claimed' : 'shadow'}, matchedOn=${candidate.email === emailLower ? 'email' : 'phone'})`,
+        );
+      } else {
+        // No match: upsert new shadow user (race-safe via email unique constraint)
+        const newShadow = await this.prisma.user.upsert({
+          where: { email: emailLower },
+          create: {
+            email: emailLower,
+            firstName: dto.guestName!.trim(),
+            lastName: '',
+            phones: normalizedPhone ? [normalizedPhone] : [],
+            passwordHash: null,
+            role: Role.CUSTOMER,
+            isVerified: true,
+            claimedAt: null,
+            createdBy: null,
+          },
+          update: { email: emailLower }, // no-op on race; lets us read the id
+          select: { id: true },
+        });
+        effectiveUserId = newShadow.id;
+      }
+    }
+
     const order = await this.createOrderWithNumberRetry((orderNumber) =>
       this.prisma.$transaction(async (tx) => {
         await this.lockAndAssertStock(tx, stockOps);
@@ -147,10 +238,12 @@ export class OrdersService {
         const created = await tx.order.create({
           data: {
             orderNumber,
-            userId,
-            guestEmail: userId ? null : dto.guestEmail,
-            guestName: userId ? null : dto.guestName,
-            guestPhone: userId ? null : dto.guestPhone,
+            userId: effectiveUserId,
+            // Always snapshot guest contact fields if provided — preserves the
+            // order's "as-typed" data for receipts even when a userId resolved.
+            guestEmail: dto.guestEmail ?? null,
+            guestName: dto.guestName ?? null,
+            guestPhone: dto.guestPhone ?? null,
             shippingAddress: dto.shippingAddress as Prisma.InputJsonValue,
             billingAddress: dto.billingAddress as
               | Prisma.InputJsonValue
@@ -176,6 +269,8 @@ export class OrdersService {
       }),
     );
 
+    // Only clear cart for originally signed-in users — guest-matched users
+    // don't have a Cart row keyed to their id from this session.
     if (userId) {
       const cart = await this.prisma.cart.findUnique({ where: { userId } });
       if (cart) {
@@ -185,7 +280,7 @@ export class OrdersService {
 
     this.eventEmitter.emit(
       'order.created',
-      new OrderCreatedEvent(order.id, userId, total),
+      new OrderCreatedEvent(order.id, effectiveUserId, total),
     );
 
     return order;
@@ -325,7 +420,7 @@ export class OrdersService {
               email: true,
               firstName: true,
               lastName: true,
-              phone: true,
+              phones: true,
             },
           },
           items: { select: { quantity: true, total: true } },
