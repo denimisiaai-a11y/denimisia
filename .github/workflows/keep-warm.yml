@@ -1,0 +1,56 @@
+# Keep-warm cron: pings the three production surfaces every 5 minutes so
+# that Vercel serverless functions (storefront + admin) and the Render API
+# never go fully cold. Without this, the first visitor of a quiet period
+# can wait 20s+ for a homepage render — and if the SSR fetch from the
+# storefront to a cold Render API takes >30s total, Cloudflare returns a
+# 522 origin-timeout error to the customer.
+#
+# Cost: free (GitHub-hosted minutes are free for public repos; private
+# repos get 2000 free minutes/month — each run is ~10s, ~12 runs/hour,
+# ~50 min/month total).
+#
+# Triggers manually via "workflow_dispatch" for ad-hoc warm-ups.
+name: keep-warm
+
+on:
+  schedule:
+    # Every 5 minutes. GitHub Actions cron is approximate (can drift
+    # 1-10 min under load) but that's fine — Vercel + Render functions
+    # stay warm for 10-15 min after their last invocation, so even a
+    # drifted ping window keeps them awake.
+    - cron: '*/5 * * * *'
+  workflow_dispatch: {}
+
+# Make sure overlapping runs don't pile up if a previous run hangs.
+concurrency:
+  group: keep-warm
+  cancel-in-progress: true
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Storefront homepage (Vercel + Render SSR)
+        run: |
+          curl --max-time 60 -sS -o /dev/null \
+            -w "storefront: HTTP %{http_code} | %{time_total}s\n" \
+            https://denimisiabd.com
+        # Continue even if this single hit fails; failures are noted in
+        # the run log but the workflow itself stays green so we don't
+        # spam "workflow failed" emails for transient cold-start blips.
+        continue-on-error: true
+
+      - name: API health (Render)
+        run: |
+          curl --max-time 30 -sS -o /dev/null \
+            -w "api: HTTP %{http_code} | %{time_total}s\n" \
+            https://denimisia-api.onrender.com/health
+        continue-on-error: true
+
+      - name: Admin login page (Vercel)
+        run: |
+          curl --max-time 30 -sS -o /dev/null \
+            -w "admin: HTTP %{http_code} | %{time_total}s\n" \
+            https://admin.denimisiabd.com/login
+        continue-on-error: true
