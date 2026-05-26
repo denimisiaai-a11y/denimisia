@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { adminFetch } from '@/lib/api';
 import { Banner } from '@/components/admin-ui';
+import { ImportOrdersModal } from '@/components/orders/import-orders-modal';
 
 const BDT_FORMATTER = new Intl.NumberFormat('en-BD', {
   style: 'currency',
@@ -138,6 +139,7 @@ export default function OrdersPage() {
   const [actionError, setActionError] = useState('');
 
   const [globalStats, setGlobalStats] = useState<GlobalStats | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
 
   const limit = 20;
   const totalPages = Math.ceil(total / limit);
@@ -364,6 +366,13 @@ export default function OrdersPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setImportOpen(true)}
+            className="px-6 py-2 bg-surface-container-highest text-on-surface text-xs font-semibold uppercase tracking-widest border border-outline-variant/15 hover:bg-surface-container-high transition-colors duration-300 ease-editorial"
+          >
+            Import History
+          </button>
           <button
             type="button"
             onClick={handleExport}
@@ -602,6 +611,16 @@ export default function OrdersPage() {
           </div>
         )}
       </div>
+      <ImportOrdersModal
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        onImported={() => {
+          setImportOpen(false);
+          void fetchOrders();
+        }}
+        apiBase={process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api/v1'}
+        token={token}
+      />
     </>
   );
 }
