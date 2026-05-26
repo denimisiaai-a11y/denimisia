@@ -19,6 +19,7 @@ import {
   CreateAddressDto,
   UpdateAddressDto,
   FitProfileDto,
+  CreateCustomerByAdminDto,
 } from './users.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -81,6 +82,16 @@ export class UsersController {
   }
 
   // ─── Admin ────────────────────────────────────────────────────────────────
+
+  // Admin-create a customer record. Role is forced to CUSTOMER server-side
+  // (DTO doesn't accept role) so this endpoint can never mint another admin.
+  // Customer receives a password-reset email to set their own password.
+  @Post()
+  @UseGuards(RolesGuard)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  createCustomer(@Body() dto: CreateCustomerByAdminDto) {
+    return this.usersService.createCustomerAsAdmin(dto);
+  }
 
   @Get()
   @UseGuards(RolesGuard)

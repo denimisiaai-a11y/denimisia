@@ -1,17 +1,25 @@
 import {
   Injectable,
+  Logger,
   NotFoundException,
+  ConflictException,
   ForbiddenException,
 } from '@nestjs/common';
 import { InjectRedis } from '../redis/redis.decorator';
 import type Redis from 'ioredis';
-import type { Prisma } from '@prisma/client';
+import { Prisma, Role } from '@prisma/client';
+import * as bcrypt from 'bcrypt';
+import { randomBytes } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
+import { EmailService } from '../email/email.service';
+import { buildPasswordResetEmail } from '../email/email-templates';
+import { env } from '../../common/env';
 import {
   UpdateProfileDto,
   CreateAddressDto,
   UpdateAddressDto,
   FitProfileDto,
+  CreateCustomerByAdminDto,
 } from './users.dto';
 
 // Redis keys mirror auth.service constants — keep in sync.
@@ -21,10 +29,84 @@ const AUTH_TV_TTL_SECONDS = 30 * 24 * 60 * 60;
 
 @Injectable()
 export class UsersService {
+  private readonly logger = new Logger(UsersService.name);
+
   constructor(
     private prisma: PrismaService,
     @InjectRedis() private redis: Redis,
+    private readonly email: EmailService,
   ) {}
+
+  /**
+   * Admin-only customer creation. Caller's admin role is enforced upstream
+   * by RolesGuard; here we enforce business rules: role is forced to
+   * CUSTOMER (no privilege escalation) and the password is server-generated
+   * so the new account is technically valid but unloggable until the
+   * customer sets their own password via the password-reset email.
+   */
+  async createCustomerAsAdmin(dto: CreateCustomerByAdminDto) {
+    const email = dto.email.trim().toLowerCase();
+
+    const existing = await this.prisma.user.findUnique({ where: { email } });
+    if (existing) {
+      throw new ConflictException('A user with that email already exists');
+    }
+
+    // Throwaway password — customer never sees this; they receive a reset
+    // link and choose their own. Stored hashed so the user row is valid.
+    const tempPassword = randomBytes(32).toString('hex');
+    const passwordHash = await bcrypt.hash(tempPassword, 10);
+
+    const created = await this.prisma.user.create({
+      data: {
+        email,
+        firstName: dto.firstName,
+        lastName: dto.lastName ?? '',
+        phone: dto.phone ?? null,
+        passwordHash,
+        role: Role.CUSTOMER,
+        isVerified: true,
+      },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        phone: true,
+        role: true,
+        isActive: true,
+        isVerified: true,
+        createdAt: true,
+      },
+    });
+
+    // Best-effort onboarding email — fires the same password-reset flow auth
+    // uses for /forgot-password. If email infra is down, creation still
+    // succeeds and admin can resend manually via the password-reset link.
+    try {
+      const token = randomBytes(32).toString('hex');
+      await this.redis.setex(`reset:${token}`, 3600, created.id);
+      const resetUrl = `${env.STOREFRONT_URL}/reset-password?token=${token}`;
+      const rendered = buildPasswordResetEmail({
+        firstName: created.firstName,
+        resetUrl,
+        expiresInHours: 1,
+      });
+      await this.email.send({
+        to: created.email,
+        subject: rendered.subject,
+        text: rendered.text,
+        html: rendered.html,
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      this.logger.warn(
+        `Onboarding email failed for ${created.email}: ${message}`,
+      );
+    }
+
+    return created;
+  }
 
   // ─── Profile ──────────────────────────────────────────────────────────────
 

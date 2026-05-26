@@ -3,6 +3,7 @@ import { NotFoundException, ForbiddenException } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { REDIS_CLIENT } from '../redis/redis.decorator';
+import { EmailService } from '../email/email.service';
 import { createRedisMock } from '../../common/testing/redis.mock';
 
 describe('UsersService', () => {
@@ -60,6 +61,10 @@ describe('UsersService', () => {
         UsersService,
         { provide: PrismaService, useValue: prisma },
         { provide: REDIS_CLIENT, useValue: redis },
+        {
+          provide: EmailService,
+          useValue: { send: jest.fn().mockResolvedValue({ id: 'mock' }) },
+        },
       ],
     }).compile();
 
@@ -81,6 +86,7 @@ describe('UsersService', () => {
           email: true,
           firstName: true,
           lastName: true,
+          phone: true,
           role: true,
           isVerified: true,
           createdAt: true,

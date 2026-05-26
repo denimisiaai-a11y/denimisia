@@ -1,4 +1,5 @@
 import {
+  IsEmail,
   IsString,
   IsOptional,
   IsNotEmpty,
@@ -15,6 +16,33 @@ export enum AddressType {
   HOME = 'HOME',
   WORK = 'WORK',
   OTHER = 'OTHER',
+}
+
+/**
+ * Admin-only customer creation. Role is always CUSTOMER on the server
+ * (no admin can mint another admin through this endpoint) and the password
+ * is generated server-side — the customer sets their own via the password
+ * reset email triggered after creation.
+ */
+export class CreateCustomerByAdminDto {
+  @IsEmail()
+  @MaxLength(254)
+  email!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(100)
+  firstName!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  lastName?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(32)
+  phone?: string;
 }
 
 export class UpdateProfileDto {
