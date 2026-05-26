@@ -54,3 +54,16 @@ jobs:
             -w "admin: HTTP %{http_code} | %{time_total}s\n" \
             https://admin.denimisiabd.com/login
         continue-on-error: true
+
+      - name: Admin NextAuth session + CSRF (Vercel functions)
+        # /login is a static page render; the actual login submit hits the
+        # NextAuth serverless function under /api/auth/*. Keeping those warm
+        # cuts another ~500ms off the user-facing login latency.
+        run: |
+          curl --max-time 30 -sS -o /dev/null \
+            -w "auth-session: HTTP %{http_code} | %{time_total}s\n" \
+            https://admin.denimisiabd.com/api/auth/session
+          curl --max-time 30 -sS -o /dev/null \
+            -w "auth-csrf: HTTP %{http_code} | %{time_total}s\n" \
+            https://admin.denimisiabd.com/api/auth/csrf
+        continue-on-error: true
