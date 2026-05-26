@@ -1840,4 +1840,166 @@ OLD-2,2024-08-16,grace@example.com,X-SKU,2,500`, 'utf-8'),
       expect(prisma.productVariant.create).toHaveBeenCalledTimes(1);
     });
   });
+
+  describe('bulkImportHistory — customer linkage + order creation', () => {
+    const csv = `order_ref,order_date,customer_email,customer_name,customer_phone,sku,quantity,unit_price,shipping_cost
+OLD-100,2024-08-15,sakib@example.com,Sakib,01776902711,SKU-A,2,1099,80`;
+
+    beforeEach(() => {
+      prisma.category.findFirst.mockResolvedValue({ id: 'cat-legacy' });
+      prisma.productVariant.findMany.mockResolvedValue([
+        { id: 'var-a', sku: 'SKU-A', productId: 'prod-a' },
+      ]);
+      prisma.order.findFirst.mockResolvedValue(null);
+      prisma.order.create.mockResolvedValue({ id: 'ord-1', orderNumber: 'LEGACY-OLD-100' });
+    });
+
+    it('attaches order to existing CLAIMED user without mutating profile', async () => {
+      prisma.user.findMany.mockResolvedValue([
+        {
+          id: 'claimed-1',
+          email: 'sakib@example.com',
+          claimedAt: new Date('2024-01-01'),
+          firstName: 'Real',
+          phones: ['01700000000'],
+        },
+      ]);
+
+      const result = await service.bulkImportHistory(Buffer.from(csv, 'utf-8'), 'admin-1');
+
+      expect(prisma.user.update).not.toHaveBeenCalled();
+      expect(prisma.user.upsert).not.toHaveBeenCalled();
+      expect(prisma.order.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            orderNumber: 'LEGACY-OLD-100',
+            userId: 'claimed-1',
+            status: 'DELIVERED',
+            subtotal: 2 * 1099,
+            shippingCost: 80,
+            total: 2 * 1099 + 80,
+            createdAt: new Date('2024-08-15'),
+          }),
+        }),
+      );
+      expect(result.ordersAttachedToExisting).toBe(1);
+      expect(result.newShadowsCreated).toBe(0);
+    });
+
+    it('fill-blanks update on existing SHADOW user', async () => {
+      prisma.user.findMany.mockResolvedValue([
+        {
+          id: 'shadow-1',
+          email: 'sakib@example.com',
+          claimedAt: null,
+          firstName: '',
+          phones: [],
+        },
+      ]);
+      prisma.user.update.mockResolvedValue({ id: 'shadow-1' });
+
+      await service.bulkImportHistory(Buffer.from(csv, 'utf-8'), 'admin-1');
+
+      expect(prisma.user.update).toHaveBeenCalledWith({
+        where: { id: 'shadow-1' },
+        data: expect.objectContaining({
+          firstName: 'Sakib',
+          phones: ['01776902711'],
+        }),
+      });
+      expect(prisma.order.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ userId: 'shadow-1' }),
+        }),
+      );
+    });
+
+    it('auto-creates shadow when no matching user exists', async () => {
+      prisma.user.findMany.mockResolvedValue([]);
+      prisma.user.upsert.mockResolvedValue({ id: 'new-shadow' });
+
+      const result = await service.bulkImportHistory(Buffer.from(csv, 'utf-8'), 'admin-1');
+
+      expect(prisma.user.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { email: 'sakib@example.com' },
+          create: expect.objectContaining({
+            email: 'sakib@example.com',
+            firstName: 'Sakib',
+            phones: ['01776902711'],
+            passwordHash: null,
+            claimedAt: null,
+            createdBy: null,
+          }),
+        }),
+      );
+      expect(result.newShadowsCreated).toBe(1);
+    });
+
+    it('SKIPS stock decrement — does not call productVariant.update with stock change', async () => {
+      prisma.user.findMany.mockResolvedValue([]);
+      prisma.user.upsert.mockResolvedValue({ id: 'new-shadow' });
+
+      await service.bulkImportHistory(Buffer.from(csv, 'utf-8'), 'admin-1');
+
+      const variantUpdateCalls = (prisma.productVariant.update.mock.calls ?? []) as Array<
+        [{ data: Record<string, unknown> }]
+      >;
+      for (const [arg] of variantUpdateCalls) {
+        expect(arg.data).not.toHaveProperty('stock');
+      }
+    });
+
+    it('dedupes orders by orderNumber on re-run', async () => {
+      prisma.order.findFirst.mockResolvedValueOnce({ id: 'existing-ord' });
+      prisma.user.findMany.mockResolvedValue([]);
+
+      const result = await service.bulkImportHistory(Buffer.from(csv, 'utf-8'), 'admin-1');
+
+      expect(result.skipped_duplicate).toBe(1);
+      expect(result.imported).toBe(0);
+      expect(prisma.order.create).not.toHaveBeenCalled();
+    });
+
+    it('computes total = sum(qty * unit_price) + shipping - discount', async () => {
+      const csv2 = `order_ref,order_date,customer_email,sku,quantity,unit_price,shipping_cost,discount_amount
+OLD-101,2024-08-15,ada@example.com,SKU-A,3,500,100,50`;
+      prisma.user.findMany.mockResolvedValue([]);
+      prisma.user.upsert.mockResolvedValue({ id: 'shadow-x' });
+
+      await service.bulkImportHistory(Buffer.from(csv2, 'utf-8'), 'admin-1');
+
+      expect(prisma.order.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            subtotal: 1500,
+            shippingCost: 100,
+            discount: 50,
+            total: 1550,
+          }),
+        }),
+      );
+    });
+
+    it('uses placeholder shipping address when ship_* columns missing', async () => {
+      prisma.user.findMany.mockResolvedValue([]);
+      prisma.user.upsert.mockResolvedValue({ id: 'shadow-x' });
+
+      await service.bulkImportHistory(Buffer.from(csv, 'utf-8'), 'admin-1');
+
+      expect(prisma.order.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            shippingAddress: expect.objectContaining({
+              line1: 'Imported from legacy system',
+              city: 'Unknown',
+              state: 'Unknown',
+              postalCode: '0000',
+              country: 'BD',
+            }),
+          }),
+        }),
+      );
+    });
+  });
 });

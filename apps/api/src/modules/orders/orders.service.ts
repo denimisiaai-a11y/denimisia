@@ -1076,7 +1076,7 @@ export class OrdersService {
     const parsed = await parseOrderHistoryCsv(buffer);
     const totalOrdersInFile = parsed.groups.size;
 
-    // Pre-flight: collect SKUs + emails, look up existing.
+    // Pre-flight
     const allSkus = new Set<string>();
     const allEmails = new Set<string>();
     for (const group of parsed.groups.values()) {
@@ -1094,7 +1094,6 @@ export class OrdersService {
     });
     const userByEmail = new Map(existingUsers.map((u) => [u.email, u]));
 
-    // Ensure Legacy Imports category exists (lazily, only when needed).
     let legacyCategoryId: string | null = null;
     const ensureLegacyCategory = async () => {
       if (legacyCategoryId === null) legacyCategoryId = await this.ensureLegacyCategoryId();
@@ -1119,7 +1118,6 @@ export class OrdersService {
     for (const [orderRef, group] of parsed.groups) {
       const orderNumber = `LEGACY-${orderRef}`;
 
-      // Skip if already imported (dedup on orderNumber).
       const existingOrder = await this.prisma.order.findFirst({
         where: { orderNumber },
         select: { id: true },
@@ -1129,7 +1127,67 @@ export class OrdersService {
         continue;
       }
 
-      // Resolve variants for every item, creating placeholders as needed.
+      // Customer linkage
+      const email = group.header.customer_email;
+      const phoneClean = group.header.customer_phone
+        .replace(/\D/g, '')
+        .replace(/^880(?=\d{10,11}$)/, '0');
+      const phoneValid = /^\d{10,11}$/.test(phoneClean);
+
+      let userId: string;
+      const candidate = userByEmail.get(email);
+      if (candidate) {
+        userId = candidate.id;
+        if (candidate.claimedAt === null) {
+          // Shadow: fill-blanks
+          const updates: Record<string, unknown> = {};
+          if (!candidate.firstName && group.header.customer_name) {
+            updates.firstName = group.header.customer_name;
+          }
+          if (phoneValid && !candidate.phones.includes(phoneClean)) {
+            updates.phones = [phoneClean, ...candidate.phones].slice(0, 20);
+          }
+          if (Object.keys(updates).length > 0) {
+            await this.prisma.user.update({
+              where: { id: candidate.id },
+              data: updates,
+            });
+          }
+        }
+        // Claimed: attach only, never mutate.
+        result.ordersAttachedToExisting += 1;
+      } else {
+        const shadow = await this.prisma.user.upsert({
+          where: { email },
+          create: {
+            email,
+            firstName: group.header.customer_name,
+            lastName: '',
+            phones: phoneValid ? [phoneClean] : [],
+            passwordHash: null,
+            role: 'CUSTOMER' as const,
+            isVerified: true,
+            claimedAt: null,
+            createdBy: null,
+          },
+          update: { email },
+          select: { id: true },
+        });
+        userId = shadow.id;
+        result.newShadowsCreated += 1;
+        userByEmail.set(email, {
+          id: shadow.id,
+          email,
+          claimedAt: null,
+          firstName: group.header.customer_name,
+          phones: phoneValid ? [phoneClean] : [],
+        });
+      }
+
+      // Variant resolution (some may already be placeholders from earlier groups in this batch)
+      const resolvedItems: Array<{
+        variantId: string; productId: string; quantity: number; unitPrice: number;
+      }> = [];
       for (const item of group.items) {
         let variantInfo = variantBySku.get(item.sku) ?? placeholderBySku.get(item.sku);
         if (!variantInfo) {
@@ -1140,12 +1198,55 @@ export class OrdersService {
           variantInfo = created;
         }
         placeholderOccurrences.set(item.sku, (placeholderOccurrences.get(item.sku) ?? 0) + 1);
+        resolvedItems.push({
+          variantId: variantInfo.id,
+          productId: variantInfo.productId,
+          quantity: item.quantity,
+          unitPrice: item.unit_price,
+        });
       }
 
-      // Task 3 adds: customer resolution + order/orderItem creation.
-      // For Task 2 stub, count as imported once placeholder logic ran.
-      // userByEmail is pre-fetched above and available for Task 3.
-      void userByEmail;
+      // Totals
+      const subtotal = resolvedItems.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
+      const total = Math.max(0, subtotal + group.header.shipping_cost - group.header.discount_amount);
+
+      // Shipping address (placeholder if missing)
+      const shippingAddress = {
+        line1: group.header.ship_line1 || 'Imported from legacy system',
+        city: group.header.ship_city || 'Unknown',
+        state: group.header.ship_state || 'Unknown',
+        postalCode: group.header.ship_postal || '0000',
+        country: group.header.ship_country || 'BD',
+      };
+
+      // Create order + items (NO stock decrement; createdAt overridden)
+      await this.prisma.order.create({
+        data: {
+          orderNumber,
+          userId,
+          guestEmail: email,
+          guestName: group.header.customer_name || null,
+          guestPhone: phoneValid ? phoneClean : null,
+          shippingAddress,
+          subtotal,
+          discount: group.header.discount_amount,
+          shippingCost: group.header.shipping_cost,
+          total,
+          notes: group.header.notes || null,
+          status: 'DELIVERED' as const,
+          createdAt: new Date(group.header.order_date),
+          items: {
+            create: resolvedItems.map((it) => ({
+              productId: it.productId,
+              variantId: it.variantId,
+              quantity: it.quantity,
+              unitPrice: it.unitPrice,
+              total: it.quantity * it.unitPrice,
+              snapshot: { sku: 'legacy-import' },
+            })),
+          },
+        },
+      });
       result.imported += 1;
     }
 
