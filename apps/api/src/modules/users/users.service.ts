@@ -437,15 +437,42 @@ export class UsersService {
         email: true,
         firstName: true,
         lastName: true,
+        phones: true,
         role: true,
         isVerified: true,
+        claimedAt: true,
         createdAt: true,
         addresses: true,
+        // Recent orders for the admin customer-detail page. Capped at 50
+        // most-recent to bound payload; pagination is a follow-up if needed.
+        // Includes legacy-imported orders (orderNumber LIKE 'LEGACY-%').
+        orders: {
+          select: {
+            id: true,
+            orderNumber: true,
+            status: true,
+            total: true,
+            createdAt: true,
+            _count: { select: { items: true } },
+          },
+          orderBy: { createdAt: 'desc' },
+          take: 50,
+        },
         _count: { select: { orders: true, reviews: true } },
       },
     });
     if (!user) throw new NotFoundException('User not found');
-    return user;
+
+    // Compute lifetime-value alongside the embedded recent orders. groupBy
+    // against the same userId returns the full sum even if `orders` was
+    // capped at 50.
+    const agg = await this.prisma.order.aggregate({
+      where: { userId },
+      _sum: { total: true },
+    });
+    const totalSpent = Number(agg._sum.total ?? 0);
+
+    return { ...user, totalSpent };
   }
 
   async deactivateUser(userId: string) {

@@ -62,6 +62,7 @@ describe('UsersService', () => {
       },
       order: {
         groupBy: jest.fn(),
+        aggregate: jest.fn(),
       },
     };
 
@@ -400,17 +401,47 @@ describe('UsersService', () => {
   });
 
   describe('getUserById', () => {
-    it('returns user with addresses + counts via findFirst + deletedAt:null', async () => {
+    it('returns user with addresses + orders + totalSpent via findFirst + deletedAt:null', async () => {
       const fullUser = {
         ...mockUser,
         addresses: [mockAddress],
+        orders: [
+          {
+            id: 'ord-1',
+            orderNumber: 'DEN-000001',
+            status: 'DELIVERED',
+            total: 1500,
+            createdAt: new Date('2024-09-01'),
+            _count: { items: 2 },
+          },
+        ],
         _count: { orders: 3, reviews: 2 },
       };
       prisma.user.findFirst.mockResolvedValue(fullUser);
+      prisma.order.aggregate.mockResolvedValue({ _sum: { total: 4500 } });
 
       const result = await service.getUserById('user-1');
 
-      expect(result).toEqual(fullUser);
+      expect(result).toEqual({ ...fullUser, totalSpent: 4500 });
+      expect(prisma.order.aggregate).toHaveBeenCalledWith({
+        where: { userId: 'user-1' },
+        _sum: { total: true },
+      });
+    });
+
+    it('defaults totalSpent to 0 when user has no orders', async () => {
+      const fullUser = {
+        ...mockUser,
+        addresses: [],
+        orders: [],
+        _count: { orders: 0, reviews: 0 },
+      };
+      prisma.user.findFirst.mockResolvedValue(fullUser);
+      prisma.order.aggregate.mockResolvedValue({ _sum: { total: null } });
+
+      const result = await service.getUserById('user-1');
+
+      expect(result.totalSpent).toBe(0);
     });
 
     it('throws NotFoundException when user does not exist', async () => {

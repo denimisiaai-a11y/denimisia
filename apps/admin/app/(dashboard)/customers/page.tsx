@@ -1,6 +1,7 @@
 'use client';
 
 import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { adminFetch } from '@/lib/api';
 import { Banner } from '@/components/admin-ui';
@@ -121,6 +122,7 @@ function segmentBadge(
 
 export default function CustomersPage() {
   const { data: session } = useSession();
+  const router = useRouter();
   const token = session?.accessToken;
 
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -454,7 +456,8 @@ export default function CustomersPage() {
                   return (
                     <tr
                       key={customer.id}
-                      className="hover:bg-surface-container-low/30 transition-colors duration-300 ease-editorial group"
+                      onClick={() => router.push(`/customers/${customer.id}`)}
+                      className="cursor-pointer hover:bg-surface-container-low/30 transition-colors duration-300 ease-editorial group"
                     >
                       <td className="px-6 py-5">
                         <div className="flex items-center gap-4">
@@ -493,6 +496,7 @@ export default function CustomersPage() {
                       <td className="px-6 py-5 text-right">
                         <button
                           type="button"
+                          onClick={(e) => e.stopPropagation()}
                           className="p-2 text-secondary hover:text-primary transition-colors duration-300 ease-editorial"
                           aria-label="More actions"
                         >
