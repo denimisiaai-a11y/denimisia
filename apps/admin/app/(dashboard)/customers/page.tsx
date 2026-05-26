@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { adminFetch } from '@/lib/api';
 import { Banner } from '@/components/admin-ui';
 import { Modal } from '@/components/modal';
+import { ImportCsvModal } from '@/components/customers/import-csv-modal';
 
 function buildPageWindow(current: number, total: number, windowSize = 5): number[] {
   if (total <= 0) return [];
@@ -31,7 +32,7 @@ interface Customer {
   firstName: string;
   lastName: string;
   role: string;
-  phone?: string | null;
+  phones?: string[];
   isActive?: boolean;
   createdAt: string;
   totalOrders?: number;
@@ -132,6 +133,7 @@ export default function CustomersPage() {
   const [showMoreFilters, setShowMoreFilters] = useState(false);
   const [minOrders, setMinOrders] = useState<string>('');
   const [minLtv, setMinLtv] = useState<string>('');
+  const [importOpen, setImportOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [addBusy, setAddBusy] = useState(false);
   const [addError, setAddError] = useState('');
@@ -204,7 +206,7 @@ export default function CustomersPage() {
         c.id,
         `${c.firstName ?? ''} ${c.lastName ?? ''}`.trim(),
         c.email,
-        c.phone ?? '',
+        c.phones?.[0] ?? '',
         String(c.totalOrders ?? 0),
         String(c.totalSpent ?? 0),
         c.createdAt,
@@ -253,7 +255,15 @@ export default function CustomersPage() {
       setAddForm({ firstName: '', lastName: '', email: '', phone: '' });
       await loadCustomers();
     } catch (err: unknown) {
-      setAddError(err instanceof Error ? err.message : 'Failed to add participant');
+      const message =
+        err instanceof Error ? err.message : 'Failed to add customer';
+      if (/already exists/i.test(message)) {
+        setAddError(
+          'This email is already registered. The customer can update their own profile by signing in.',
+        );
+      } else {
+        setAddError(message);
+      }
     } finally {
       setAddBusy(false);
     }
@@ -297,10 +307,17 @@ export default function CustomersPage() {
           </button>
           <button
             type="button"
+            onClick={() => setImportOpen(true)}
+            className="px-6 py-2 bg-surface-container-highest text-on-surface text-xs font-semibold uppercase tracking-widest border border-outline-variant/30 hover:bg-surface-container-high transition-colors duration-300 ease-editorial"
+          >
+            Import CSV
+          </button>
+          <button
+            type="button"
             onClick={() => setAddOpen(true)}
             className="px-6 py-2 bg-primary text-on-primary text-xs font-semibold uppercase tracking-widest hover:opacity-90 transition-opacity duration-300 ease-editorial"
           >
-            Add Participant
+            Add Customer
           </button>
         </div>
       </div>
@@ -457,7 +474,7 @@ export default function CustomersPage() {
                       <td className="px-6 py-5">
                         <p className="text-xs text-on-surface">{customer.email}</p>
                         <p className="text-[10px] text-secondary mt-1 tracking-tight">
-                          {customer.phone ?? '—'}
+                          {customer.phones?.[0] ?? '—'}
                         </p>
                       </td>
                       <td className="px-6 py-5 text-sm text-on-surface font-medium">
@@ -586,8 +603,8 @@ export default function CustomersPage() {
       <Modal
         open={addOpen}
         onClose={() => setAddOpen(false)}
-        title="Add Participant"
-        description="Create a new customer record. They will receive an onboarding email if configured."
+        title="Add Customer"
+        description="Creates a customer record immediately. No password or email is sent — the customer can later sign up with this email to claim the account."
         width="sm"
         footer={
           <>
@@ -605,7 +622,7 @@ export default function CustomersPage() {
               disabled={addBusy}
               className="atelier-shadow-sm px-5 py-2 text-[11px] font-bold uppercase tracking-[0.2em] bg-inverse-surface text-inverse-on-surface transition-transform duration-300 ease-editorial hover:scale-[1.02] disabled:opacity-50"
             >
-              {addBusy ? 'Saving…' : 'Add Participant'}
+              {addBusy ? 'Saving…' : 'Add Customer'}
             </button>
           </>
         }
@@ -690,6 +707,17 @@ export default function CustomersPage() {
           </div>
         </form>
       </Modal>
+
+      <ImportCsvModal
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        onImported={() => {
+          setImportOpen(false);
+          void loadCustomers();
+        }}
+        apiBase={process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api/v1'}
+        token={token}
+      />
     </>
   );
 }

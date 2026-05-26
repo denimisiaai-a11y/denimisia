@@ -136,10 +136,9 @@ enum InspectionResult {
 model User {
   id           String    @id @default(cuid())
   email        String    @unique
-  passwordHash String
+  passwordHash String?
   firstName    String
   lastName     String
-  phone        String?
   role         Role      @default(CUSTOMER)
   isVerified   Boolean   @default(false)
   // Durable switch for deactivating a user without soft-deleting them.
@@ -148,6 +147,15 @@ model User {
   // Authoritative JWT revocation counter. Incremented on password reset,
   // deactivate, or explicit forced-logout. Redis mirrors this for fast reads.
   tokenVersion Int       @default(0)
+  // Phone numbers, newest first. phones[0] is the "current" phone. Capped
+  // at 20 entries in service code (prependPhoneToArray helper).
+  phones       String[]  @default([])
+  // null = shadow account (admin-imported or auto-created from guest
+  // checkout, no password set). set = real registered user.
+  claimedAt    DateTime?
+  // admin user.id who imported this record (null for shadows auto-created
+  // from guest checkouts, and for self-registered users).
+  createdBy    String?
   fitProfile   Json?
   addresses    Address[]
   orders       Order[]
@@ -167,6 +175,7 @@ model User {
   @@index([deletedAt])
   @@index([role])
   @@index([createdAt])
+  @@index([phones])
 }
 
 // ─── Address ──────────────────────────────────────────────────────────────────

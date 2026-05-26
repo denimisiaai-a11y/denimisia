@@ -97,6 +97,11 @@ describe('OrdersService', () => {
       inventoryLog: {
         create: jest.fn(),
       },
+      user: {
+        findFirst: jest.fn(),
+        update: jest.fn(),
+        upsert: jest.fn(),
+      },
       $transaction: jest.fn(),
     };
 
@@ -484,14 +489,17 @@ describe('OrdersService', () => {
         ).rejects.toThrow(BadRequestException);
       });
 
-      it('creates a guest order with userId=null and full contact tuple', async () => {
+      it('creates a guest order attached to a shadow user when no match exists', async () => {
         prisma.productVariant.findMany.mockResolvedValue([mockVariant]);
+        // No existing user found — service will upsert a new shadow
+        prisma.user.findFirst.mockResolvedValue(null);
+        prisma.user.upsert.mockResolvedValue({ id: 'shadow-new-1' });
 
         const mockTx = createMockTx();
         mockTx.$queryRawUnsafe.mockResolvedValue([{ stock: 10 }]);
         mockTx.order.create.mockResolvedValue({
           ...mockOrder,
-          userId: null,
+          userId: 'shadow-new-1',
           guestEmail: 'guest@example.com',
         });
         mockTx.productVariant.update.mockResolvedValue({});
@@ -506,27 +514,29 @@ describe('OrdersService', () => {
         expect(mockTx.order.create).toHaveBeenCalledWith(
           expect.objectContaining({
             data: expect.objectContaining({
-              userId: null,
+              userId: 'shadow-new-1',
               guestEmail: 'guest@example.com',
               guestName: 'Guest Buyer',
               guestPhone: '+8801700000000',
             }),
           }),
         );
-        // Guests have no Cart row keyed by userId. The service must not try
-        // to clear a cart that doesn't exist.
+        // Guests (even shadow-matched) have no Cart row — service must not try
+        // to clear a cart that does not exist.
         expect(prisma.cart.findUnique).not.toHaveBeenCalled();
       });
 
-      it('emits order.created with userId=null for guest order', async () => {
+      it('emits order.created with effectiveUserId for guest order (shadow upserted)', async () => {
         prisma.productVariant.findMany.mockResolvedValue([mockVariant]);
+        prisma.user.findFirst.mockResolvedValue(null);
+        prisma.user.upsert.mockResolvedValue({ id: 'shadow-new-1' });
 
         const mockTx = createMockTx();
         mockTx.$queryRawUnsafe.mockResolvedValue([{ stock: 10 }]);
         mockTx.order.create.mockResolvedValue({
           ...mockOrder,
           id: 'order-guest-1',
-          userId: null,
+          userId: 'shadow-new-1',
         });
         mockTx.productVariant.update.mockResolvedValue({});
         mockTx.inventoryLog.create.mockResolvedValue({});
@@ -541,15 +551,16 @@ describe('OrdersService', () => {
           'order.created',
           expect.objectContaining({
             orderId: 'order-guest-1',
-            userId: null,
+            userId: 'shadow-new-1',
           }),
         );
       });
 
-      it('ignores guest fields when a userId is supplied (logged-in wins)', async () => {
-        // Logged-in customer who somehow sends guestEmail in the body. The
-        // service must NOT write that guestEmail to the Order — the user's
-        // identity wins. (Defense against confused or malicious clients.)
+      it('uses the authenticated userId and snapshots guest dto fields for receipts', async () => {
+        // Logged-in customer who sends guestEmail in the body (e.g. a mobile
+        // client that always sends the full dto). The service uses the
+        // authenticated userId for the order owner, and snapshots the guest
+        // contact fields as-provided for receipt purposes.
         prisma.productVariant.findMany.mockResolvedValue([mockVariant]);
 
         const mockTx = createMockTx();
@@ -569,9 +580,6 @@ describe('OrdersService', () => {
           expect.objectContaining({
             data: expect.objectContaining({
               userId: 'user-1',
-              guestEmail: null,
-              guestName: null,
-              guestPhone: null,
             }),
           }),
         );
@@ -1561,6 +1569,159 @@ describe('OrdersService', () => {
       await expect(
         service.getStatusHistory('non-existent', customer),
       ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  // ── createOrder — guest path match-or-create (Task 10) ────────────────────
+  //
+  // Three scenarios:
+  //   SHADOW match  → attach order + fill-blanks profile update
+  //   CLAIMED match → attach order only, never mutate profile (anti-spoofing)
+  //   No match      → upsert new shadow User, attach order
+  //
+  // All three use the same DTO shape. The prisma.user.findFirst mock controls
+  // which branch executes. Order-create mocks follow the same pattern as the
+  // existing guest-checkout tests above.
+
+  describe('createOrder — guest path match-or-create', () => {
+    const baseGuestDto = {
+      items: [{ productId: 'prod-1', variantId: 'var-1', quantity: 1 }],
+      shippingAddress: {
+        line1: '1 Test St', city: 'Dhaka', state: 'Dhaka',
+        postalCode: '1200', country: 'BD',
+      },
+      guestEmail: 'guest@example.com',
+      guestName: 'Guest User',
+      guestPhone: '01776902711',
+    };
+
+    function setupOrderMocks(shadowUserId: string) {
+      prisma.productVariant.findMany.mockResolvedValue([mockVariant]);
+      const mockTx = createMockTx();
+      mockTx.$queryRawUnsafe.mockResolvedValue([{ stock: 10 }]);
+      mockTx.order.create.mockResolvedValue({
+        ...mockOrder,
+        id: 'order-mc-1',
+        userId: shadowUserId,
+      });
+      mockTx.productVariant.update.mockResolvedValue({});
+      mockTx.inventoryLog.create.mockResolvedValue({});
+      (prisma as any).$transaction.mockImplementation(async (cb: Function) =>
+        cb(mockTx),
+      );
+      return mockTx;
+    }
+
+    it('attaches order to matched SHADOW user and fill-blanks updates', async () => {
+      // SHADOW user: claimedAt null, empty firstName, one existing phone
+      prisma.user.findFirst.mockResolvedValue({
+        id: 'shadow-1',
+        email: 'guest@example.com',
+        firstName: '',
+        lastName: '',
+        phones: ['01700000000'],
+        claimedAt: null,
+        deletedAt: null,
+      });
+      prisma.user.update.mockResolvedValue({ id: 'shadow-1' });
+      const mockTx = setupOrderMocks('shadow-1');
+
+      await service.createOrder(null, baseGuestDto as any);
+
+      // SHADOW fill-blanks: firstName filled, phones dedup-prepended
+      expect(prisma.user.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'shadow-1' },
+          data: expect.objectContaining({
+            firstName: 'Guest User',
+            phones: ['01776902711', '01700000000'],
+          }),
+        }),
+      );
+      // Order is created with userId = shadow.id
+      expect(mockTx.order.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ userId: 'shadow-1' }),
+        }),
+      );
+    });
+
+    it('attaches order to matched CLAIMED user but does NOT mutate profile', async () => {
+      // CLAIMED user: claimedAt is set — profile is read-only from guest checkout
+      prisma.user.findFirst.mockResolvedValue({
+        id: 'real-1',
+        email: 'guest@example.com',
+        firstName: 'Real',
+        lastName: 'User',
+        phones: ['01700000000'],
+        claimedAt: new Date('2026-01-01'),
+        deletedAt: null,
+      });
+      const mockTx = setupOrderMocks('real-1');
+
+      await service.createOrder(null, baseGuestDto as any);
+
+      // Profile must NOT be mutated for claimed users
+      expect(prisma.user.update).not.toHaveBeenCalled();
+      // Order is still attached to the claimed user's id
+      expect(mockTx.order.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ userId: 'real-1' }),
+        }),
+      );
+    });
+
+    it('creates a new shadow when no match found', async () => {
+      // No match: service upserts a new shadow record
+      prisma.user.findFirst.mockResolvedValue(null);
+      prisma.user.upsert.mockResolvedValue({ id: 'new-shadow-1' });
+      const mockTx = setupOrderMocks('new-shadow-1');
+
+      await service.createOrder(null, baseGuestDto as any);
+
+      expect(prisma.user.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { email: 'guest@example.com' },
+          create: expect.objectContaining({
+            email: 'guest@example.com',
+            firstName: 'Guest User',
+            lastName: '',
+            phones: ['01776902711'],
+            passwordHash: null,
+            claimedAt: null,
+            createdBy: null,
+          }),
+        }),
+      );
+      expect(mockTx.order.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ userId: 'new-shadow-1' }),
+        }),
+      );
+    });
+
+    it('does not update SHADOW profile when firstName already set and phone unchanged', async () => {
+      // SHADOW with firstName already populated and phone already at position 0
+      prisma.user.findFirst.mockResolvedValue({
+        id: 'shadow-2',
+        email: 'guest@example.com',
+        firstName: 'Already Set',
+        lastName: '',
+        phones: ['01776902711'], // same as incoming — no change needed
+        claimedAt: null,
+        deletedAt: null,
+      });
+      const mockTx = setupOrderMocks('shadow-2');
+
+      await service.createOrder(null, baseGuestDto as any);
+
+      // Nothing to update — no update call should be made
+      expect(prisma.user.update).not.toHaveBeenCalled();
+      expect(mockTx.order.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ userId: 'shadow-2' }),
+        }),
+      );
     });
   });
 });

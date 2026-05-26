@@ -45,7 +45,7 @@ export default async function ProfilePage() {
         email: profile.email,
         firstName: profile.firstName,
         lastName: profile.lastName,
-        phone: profile.phone ?? null,
+        phones: Array.isArray(profile.phones) ? profile.phones : [],
       }}
       accessToken={accessToken}
     />

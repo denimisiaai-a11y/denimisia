@@ -1,9 +1,13 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException, ForbiddenException } from '@nestjs/common';
+import {
+  NotFoundException,
+  ForbiddenException,
+  ConflictException,
+  BadRequestException,
+} from '@nestjs/common';
 import { UsersService } from './users.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { REDIS_CLIENT } from '../redis/redis.decorator';
-import { EmailService } from '../email/email.service';
 import { createRedisMock } from '../../common/testing/redis.mock';
 
 describe('UsersService', () => {
@@ -16,8 +20,10 @@ describe('UsersService', () => {
     email: 'test@example.com',
     firstName: 'Test',
     lastName: 'User',
+    phones: [],
     role: 'CUSTOMER',
     isVerified: true,
+    claimedAt: new Date('2026-01-01'),
     createdAt: new Date('2026-01-01'),
   };
 
@@ -40,8 +46,10 @@ describe('UsersService', () => {
       user: {
         findUnique: jest.fn(),
         findFirst: jest.fn(),
+        create: jest.fn(),
         update: jest.fn(),
         findMany: jest.fn(),
+        createMany: jest.fn(),
         count: jest.fn(),
       },
       address: {
@@ -61,10 +69,6 @@ describe('UsersService', () => {
         UsersService,
         { provide: PrismaService, useValue: prisma },
         { provide: REDIS_CLIENT, useValue: redis },
-        {
-          provide: EmailService,
-          useValue: { send: jest.fn().mockResolvedValue({ id: 'mock' }) },
-        },
       ],
     }).compile();
 
@@ -86,9 +90,10 @@ describe('UsersService', () => {
           email: true,
           firstName: true,
           lastName: true,
-          phone: true,
+          phones: true,
           role: true,
           isVerified: true,
+          claimedAt: true,
           createdAt: true,
         },
       });
@@ -136,7 +141,7 @@ describe('UsersService', () => {
   // ─── updateProfile ────────────────────────────────────────────────────────
 
   describe('updateProfile', () => {
-    it('updates only allow-listed fields', async () => {
+    it('updates only allow-listed fields (no phone)', async () => {
       prisma.user.update.mockResolvedValue({
         ...mockUser,
         firstName: 'Updated',
@@ -147,10 +152,112 @@ describe('UsersService', () => {
       const callArgs = prisma.user.update.mock.calls[0][0] as {
         data: Record<string, unknown>;
       };
-      expect(callArgs.data).toEqual({
-        firstName: 'Updated',
-        lastName: undefined,
+      // phones key must be absent when dto.phone is undefined
+      expect(callArgs.data.phones).toBeUndefined();
+      expect(callArgs.data.firstName).toBe('Updated');
+      // findUnique NOT called — we skip the phone branch entirely
+      expect(prisma.user.findUnique).not.toHaveBeenCalled();
+    });
+
+    it('dedup-prepends new phone to phones[]', async () => {
+      prisma.user.findUnique.mockResolvedValue({ phones: ['01700000000'] });
+      prisma.user.update.mockResolvedValue({
+        id: 'user-1',
+        email: 'a@b.com',
+        firstName: 'A',
+        lastName: 'B',
+        phones: ['01776902711', '01700000000'],
+        role: 'CUSTOMER',
+        isVerified: true,
       });
+
+      await service.updateProfile('user-1', {
+        firstName: 'A',
+        lastName: 'B',
+        phone: '01776902711',
+      });
+
+      expect(prisma.user.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'user-1' },
+          data: expect.objectContaining({
+            phones: ['01776902711', '01700000000'],
+          }),
+        }),
+      );
+    });
+
+    it('clears phones[0] when phone is empty string', async () => {
+      prisma.user.findUnique.mockResolvedValue({
+        phones: ['01776902711', '01700000000'],
+      });
+      prisma.user.update.mockResolvedValue({
+        id: 'user-1',
+        email: 'a@b.com',
+        firstName: 'A',
+        lastName: 'B',
+        phones: ['01700000000'],
+        role: 'CUSTOMER',
+        isVerified: true,
+      });
+
+      await service.updateProfile('user-1', {
+        firstName: 'A',
+        lastName: 'B',
+        phone: '',
+      });
+
+      expect(prisma.user.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ phones: ['01700000000'] }),
+        }),
+      );
+    });
+
+    it('rejects invalid phone format', async () => {
+      prisma.user.findUnique.mockResolvedValue({ phones: [] });
+
+      await expect(
+        service.updateProfile('user-1', {
+          firstName: 'A',
+          lastName: 'B',
+          phone: 'not-a-phone',
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('leaves phones unchanged when phone is undefined', async () => {
+      prisma.user.update.mockResolvedValue({
+        id: 'user-1',
+        email: 'a@b.com',
+        firstName: 'A',
+        lastName: 'B',
+        phones: ['01700000000'],
+        role: 'CUSTOMER',
+        isVerified: true,
+      });
+
+      await service.updateProfile('user-1', {
+        firstName: 'A',
+        lastName: 'B',
+        // no phone field
+      });
+
+      // findUnique NOT called — we skip the phone branch entirely when undefined
+      expect(prisma.user.findUnique).not.toHaveBeenCalled();
+      expect(prisma.user.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            firstName: 'A',
+            lastName: 'B',
+          }),
+        }),
+      );
+      // phones must NOT appear in the update data
+      const updateArg = (prisma.user.update.mock.calls[0]?.[0] ?? {
+        data: {},
+      }) as { data: Record<string, unknown> };
+      expect(updateArg.data.phones).toBeUndefined();
     });
   });
 
@@ -355,6 +462,205 @@ describe('UsersService', () => {
       });
       expect(redis.incr).toHaveBeenCalledWith('auth:tv:user-1');
       expect(redis.del).toHaveBeenCalledWith('auth:user:user-1');
+    });
+  });
+
+  describe('bulkImport', () => {
+    const adminId = 'admin-1';
+
+    it('creates new users from parsed rows + skips existing emails', async () => {
+      const csv = `email,firstName,lastName,phone
+new1@example.com,New,One,01776902711
+existing@example.com,Existing,User,01700000000
+new2@example.com,New,Two,`;
+      const buffer = Buffer.from(csv, 'utf-8');
+
+      prisma.user.findMany.mockResolvedValue([
+        { email: 'existing@example.com' },
+      ]);
+      prisma.user.createMany.mockResolvedValue({ count: 2 });
+
+      const result = await service.bulkImport(buffer, adminId);
+
+      expect(result).toEqual({
+        created: 2,
+        skipped_existing: 1,
+        skipped_duplicate_within_upload: 0,
+        errors: [],
+      });
+      expect(prisma.user.createMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          skipDuplicates: true,
+          data: expect.arrayContaining([
+            expect.objectContaining({
+              email: 'new1@example.com',
+              firstName: 'New',
+              phones: ['01776902711'],
+              passwordHash: null,
+              claimedAt: null,
+              createdBy: adminId,
+            }),
+            expect.objectContaining({
+              email: 'new2@example.com',
+              firstName: 'New',
+              lastName: 'Two',
+              phones: [],
+            }),
+          ]),
+        }),
+      );
+      const createArg = (prisma.user.createMany.mock.calls[0]?.[0] ?? {
+        data: [],
+      }) as { data: Array<{ email: string }> };
+      expect(createArg.data.find((d) => d.email === 'existing@example.com')).toBeUndefined();
+    });
+
+    it('reports parse errors in the result', async () => {
+      const csv = `email,firstName,lastName,phone
+bad-email,X,Y,
+ok@example.com,OK,User,01776902711`;
+      const buffer = Buffer.from(csv, 'utf-8');
+      prisma.user.findMany.mockResolvedValue([]);
+      prisma.user.createMany.mockResolvedValue({ count: 1 });
+
+      const result = await service.bulkImport(buffer, adminId);
+
+      expect(result.created).toBe(1);
+      expect(result.errors).toHaveLength(1);
+      expect(result.errors[0]).toMatchObject({
+        row: 2,
+        reason: expect.stringContaining('email'),
+      });
+    });
+
+    it('reports within-file duplicates separately', async () => {
+      const csv = `email,firstName,lastName,phone
+ada@example.com,Ada,,01776902711
+ada@example.com,IGNORE,Lovelace,02000000000`;
+      const buffer = Buffer.from(csv, 'utf-8');
+      prisma.user.findMany.mockResolvedValue([]);
+      prisma.user.createMany.mockResolvedValue({ count: 1 });
+
+      const result = await service.bulkImport(buffer, adminId);
+
+      expect(result.created).toBe(1);
+      expect(result.skipped_duplicate_within_upload).toBe(1);
+    });
+  });
+
+  describe('createCustomerAsAdmin (refactored — no password, no email)', () => {
+    const adminId = 'admin-1';
+
+    it('creates a shadow user with null passwordHash and createdBy=adminId', async () => {
+      prisma.user.findUnique.mockResolvedValue(null);
+      prisma.user.create.mockResolvedValue({
+        id: 'new-1',
+        email: 'new@example.com',
+        firstName: 'New',
+        lastName: 'User',
+        phones: ['01776902711'],
+        role: 'CUSTOMER',
+        isActive: true,
+        isVerified: true,
+        claimedAt: null,
+        createdBy: adminId,
+        createdAt: new Date(),
+      });
+
+      const result = await service.createCustomerAsAdmin(
+        {
+          email: 'NEW@example.com',
+          firstName: 'New',
+          lastName: 'User',
+          phone: '+880 1776-902-711',
+        },
+        adminId,
+      );
+
+      expect(prisma.user.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            email: 'new@example.com',
+            phones: ['01776902711'],
+            passwordHash: null,
+            claimedAt: null,
+            createdBy: adminId,
+            isVerified: true,
+          }),
+        }),
+      );
+      expect(result.id).toBe('new-1');
+    });
+
+    it('returns 409 when email matches a CLAIMED user', async () => {
+      prisma.user.findUnique.mockResolvedValue({
+        id: 'existing-1',
+        email: 'taken@example.com',
+        claimedAt: new Date(),
+        deletedAt: null,
+      });
+
+      await expect(
+        service.createCustomerAsAdmin(
+          { email: 'taken@example.com', firstName: 'X' },
+          adminId,
+        ),
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it('fills blanks on existing SHADOW user without overwriting non-empty fields', async () => {
+      prisma.user.findUnique.mockResolvedValue({
+        id: 'shadow-1',
+        email: 'shadow@example.com',
+        firstName: 'Existing',
+        lastName: '',
+        phones: ['01700000000'],
+        claimedAt: null,
+        deletedAt: null,
+      });
+      prisma.user.update.mockResolvedValue({
+        id: 'shadow-1',
+        email: 'shadow@example.com',
+        firstName: 'Existing',
+        lastName: 'Filled',
+        phones: ['01776902711', '01700000000'],
+        claimedAt: null,
+        createdBy: 'old-admin',
+      });
+
+      await service.createCustomerAsAdmin(
+        {
+          email: 'shadow@example.com',
+          firstName: 'New',
+          lastName: 'Filled',
+          phone: '01776902711',
+        },
+        adminId,
+      );
+
+      expect(prisma.user.update).toHaveBeenCalledWith({
+        where: { id: 'shadow-1' },
+        data: expect.objectContaining({
+          lastName: 'Filled',
+          phones: ['01776902711', '01700000000'],
+        }),
+        select: expect.any(Object),
+      });
+      const updateArg = (prisma.user.update.mock.calls[0]?.[0] ?? {}) as {
+        data: Record<string, unknown>;
+      };
+      expect(updateArg.data.firstName).toBeUndefined();
+    });
+
+    it('rejects invalid phone format', async () => {
+      prisma.user.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.createCustomerAsAdmin(
+          { email: 'a@b.com', firstName: 'A', phone: 'not-a-phone' },
+          adminId,
+        ),
+      ).rejects.toThrow(BadRequestException);
     });
   });
 });

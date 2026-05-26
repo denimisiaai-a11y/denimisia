@@ -10,7 +10,7 @@ interface ProfileData {
   email: string;
   firstName: string;
   lastName: string;
-  phone: string | null;
+  phones: string[];
 }
 
 interface ProfileFormProps {
@@ -28,16 +28,16 @@ export function ProfileForm({ profile, accessToken }: ProfileFormProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [firstName, setFirstName] = useState(profile.firstName);
   const [lastName, setLastName] = useState(profile.lastName);
-  const [phone, setPhone] = useState(profile.phone ?? '');
+  const [phone, setPhone] = useState(profile.phones[0] ?? '');
   const [feedback, setFeedback] = useState<FeedbackState>({ type: 'idle' });
 
   const handleCancel = useCallback(() => {
     setFirstName(profile.firstName);
     setLastName(profile.lastName);
-    setPhone(profile.phone ?? '');
+    setPhone(profile.phones[0] ?? '');
     setIsEditing(false);
     setFeedback({ type: 'idle' });
-  }, [profile.firstName, profile.lastName, profile.phone]);
+  }, [profile.firstName, profile.lastName, profile.phones]);
 
   const handleSave = useCallback(async () => {
     setFeedback({ type: 'saving' });
@@ -51,7 +51,7 @@ export function ProfileForm({ profile, accessToken }: ProfileFormProps) {
         body: JSON.stringify({
           firstName: firstName.trim(),
           lastName: lastName.trim(),
-          phone: phone.trim() || null,
+          phone: phone.trim(),
         }),
       });
       const json = await res.json();
@@ -166,6 +166,18 @@ export function ProfileForm({ profile, accessToken }: ProfileFormProps) {
             />
           ) : (
             <p className="mt-1 text-sm text-ink">{phone || 'Not set'}</p>
+          )}
+          {(profile.phones?.length ?? 0) > 1 && (
+            <details className="mt-3">
+              <summary className="cursor-pointer text-xs font-semibold uppercase tracking-[0.1em] text-muted hover:text-ink transition-colors">
+                Previous numbers ({(profile.phones?.length ?? 1) - 1})
+              </summary>
+              <ul className="mt-2 space-y-1 font-mono text-xs text-muted">
+                {profile.phones?.slice(1).map((p) => (
+                  <li key={p}>{p}</li>
+                ))}
+              </ul>
+            </details>
           )}
         </div>
 

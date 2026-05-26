@@ -40,6 +40,7 @@ describe('AuthService', () => {
     prisma = {
       user: {
         findFirst: jest.fn(),
+        findUnique: jest.fn(),
         create: jest.fn(),
         update: jest.fn(),
       },
@@ -108,7 +109,7 @@ describe('AuthService', () => {
     };
 
     it('should create user with hashed password and return tokens', async () => {
-      prisma.user.findFirst.mockResolvedValue(null);
+      prisma.user.findUnique.mockResolvedValue(null);
       (mockedBcrypt.hash as jest.Mock)
         .mockResolvedValueOnce('$hashed-password$') // password hash
         .mockResolvedValueOnce('$hashed-refresh$'); // refresh token hash for storage
@@ -126,8 +127,8 @@ describe('AuthService', () => {
 
       const result = await service.register(registerDto);
 
-      expect(prisma.user.findFirst).toHaveBeenCalledWith({
-        where: { email: registerDto.email, deletedAt: null },
+      expect(prisma.user.findUnique).toHaveBeenCalledWith({
+        where: { email: registerDto.email },
       });
       expect(mockedBcrypt.hash).toHaveBeenCalledWith(registerDto.password, 12);
       expect(prisma.user.create).toHaveBeenCalledWith({
@@ -136,6 +137,7 @@ describe('AuthService', () => {
           passwordHash: '$hashed-password$',
           firstName: registerDto.firstName,
           lastName: registerDto.lastName,
+          phones: [],
         },
       });
       expect(result.accessToken).toBe('access-token-123');
@@ -145,7 +147,12 @@ describe('AuthService', () => {
     });
 
     it('should throw ConflictException when email already exists', async () => {
-      prisma.user.findFirst.mockResolvedValue(mockUser);
+      prisma.user.findUnique.mockResolvedValue({
+        ...mockUser,
+        deletedAt: null,
+        claimedAt: new Date(),
+        phones: [],
+      });
 
       await expect(service.register(registerDto)).rejects.toThrow(
         ConflictException,
@@ -154,7 +161,7 @@ describe('AuthService', () => {
     });
 
     it('should store hashed refresh token in Redis', async () => {
-      prisma.user.findFirst.mockResolvedValue(null);
+      prisma.user.findUnique.mockResolvedValue(null);
       (mockedBcrypt.hash as jest.Mock)
         .mockResolvedValueOnce('$hashed-password$')
         .mockResolvedValueOnce('$hashed-refresh-token$');
@@ -178,7 +185,7 @@ describe('AuthService', () => {
     });
 
     it('should generate both access and refresh tokens with correct secrets', async () => {
-      prisma.user.findFirst.mockResolvedValue(null);
+      prisma.user.findUnique.mockResolvedValue(null);
       (mockedBcrypt.hash as jest.Mock).mockResolvedValue('$hashed$');
       prisma.user.create.mockResolvedValue({
         id: 'user-new',
@@ -229,6 +236,78 @@ describe('AuthService', () => {
       expect(firstCallSecret).toBeTruthy();
       expect(secondCallSecret).toBeTruthy();
       expect(firstCallSecret).not.toBe(secondCallSecret);
+    });
+
+    it('auto-claims an existing shadow account on register with matching email', async () => {
+      prisma.user.findUnique.mockResolvedValue({
+        id: 'shadow-1',
+        email: 'shadow@example.com',
+        passwordHash: null,
+        claimedAt: null,
+        firstName: 'Imported',
+        lastName: '',
+        phones: ['01700000000'],
+        deletedAt: null,
+        tokenVersion: 0,
+        isActive: true,
+        isVerified: false,
+        role: 'CUSTOMER',
+      });
+      prisma.user.update.mockResolvedValue({
+        id: 'shadow-1',
+        email: 'shadow@example.com',
+        firstName: 'Real',
+        lastName: 'User',
+        phones: ['01776902711', '01700000000'],
+        claimedAt: new Date(),
+        tokenVersion: 1,
+        role: 'CUSTOMER',
+        isVerified: false,
+      });
+
+      const result = await service.register({
+        email: 'shadow@example.com',
+        password: 'Secret123!',
+        firstName: 'Real',
+        lastName: 'User',
+        phone: '01776902711',
+      });
+
+      expect(prisma.user.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'shadow-1' },
+          data: expect.objectContaining({
+            passwordHash: expect.any(String),
+            claimedAt: expect.any(Date),
+            firstName: 'Real',
+            lastName: 'User',
+            phones: ['01776902711', '01700000000'],
+            tokenVersion: { increment: 1 },
+          }),
+        }),
+      );
+      expect(prisma.user.create).not.toHaveBeenCalled();
+      expect(result).toBeDefined();
+    });
+
+    it('returns 409 when register email matches a CLAIMED user', async () => {
+      prisma.user.findUnique.mockResolvedValue({
+        id: 'claimed-1',
+        email: 'claimed@example.com',
+        passwordHash: 'existing-hash',
+        claimedAt: new Date(),
+        deletedAt: null,
+        phones: [],
+      });
+
+      await expect(
+        service.register({
+          email: 'claimed@example.com',
+          password: 'X',
+          firstName: 'Y',
+          lastName: 'Z',
+        }),
+      ).rejects.toThrow(ConflictException);
     });
   });
 
@@ -299,6 +378,27 @@ describe('AuthService', () => {
         `refresh:${mockUser.id}`,
         7 * 24 * 60 * 60,
         '$hashed-refresh$',
+      );
+    });
+
+    it('returns a shadow-specific message when user.passwordHash is null', async () => {
+      prisma.user.findFirst.mockResolvedValue({
+        id: 'shadow-1',
+        email: 'shadow@example.com',
+        passwordHash: null,
+        isActive: true,
+        deletedAt: null,
+        isVerified: true,
+        firstName: 'Shadow',
+        lastName: 'User',
+        role: 'CUSTOMER',
+        tokenVersion: 0,
+      });
+
+      await expect(
+        service.login({ email: 'shadow@example.com', password: 'anything' }),
+      ).rejects.toThrow(
+        /not been set up yet|please sign up/i,
       );
     });
   });
@@ -442,6 +542,22 @@ describe('AuthService', () => {
       expect(result).toEqual({
         message: 'If an account exists, a reset link has been sent',
       });
+    });
+
+    it('returns shadow-specific message and does NOT send email for unclaimed user', async () => {
+      prisma.user.findFirst.mockResolvedValue({
+        id: 'shadow-1',
+        email: 'shadow@example.com',
+        passwordHash: null,
+        firstName: 'Shadow',
+        deletedAt: null,
+      });
+      email.send.mockClear();
+
+      const result = await service.forgotPassword('shadow@example.com');
+
+      expect(result.message).toMatch(/sign up|not fully registered/i);
+      expect(email.send).not.toHaveBeenCalled();
     });
   });
 

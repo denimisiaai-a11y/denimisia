@@ -12,6 +12,18 @@
 
 ---
 
+## ⚠️ CRITICAL: No local DB in this project
+
+Denimisia uses Supabase as the SOLE database — there is no local Postgres workflow. Schema migrations are applied directly to production via `prisma db execute` (the project has no `_prisma_migrations` table). Because of this:
+
+- **Tasks 1–16 are CODE-ONLY**. They edit files, run `prisma generate` (which is DB-free; only re-emits the TypeScript client from schema.prisma), run tests with mocked Prisma, and commit. **NO subagent may run `prisma migrate dev`, `prisma db execute`, or any tool that talks to a database.**
+- **The schema migration is applied to production ONLY in Task 17**, as the first step before merging the PR and triggering Render deploy. The migration SQL is prepared and committed in Task 1 but not applied to any DB until Task 17.
+- This means a previous run of subagent execution accidentally migrated prod ahead of code deploy, breaking the deployed API momentarily. The schema has since been reverted to safe state.
+
+Every subagent prompt MUST include this constraint explicitly: "Do NOT touch any database. Do NOT run prisma migrate dev or prisma db execute. If you cannot complete the task without touching a DB, report BLOCKED."
+
+---
+
 ## File Structure
 
 ### New files
@@ -133,28 +145,21 @@ ALTER TABLE "User" DROP COLUMN "phone";
 CREATE INDEX "User_phones_gin_idx" ON "User" USING GIN ("phones");
 ```
 
-- [ ] **Step 1.4: Apply migration locally**
+- [ ] **Step 1.4: Regenerate Prisma Client (DB-free)**
 
 ```bash
-pnpm --filter database exec prisma migrate dev
-pnpm --filter database exec prisma generate
+cd /c/Users/joycg/denimisia/packages/database && ./node_modules/.bin/prisma generate
 ```
 
-Expected: migration applies cleanly, Prisma Client regenerates. No errors.
+This reads `schema.prisma` and rewrites the generated TypeScript client to match the new shape. It does NOT touch any database. Expected: "Generated Prisma Client" success message.
 
-- [ ] **Step 1.5: Verify backfill manually**
+- [ ] **Step 1.5: Typecheck against new client**
 
 ```bash
-pnpm --filter database exec prisma studio
+cd /c/Users/joycg/denimisia/apps/api && pnpm exec tsc --noEmit 2>&1 | head -30
 ```
 
-Open the User table. Confirm:
-- `phones` column exists and contains the prior `phone` value for any user that had one
-- `claimedAt` is populated for all existing users (they're real registered users)
-- `passwordHash` accepts null but existing values are preserved
-- `phone` column is gone
-
-Close Prisma Studio.
+Expected: errors. The existing code references `user.phone` (singular) but the new client only has `user.phones` (array). Don't fix these errors here — Tasks 2-11 will fix them. Confirm the errors are about the User shape change (sanity check that schema regen worked).
 
 - [ ] **Step 1.6: Commit**
 
@@ -292,7 +297,9 @@ export function normalizePhone(input: string | null | undefined): string {
   if (!input) return '';
   const digits = input.replace(/\D/g, '');
   if (digits.startsWith('880') && digits.length > 11) {
-    return digits.slice(3);
+    // Re-add the leading 0 that the local BD form expects (+880 1776 902711
+    // is the international form of 01776902711, not 1776902711).
+    return '0' + digits.slice(3);
   }
   return digits;
 }
@@ -2502,23 +2509,36 @@ dedup-prepends it into phones[] (preserving the prior value)."
 
 ---
 
-## Task 16: Full-stack manual verification
+## Task 16: Pre-deploy verification (build + tests, no DB)
 
 **Files:** none modified — pure verification.
 
-- [ ] **Step 16.1: Reset local DB and re-seed**
+Since this project has no local DB, full E2E happens AFTER deploy (Task 17). This task verifies what we can verify without a database: builds, typechecks, unit/integration tests with mocked Prisma.
+
+- [ ] **Step 16.1: Verify API build + tests**
 
 ```bash
-cd /c/Users/joycg/denimisia
-pnpm --filter database exec prisma migrate reset --skip-seed
-pnpm --filter database exec prisma migrate dev
-# Optional: seed a few users via the existing seed script
-pnpm --filter database exec ts-node prisma/seed.ts
+cd /c/Users/joycg/denimisia/apps/api && pnpm exec tsc --noEmit 2>&1 | grep -v "auth.service.spec\|curation.service.spec\|inventory-race" | head -20
 ```
 
-Confirm DB has at least a few existing users and that they get `claimedAt = createdAt`, `phones = [phone]` after migration.
+Expected: clean (no new errors). Pre-existing errors in those three test files are unrelated.
 
-- [ ] **Step 16.2: Start all dev servers**
+```bash
+cd /c/Users/joycg/denimisia/apps/api && pnpm test 2>&1 | tail -15
+```
+
+Expected: all tests pass (except possibly pre-existing failures unrelated to this work).
+
+- [ ] **Step 16.2: Verify admin + web typecheck**
+
+```bash
+cd /c/Users/joycg/denimisia/apps/admin && pnpm exec tsc --noEmit 2>&1 | head -20
+cd /c/Users/joycg/denimisia/apps/web && pnpm exec tsc --noEmit 2>&1 | head -20
+```
+
+Expected: both clean.
+
+- [ ] **Step 16.3: Optional dev-server smoke (admin)**
 
 ```bash
 # Terminal 1
@@ -2529,87 +2549,51 @@ cd /c/Users/joycg/denimisia/apps/admin && pnpm dev
 cd /c/Users/joycg/denimisia/apps/web && pnpm dev
 ```
 
-- [ ] **Step 16.3: E2E happy path — admin imports, customer claims**
-
-In admin UI (`http://localhost:3002`):
-1. Sign in as admin.
-2. Customers page → Add Customer → `e2e-test@example.com`, `Test`, `User`, `01776902711`. Save.
-3. Verify the row appears in the customers table.
-
-In storefront (`http://localhost:3000`):
-4. Go to /register. Enter the same email + new password.
-5. Verify register succeeds (no 409). Check that you can log in immediately afterward with the chosen password.
-6. Account page → verify the imported phone `01776902711` is shown.
-
-- [ ] **Step 16.4: E2E — guest checkout auto-creates shadow**
-
-1. Open storefront in an incognito window (no login).
-2. Add a product, proceed to guest checkout with `auto-shadow@example.com`, `Auto Shadow`, `01700000000`. Complete order.
-3. In admin UI, refresh Customers — verify `auto-shadow@example.com` now appears as a customer.
-
-- [ ] **Step 16.5: E2E — guest checkout matches existing shadow**
-
-1. Repeat guest checkout with the same `auto-shadow@example.com` email but different name `Different Name` and a different phone `01800000000`.
-2. In admin UI, check the customer record:
-   - firstName should still be `Auto Shadow` (existing non-empty preserved)
-   - phones should be `['01800000000', '01700000000']` (dedup-prepended)
-   - Both orders should appear in the customer's order history.
-
-- [ ] **Step 16.6: E2E — CSV bulk import**
-
-1. Create a test CSV:
-```csv
-email,firstName,lastName,phone
-ada@example.com,Ada,Lovelace,01776902701
-grace@example.com,Grace,Hopper,01776902702
-auto-shadow@example.com,Already,Exists,01776902703
-invalid-row,X,Y,not-a-phone
-ada@example.com,Ada,DUP,01776902704
-```
-
-2. Admin → Import CSV → upload this file.
-3. Verify result panel shows:
-   - Created: 2 (ada + grace)
-   - Skipped existing: 1 (auto-shadow already in DB)
-   - Skipped duplicate within upload: 1 (the second ada row)
-   - Errors: 1 (invalid-row with phone error OR email error)
-
-- [ ] **Step 16.7: E2E — shadow login attempt**
-
-1. In storefront, try to log in with `ada@example.com` (just imported, never claimed).
-2. Verify error message: "This account hasn't been set up yet. Please sign up to complete your account."
-
-- [ ] **Step 16.8: E2E — shadow forgot password**
-
-1. In storefront, click "Forgot password" with `ada@example.com`.
-2. Verify the response message says to sign up instead.
-3. Check API logs — confirm no reset email was actually sent.
-
-- [ ] **Step 16.9: Mark verification complete**
-
-If all 7 E2E checks above pass, the implementation is feature-complete locally.
-
-- [ ] **Step 16.10: Commit a verification note**
-
-```bash
-git commit --allow-empty -m "chore: shadow-customer feature manually verified locally
-
-Verified E2E paths:
-- Admin import (single) → customer claims via register
-- Guest checkout auto-creates shadow
-- Repeat guest checkout matches + appends phone
-- CSV bulk import (created/skipped/duplicate/error counts)
-- Shadow login → friendly error
-- Shadow forgot-pw → friendly message, no email sent"
-```
+**E2E runs against prod after Task 17 deploy** (this project has no local DB, so we can't E2E locally). The full list of E2E flows to verify against prod is documented in Task 17 Step 17.5.
 
 ---
 
-## Task 17: Open PR + production deploy
+## Task 17: Apply migration, open PR, deploy, prod E2E
 
-**Files:** none modified.
+**Files:** none modified by these steps; they execute deploy actions.
 
-- [ ] **Step 17.1: Push branch and open PR**
+**⚠️ Step 17.1 is the ONLY DB write in this entire plan.** It must be coordinated tightly with Step 17.2 (PR merge → Render deploy) — minimize the gap so the deployed code matches the schema.
+
+- [ ] **Step 17.1: Apply the schema migration to production Supabase**
+
+The migration SQL was prepared and committed back in Task 1 at `packages/database/prisma/migrations/<timestamp>_shadow_customers_and_phones/migration.sql`. Apply it now via the Prisma CLI using the DATABASE_URL configured in `packages/database/.env`:
+
+```bash
+cd /c/Users/joycg/denimisia/packages/database && \
+  ./node_modules/.bin/prisma db execute \
+    --file prisma/migrations/<timestamp>_shadow_customers_and_phones/migration.sql \
+    --schema prisma/schema.prisma
+```
+
+Expected output: `Script executed successfully.`
+
+Verify the new shape via Supabase MCP `execute_sql`:
+
+```sql
+SELECT column_name, data_type, is_nullable
+FROM information_schema.columns
+WHERE table_name = 'User'
+  AND column_name IN ('phone', 'phones', 'claimedAt', 'createdBy', 'passwordHash')
+ORDER BY column_name;
+```
+
+Expected:
+- `claimedAt`: timestamp, YES nullable
+- `createdBy`: text, YES nullable
+- `passwordHash`: text, YES nullable (was NO)
+- `phones`: ARRAY, NO nullable
+- `phone`: GONE (no row returned)
+
+If verification fails, STOP and investigate before merging the PR.
+
+**Important**: between this step and Step 17.3 (Render deploy live), the currently-deployed API code references `user.phone` (singular), which no longer exists in the DB. Authenticated user-touching endpoints will fail. Expect brief downtime during the Render deploy window (~2-3 minutes). Plan to merge within minutes of this step, ideally at low-traffic hour.
+
+- [ ] **Step 17.2: Push branch and open PR**
 
 ```bash
 git push -u origin feat/shadow-customer-records
@@ -2652,11 +2636,11 @@ EOF
 )"
 ```
 
-- [ ] **Step 17.2: Wait for PR checks, merge to main**
+- [ ] **Step 17.3: Wait for PR checks, merge to main**
 
 If CI is configured, wait for green. If approval is needed from a reviewer, request it. Once merged, Render and Vercel will auto-deploy.
 
-- [ ] **Step 17.3: Monitor deploy**
+- [ ] **Step 17.4: Monitor deploy**
 
 Use the Render API token saved at `render-token.txt` to poll the deploy:
 
@@ -2675,17 +2659,42 @@ curl -s -o /dev/null -w "bulk:     HTTP %{http_code}\n" -X POST https://denimisi
 
 Expected: both 401 (unauthenticated). Confirms endpoints exist (not 404). If 404, the deploy didn't include the new code — re-investigate.
 
-- [ ] **Step 17.4: Production smoke test**
+- [ ] **Step 17.5: Production E2E smoke (replaces local E2E)**
 
-In a real browser:
-1. Sign in to admin.denimisiabd.com.
-2. Customers → Add Customer → create a test record.
-3. Verify it appears in the table.
-4. Customers → Import CSV → upload a minimal 2-row CSV.
-5. Verify the result panel shows correct counts.
-6. Delete the test customers via the admin UI before signing out.
+Since this project has no local DB, all functional E2E happens here against production after deploy.
 
-If any step fails, open an issue and possibly roll back.
+In a real browser at https://admin.denimisiabd.com:
+
+1. **Admin: Add Customer** — Sign in, Customers → Add Customer → `e2e-test@example.com`, `Test`, `User`, `01776902711`. Save. Confirm row appears.
+2. **Admin: Import CSV** — Customers → Import CSV. Upload this fixture:
+   ```csv
+   email,firstName,lastName,phone
+   ada-e2e@example.com,Ada,Lovelace,01776902701
+   grace-e2e@example.com,Grace,Hopper,01776902702
+   e2e-test@example.com,Already,Exists,01776902703
+   invalid-row,X,Y,not-a-phone
+   ada-e2e@example.com,Ada,DUP,01776902704
+   ```
+   Expect: Created 2, Skipped existing 1, Skipped duplicate within upload 1, Errors 1.
+
+At https://denimisiabd.com:
+
+3. **Self-register claims shadow** — Visit /register, sign up with `e2e-test@example.com` + new password. Confirm no 409 conflict, registration succeeds. Log in afterward.
+4. **Account page** — Confirm imported phone `01776902711` shows as current.
+5. **Shadow login error** — Sign out, try to log in with `ada-e2e@example.com`. Confirm error message says "please sign up" (not "invalid password").
+6. **Shadow forgot-password** — Try forgot-password with `ada-e2e@example.com`. Confirm response says "please sign up", no email received.
+7. **Guest checkout auto-creates shadow** — In incognito, add product, checkout as `auto-shadow-e2e@example.com` with name "Auto Shadow" and phone "01700000000". Place order. Back in admin, refresh Customers — confirm `auto-shadow-e2e@example.com` now appears.
+8. **Guest checkout matches existing shadow** — Repeat guest checkout with the same email but new name "Diff Name" and new phone "01800000000". Confirm in admin: name stays "Auto Shadow" (existing preserved), phones = `['01800000000', '01700000000']`, both orders present.
+
+- [ ] **Step 17.6: Clean up E2E test data**
+
+Via admin UI, deactivate (delete) all `*-e2e@example.com` customer records and any test orders before sign-out.
+
+- [ ] **Step 17.7: Mark task complete**
+
+If steps 17.5.1 through 17.5.8 all pass, the feature is shipped and verified. If any step fails, open a follow-up issue with reproduction details and consider whether to roll back.
+
+Roll-back: if a critical bug is found, revert the schema migration via SQL (same pattern as the recovery in mid-session), then revert the PR's API/admin/web commits. Document the issue and re-plan.
 
 ---
 

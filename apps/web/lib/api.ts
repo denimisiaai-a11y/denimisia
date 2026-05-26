@@ -206,7 +206,10 @@ export interface UserProfile {
   email: string;
   firstName: string;
   lastName: string;
-  phone: string | null;
+  /** Legacy singular field — may be present on older responses. */
+  phone?: string | null;
+  /** Task 4 / Task 14 shape: ordered list, newest first. */
+  phones?: string[];
   role: string;
 }
 

@@ -12,7 +12,12 @@ import {
   DefaultValuePipe,
   HttpCode,
   HttpStatus,
+  BadRequestException,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import type { Express } from 'express';
 import { UsersService } from './users.service';
 import {
   UpdateProfileDto,
@@ -85,12 +90,36 @@ export class UsersController {
 
   // Admin-create a customer record. Role is forced to CUSTOMER server-side
   // (DTO doesn't accept role) so this endpoint can never mint another admin.
-  // Customer receives a password-reset email to set their own password.
+  // Creates a shadow record (no password, no email sent); customer claims
+  // it later by self-registering with the same email.
   @Post()
   @UseGuards(RolesGuard)
   @Roles(Role.ADMIN, Role.SUPER_ADMIN)
-  createCustomer(@Body() dto: CreateCustomerByAdminDto) {
-    return this.usersService.createCustomerAsAdmin(dto);
+  createCustomer(
+    @Body() dto: CreateCustomerByAdminDto,
+    @CurrentUser() admin: { id: string },
+  ) {
+    return this.usersService.createCustomerAsAdmin(dto, admin.id);
+  }
+
+  @Post('bulk')
+  @UseGuards(RolesGuard)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: { fileSize: 20 * 1024 * 1024 }, // 20 MB, matches parser cap
+    }),
+  )
+  bulkImport(
+    @UploadedFile() file: Express.Multer.File,
+    @CurrentUser() admin: { id: string },
+  ) {
+    if (!file || !file.buffer) {
+      throw new BadRequestException(
+        'No file uploaded; expected multipart field "file"',
+      );
+    }
+    return this.usersService.bulkImport(file.buffer, admin.id);
   }
 
   @Get()
