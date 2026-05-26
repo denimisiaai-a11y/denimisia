@@ -404,6 +404,15 @@ export class AuthService {
     const user = await this.prisma.user.findFirst({
       where: { email, deletedAt: null },
     });
+    // Shadow accounts (passwordHash IS NULL) have never registered — guide them
+    // to sign up instead of sending a reset link they can't use.
+    if (user && user.passwordHash === null) {
+      return {
+        message:
+          "This email isn't fully registered yet. Please sign up to complete your account.",
+      };
+    }
+
     // Always return success to prevent email enumeration
     if (!user)
       return { message: 'If an account exists, a reset link has been sent' };

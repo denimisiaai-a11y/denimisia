@@ -464,6 +464,22 @@ describe('AuthService', () => {
         message: 'If an account exists, a reset link has been sent',
       });
     });
+
+    it('returns shadow-specific message and does NOT send email for unclaimed user', async () => {
+      prisma.user.findFirst.mockResolvedValue({
+        id: 'shadow-1',
+        email: 'shadow@example.com',
+        passwordHash: null,
+        firstName: 'Shadow',
+        deletedAt: null,
+      });
+      email.send.mockClear();
+
+      const result = await service.forgotPassword('shadow@example.com');
+
+      expect(result.message).toMatch(/sign up|not fully registered/i);
+      expect(email.send).not.toHaveBeenCalled();
+    });
   });
 
   // ─── resetPassword() ──────────────────────────────────────────────────────
