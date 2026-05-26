@@ -31,7 +31,7 @@ interface Customer {
   firstName: string;
   lastName: string;
   role: string;
-  phone?: string | null;
+  phones?: string[];
   isActive?: boolean;
   createdAt: string;
   totalOrders?: number;
@@ -204,7 +204,7 @@ export default function CustomersPage() {
         c.id,
         `${c.firstName ?? ''} ${c.lastName ?? ''}`.trim(),
         c.email,
-        c.phone ?? '',
+        c.phones?.[0] ?? '',
         String(c.totalOrders ?? 0),
         String(c.totalSpent ?? 0),
         c.createdAt,
@@ -457,7 +457,7 @@ export default function CustomersPage() {
                       <td className="px-6 py-5">
                         <p className="text-xs text-on-surface">{customer.email}</p>
                         <p className="text-[10px] text-secondary mt-1 tracking-tight">
-                          {customer.phone ?? '—'}
+                          {customer.phones?.[0] ?? '—'}
                         </p>
                       </td>
                       <td className="px-6 py-5 text-sm text-on-surface font-medium">

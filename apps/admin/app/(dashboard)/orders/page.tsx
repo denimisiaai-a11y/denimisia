@@ -98,7 +98,7 @@ interface Order {
     email?: string;
     firstName?: string;
     lastName?: string;
-    phone?: string;
+    phones?: string[];
   };
   guestEmail?: string;
   guestName?: string;
@@ -257,7 +257,7 @@ export default function OrdersPage() {
         o.orderNumber ?? o.id,
         formatName(o),
         o.user?.email ?? o.guestEmail ?? '',
-        o.user?.phone ?? o.guestPhone ?? '',
+        o.user?.phones?.[0] ?? o.guestPhone ?? '',
         String(formatItemCount(o)),
         o.status,
         String(o.total),

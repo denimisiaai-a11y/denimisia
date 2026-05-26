@@ -153,9 +153,9 @@ interface Order {
     firstName?: string | null;
     lastName?: string | null;
     email?: string | null;
-    phone?: string | null;
+    phones?: string[];
   };
-  customer?: { name?: string; email?: string; phone?: string };
+  customer?: { name?: string; email?: string; phones?: string[] };
   guestName?: string | null;
   guestEmail?: string | null;
   guestPhone?: string | null;
@@ -221,8 +221,8 @@ function getCustomerPhone(order: Order): string {
   return (
     order.guestPhone ||
     order.shippingAddress?.phone ||
-    order.user?.phone ||
-    order.customer?.phone ||
+    order.user?.phones?.[0] ||
+    order.customer?.phones?.[0] ||
     ''
   );
 }
