@@ -427,21 +427,18 @@ export default function CustomersPage() {
                 <th className="px-6 py-5 text-[10px] font-bold uppercase tracking-[0.2em] text-secondary border-b border-outline-variant/10">
                   Induction
                 </th>
-                <th className="px-6 py-5 text-[10px] font-bold uppercase tracking-[0.2em] text-secondary border-b border-outline-variant/10 text-right">
-                  Actions
-                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-outline-variant/10">
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-xs font-semibold uppercase tracking-widest text-secondary">
+                  <td colSpan={5} className="px-6 py-12 text-center text-xs font-semibold uppercase tracking-widest text-secondary">
                     Loading clientele...
                   </td>
                 </tr>
               ) : filteredCustomers.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-xs font-semibold uppercase tracking-widest text-secondary">
+                  <td colSpan={5} className="px-6 py-12 text-center text-xs font-semibold uppercase tracking-widest text-secondary">
                     No participants found.
                   </td>
                 </tr>
@@ -492,16 +489,6 @@ export default function CustomersPage() {
                       </td>
                       <td className="px-6 py-5 text-xs text-secondary font-medium">
                         {formatDate(customer.createdAt)}
-                      </td>
-                      <td className="px-6 py-5 text-right">
-                        <button
-                          type="button"
-                          onClick={(e) => e.stopPropagation()}
-                          className="p-2 text-secondary hover:text-primary transition-colors duration-300 ease-editorial"
-                          aria-label="More actions"
-                        >
-                          <span className="material-symbols-outlined text-lg">more_vert</span>
-                        </button>
                       </td>
                     </tr>
                   );
