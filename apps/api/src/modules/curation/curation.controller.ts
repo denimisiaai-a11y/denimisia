@@ -26,6 +26,20 @@ import {
 export class CurationController {
   constructor(private readonly curation: CurationService) {}
 
+  // ─── Admin: product typeahead search ─────────────────────────────────────
+  //
+  // IMPORTANT: All admin/* routes MUST be declared BEFORE the public
+  // `:pageKey/:sectionKey` catch-all below, otherwise NestJS matches the
+  // dynamic route first and treats 'admin' as a pageKey (shadowing this
+  // route). Same applies to any future literal-prefixed routes.
+
+  @Get('admin/search')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  search(@Query('q') q = '', @Query('limit') limit = '10') {
+    return this.curation.searchProducts(q, Number(limit) || 10);
+  }
+
   // ─── Public: storefront reads resolved section ───────────────────────────
 
   @Get(':pageKey/:sectionKey')
@@ -34,15 +48,6 @@ export class CurationController {
     @Param('sectionKey') sectionKey: string,
   ) {
     return this.curation.resolve(pageKey, sectionKey);
-  }
-
-  // ─── Admin: product typeahead search ─────────────────────────────────────
-
-  @Get('admin/search')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
-  search(@Query('q') q = '', @Query('limit') limit = '10') {
-    return this.curation.searchProducts(q, Number(limit) || 10);
   }
 
   // ─── Admin: list all sections on a page ──────────────────────────────────
