@@ -1,9 +1,10 @@
 import { EditorShell } from './editor-shell';
 
-export default function CollectionEditorPage({
+export default async function CollectionEditorPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
-  return <EditorShell collectionId={params.id} />;
+  const { id } = await params;
+  return <EditorShell collectionId={id} />;
 }
