@@ -297,7 +297,9 @@ export function normalizePhone(input: string | null | undefined): string {
   if (!input) return '';
   const digits = input.replace(/\D/g, '');
   if (digits.startsWith('880') && digits.length > 11) {
-    return digits.slice(3);
+    // Re-add the leading 0 that the local BD form expects (+880 1776 902711
+    // is the international form of 01776902711, not 1776902711).
+    return '0' + digits.slice(3);
   }
   return digits;
 }
