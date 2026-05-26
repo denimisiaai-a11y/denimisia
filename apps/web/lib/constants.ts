@@ -76,13 +76,12 @@ export const NAV_ITEMS: NavMenuItem[] = [
     sections: [
       {
         title: 'All Collections',
+        // Dynamically augmented by buildNavWithCollections() in app/layout.tsx —
+        // active collections marked showInNav=true are inserted here at request
+        // time, ordered by navOrder. Static "All Collections" link below ensures
+        // the menu is never empty even if no collection opts in.
         items: [
           { label: 'All Collections', href: '/collections' },
-          { label: "AW'24", href: '/collections/aw24', count: 6 },
-          { label: 'SS25', href: '/collections/ss25', count: 13 },
-          { label: 'Dropout25', href: '/collections/dropout25', count: 20 },
-          { label: "AW'25", href: '/collections/aw25', count: 37 },
-          { label: "Spring'26", href: '/collections/spring26' },
         ],
       },
     ],
@@ -90,7 +89,7 @@ export const NAV_ITEMS: NavMenuItem[] = [
       {
         src: NAV_FEATURED.collectionLatest,
         alt: 'Latest collection',
-        href: '/collections/spring26',
+        href: '/collections',
         slotKey: 'featured_collection_latest',
       },
     ],

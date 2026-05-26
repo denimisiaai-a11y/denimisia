@@ -4,18 +4,19 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { X, ChevronDown, Search } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { NAV_ITEMS } from '@/lib/constants';
+import { NAV_ITEMS, type NavMenuItem } from '@/lib/constants';
 import { useMobileChrome } from '@/stores/mobile-chrome';
 import { cn } from '@/lib/utils';
 
 interface MobileMenuProps {
+  readonly navItems?: readonly NavMenuItem[];
   open: boolean;
   onClose: () => void;
 }
 
 const SPRING = { type: 'spring' as const, stiffness: 320, damping: 36 };
 
-export function MobileMenu({ open, onClose }: MobileMenuProps) {
+export function MobileMenu({ open, onClose, navItems = NAV_ITEMS }: MobileMenuProps) {
   const [expanded, setExpanded] = useState<string | null>(null);
   const openSearch = useMobileChrome((s) => s.openSearch);
 
@@ -100,7 +101,7 @@ export function MobileMenu({ open, onClose }: MobileMenuProps) {
               className="flex-1 overflow-y-auto px-5 pt-2 pb-6"
               style={{ paddingBottom: 'calc(1.5rem + var(--safe-bottom))' }}
             >
-              {NAV_ITEMS.map((item) =>
+              {navItems.map((item) =>
                 item.href && !item.sections ? (
                   <Link
                     key={item.label}

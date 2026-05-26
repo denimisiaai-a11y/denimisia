@@ -17,6 +17,7 @@ import { seoEnv } from '@/lib/seo/env';
 import { organizationJsonLd } from '@/lib/seo/jsonld/organization';
 import { websiteJsonLd } from '@/lib/seo/jsonld/website';
 import { fetchHomepageStyles } from '@/lib/homepage-sections';
+import { buildNavWithCollections } from '@/lib/nav';
 
 // CSS variable mappings — must mirror the apps/admin GlobalStylesPanel scale.
 // Default (1) preserves the pre-composer layout exactly.
@@ -59,7 +60,10 @@ export const viewport: Viewport = {
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const styles = await fetchHomepageStyles();
+  const [styles, navItems] = await Promise.all([
+    fetchHomepageStyles(),
+    buildNavWithCollections(),
+  ]);
   const spacing = SPACING_SCALE[clamp01to2(styles.negativeSpace)];
   const fontRatio = FONT_RATIO[clamp01to2(styles.typographyFlow)];
 
@@ -80,7 +84,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <Providers>
           <SplashProvider>
             <SplashGate />
-            <Navbar />
+            <Navbar navItems={navItems} />
             <main>{children}</main>
             <Footer />
             <CartDrawer />

@@ -10,7 +10,7 @@ import { useScrollDirection } from '@/hooks/use-scroll-direction';
 import { AnnouncementBar } from './announcement-bar';
 import { MegaMenu } from './mega-menu';
 import { MobileMenu } from './mobile-menu';
-import { NAV_ITEMS } from '@/lib/constants';
+import { NAV_ITEMS, type NavMenuItem } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 import { useCart } from '@/stores/cart';
 import { useWishlist } from '@/stores/wishlist';
@@ -22,7 +22,11 @@ const AUTH_ROUTES = ['/login', '/register', '/forgot-password', '/reset-password
 const HERO_ROUTES_EXACT = ['/'];
 const HERO_ROUTES_PREFIX = ['/about'];
 
-export function Navbar() {
+interface NavbarProps {
+  readonly navItems?: readonly NavMenuItem[];
+}
+
+export function Navbar({ navItems = NAV_ITEMS }: NavbarProps = {}) {
   const pathname = usePathname();
   const editMode = useEditModeUrlOnly();
   if (editMode) return null;
@@ -33,10 +37,10 @@ export function Navbar() {
     (HERO_ROUTES_EXACT.includes(pathname) ||
       HERO_ROUTES_PREFIX.some((r) => pathname === r || pathname.startsWith(`${r}/`)));
 
-  return <NavbarInner hasHero={hasHero} />;
+  return <NavbarInner hasHero={hasHero} navItems={navItems} />;
 }
 
-function NavbarInner({ hasHero }: { hasHero: boolean }) {
+function NavbarInner({ hasHero, navItems }: { hasHero: boolean; navItems: readonly NavMenuItem[] }) {
   const { direction, isAtTop } = useScrollDirection(80);
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const mobileOpen = useMobileChrome((s) => s.menuOpen);
@@ -114,7 +118,7 @@ function NavbarInner({ hasHero }: { hasHero: boolean }) {
           <div className="mx-auto flex h-16 max-w-[1440px] items-center justify-between px-6 lg:px-12">
             {/* Left nav links (desktop) */}
             <div className="hidden items-center gap-8 lg:flex">
-              {NAV_ITEMS.filter((item) => item.label !== 'About').map((item) => (
+              {navItems.filter((item) => item.label !== 'About').map((item) => (
                 <div
                   key={item.label}
                   onMouseEnter={() => item.sections && handleMenuEnter(item.label)}
@@ -252,7 +256,7 @@ function NavbarInner({ hasHero }: { hasHero: boolean }) {
           </div>
 
           {/* Mega menus (desktop) */}
-          {NAV_ITEMS.map(
+          {navItems.map(
             (item) =>
               item.sections &&
               activeMenu === item.label && (
@@ -273,7 +277,7 @@ function NavbarInner({ hasHero }: { hasHero: boolean }) {
       </header>
 
       {/* Mobile menu */}
-      <MobileMenu open={mobileOpen} onClose={closeMobile} />
+      <MobileMenu open={mobileOpen} onClose={closeMobile} navItems={navItems} />
     </>
   );
 }
