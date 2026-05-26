@@ -290,6 +290,20 @@ export default function EditProductPage() {
         .filter(Boolean);
       const sizes = sizeList.length > 0 ? sizeList : [''];
       const stock = Number(newVariant.stock) || 0;
+      // Zero-stock guard. Empty/invalid stock input silently coerces to 0;
+      // confirm before saving so admin doesn't accidentally publish an
+      // unbuyable variant (the 2026-05-24 phantom-zero pattern).
+      if (stock === 0) {
+        const proceed = window.confirm(
+          `This variant will be saved with stock = 0.\n\n` +
+            `Customers can't buy a variant at 0 stock until you restock it.\n\n` +
+            `Save anyway?`,
+        );
+        if (!proceed) {
+          setAddingVariant(false);
+          return;
+        }
+      }
       const price = newVariant.price ? Number(newVariant.price) : undefined;
       const baseSku = newVariant.sku.trim();
       const created: Variant[] = [];

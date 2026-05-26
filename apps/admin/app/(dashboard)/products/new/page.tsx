@@ -251,6 +251,23 @@ export default function NewProductPage() {
 
       const generatedVariants = [...mainVariants, ...additionalVariants];
 
+      // Zero-stock guard. The form silently defaults every new variant row
+      // to stock=0, which is how 171 phantom-zero variants ended up in the
+      // catalog on 2026-05-24. Force the admin to acknowledge before saving
+      // any variant at 0 so it never happens by accident again.
+      const zeroVariants = generatedVariants.filter((v) => v.stock === 0).length;
+      if (zeroVariants > 0) {
+        const proceed = window.confirm(
+          `${zeroVariants} of ${generatedVariants.length} variants will be saved with stock = 0.\n\n` +
+            `Customers can't buy a variant at 0 stock until you restock it.\n\n` +
+            `Save anyway?`,
+        );
+        if (!proceed) {
+          setSubmitting(false);
+          return;
+        }
+      }
+
       // Inline bundle: when enabled, the API creates the product AND the
       // bundle in a single $transaction so a failed bundle never leaves an
       // orphan product behind.
