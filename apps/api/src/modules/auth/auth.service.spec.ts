@@ -138,6 +138,10 @@ describe('AuthService', () => {
           firstName: registerDto.firstName,
           lastName: registerDto.lastName,
           phones: [],
+          // Hotfix ca2a579: fresh register must mark the account claimed
+          // at creation, otherwise a subsequent register with the same
+          // email re-claims and overwrites the user (account-takeover).
+          claimedAt: expect.any(Date),
         },
       });
       expect(result.accessToken).toBe('access-token-123');
