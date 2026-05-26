@@ -7,10 +7,14 @@ import {
   Body,
   Query,
   UseGuards,
+  UseInterceptors,
+  UploadedFile,
   HttpCode,
   HttpStatus,
   BadRequestException,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import type { Express } from 'express';
 import { OrdersService } from './orders.service';
 import { CreateOrderDto, UpdateOrderStatusDto } from './orders.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -103,6 +107,31 @@ export class OrdersController {
       safeLimit,
       status,
     );
+  }
+
+  // Admin-only CSV bulk import of historical orders from the previous
+  // e-commerce site. Multipart 'file' field, 20 MB cap. Returns counts
+  // + downloadable error / placeholder reports per spec §5. See the
+  // OrdersService.bulkImportHistory method for the parse + transactional
+  // import flow.
+  @Post('admin/import')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: { fileSize: 20 * 1024 * 1024 },
+    }),
+  )
+  importOrderHistory(
+    @UploadedFile() file: Express.Multer.File,
+    @CurrentUser() admin: { id: string },
+  ) {
+    if (!file || !file.buffer) {
+      throw new BadRequestException(
+        'No file uploaded; expected multipart field "file"',
+      );
+    }
+    return this.ordersService.bulkImportHistory(file.buffer, admin.id);
   }
 
   @Patch('admin/:id/status')

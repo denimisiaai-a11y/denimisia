@@ -26,6 +26,7 @@ import {
   OrderCancelledEvent,
 } from '../../common/events/order.events';
 import { OrderNumberService } from './order-number.service';
+import { parseOrderHistoryCsv } from './orders-import.parser';
 
 const ORDER_CREATE_MAX_RETRIES = 3;
 
@@ -1021,6 +1022,242 @@ export class OrdersService {
         },
       });
     }
+  }
+
+  // ─── Bulk order history import helpers ────────────────────────────────────
+
+  private async ensureLegacyCategoryId(): Promise<string> {
+    const existing = await this.prisma.category.findFirst({
+      where: { slug: 'legacy-imports' },
+      select: { id: true },
+    });
+    if (existing) return existing.id;
+    const created = await this.prisma.category.create({
+      data: { slug: 'legacy-imports', name: 'Legacy Imports' },
+    });
+    return created.id;
+  }
+
+  private async createPlaceholderVariant(
+    sku: string,
+    unitPrice: number,
+    categoryId: string,
+  ): Promise<{ id: string; productId: string }> {
+    const slugSafeSku = sku
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '');
+    const product = await this.prisma.product.create({
+      data: {
+        name: sku,
+        slug: `legacy-${slugSafeSku}`,
+        description: `Legacy product imported from order history. SKU: ${sku}`,
+        price: unitPrice,
+        images: [],
+        isActive: false,
+        categoryId,
+      },
+    });
+    const variant = await this.prisma.productVariant.create({
+      data: {
+        productId: product.id,
+        sku,
+        size: '-',
+        color: '-',
+        stock: 0,
+        price: unitPrice,
+        images: [],
+      },
+    });
+    return { id: variant.id, productId: product.id };
+  }
+
+  async bulkImportHistory(buffer: Buffer, adminUserId: string) {
+    const parsed = await parseOrderHistoryCsv(buffer);
+    const totalOrdersInFile = parsed.groups.size;
+
+    // Pre-flight
+    const allSkus = new Set<string>();
+    const allEmails = new Set<string>();
+    for (const group of parsed.groups.values()) {
+      allEmails.add(group.header.customer_email);
+      for (const item of group.items) allSkus.add(item.sku);
+    }
+    const existingVariants = await this.prisma.productVariant.findMany({
+      where: { sku: { in: Array.from(allSkus) } },
+      select: { id: true, sku: true, productId: true },
+    });
+    const variantBySku = new Map(existingVariants.map((v) => [v.sku, v]));
+    const existingUsers = await this.prisma.user.findMany({
+      where: { email: { in: Array.from(allEmails) } },
+      select: { id: true, email: true, claimedAt: true, firstName: true, phones: true },
+    });
+    const userByEmail = new Map(existingUsers.map((u) => [u.email, u]));
+
+    let legacyCategoryId: string | null = null;
+    const ensureLegacyCategory = async () => {
+      if (legacyCategoryId === null) legacyCategoryId = await this.ensureLegacyCategoryId();
+      return legacyCategoryId;
+    };
+
+    const placeholderBySku = new Map<string, { id: string; productId: string }>();
+    const placeholderOccurrences = new Map<string, number>();
+
+    const result = {
+      totalOrdersInFile,
+      imported: 0,
+      skipped_duplicate: 0,
+      skipped_invalid: 0,
+      placeholdersCreated: 0,
+      newShadowsCreated: 0,
+      ordersAttachedToExisting: 0,
+      errors: parsed.errors,
+      placeholdersReport: [] as Array<{ sku: string; occurrences: number; productId: string }>,
+    };
+
+    for (const [orderRef, group] of parsed.groups) {
+      const orderNumber = `LEGACY-${orderRef}`;
+
+      const existingOrder = await this.prisma.order.findFirst({
+        where: { orderNumber },
+        select: { id: true },
+      });
+      if (existingOrder) {
+        result.skipped_duplicate += 1;
+        continue;
+      }
+
+      // Customer linkage
+      const email = group.header.customer_email;
+      const phoneClean = group.header.customer_phone
+        .replace(/\D/g, '')
+        .replace(/^880(?=\d{10,11}$)/, '0');
+      const phoneValid = /^\d{10,11}$/.test(phoneClean);
+
+      let userId: string;
+      const candidate = userByEmail.get(email);
+      if (candidate) {
+        userId = candidate.id;
+        if (candidate.claimedAt === null) {
+          // Shadow: fill-blanks
+          const updates: Record<string, unknown> = {};
+          if (!candidate.firstName && group.header.customer_name) {
+            updates.firstName = group.header.customer_name;
+          }
+          if (phoneValid && !candidate.phones.includes(phoneClean)) {
+            updates.phones = [phoneClean, ...candidate.phones].slice(0, 20);
+          }
+          if (Object.keys(updates).length > 0) {
+            await this.prisma.user.update({
+              where: { id: candidate.id },
+              data: updates,
+            });
+          }
+        }
+        // Claimed: attach only, never mutate.
+        result.ordersAttachedToExisting += 1;
+      } else {
+        const shadow = await this.prisma.user.upsert({
+          where: { email },
+          create: {
+            email,
+            firstName: group.header.customer_name,
+            lastName: '',
+            phones: phoneValid ? [phoneClean] : [],
+            passwordHash: null,
+            role: 'CUSTOMER' as const,
+            isVerified: true,
+            claimedAt: null,
+            createdBy: null,
+          },
+          update: { email },
+          select: { id: true },
+        });
+        userId = shadow.id;
+        result.newShadowsCreated += 1;
+        userByEmail.set(email, {
+          id: shadow.id,
+          email,
+          claimedAt: null,
+          firstName: group.header.customer_name,
+          phones: phoneValid ? [phoneClean] : [],
+        });
+      }
+
+      // Variant resolution (some may already be placeholders from earlier groups in this batch)
+      const resolvedItems: Array<{
+        variantId: string; productId: string; quantity: number; unitPrice: number;
+      }> = [];
+      for (const item of group.items) {
+        let variantInfo = variantBySku.get(item.sku) ?? placeholderBySku.get(item.sku);
+        if (!variantInfo) {
+          const categoryId = await ensureLegacyCategory();
+          const created = await this.createPlaceholderVariant(item.sku, item.unit_price, categoryId);
+          placeholderBySku.set(item.sku, created);
+          result.placeholdersCreated += 1;
+          variantInfo = created;
+        }
+        placeholderOccurrences.set(item.sku, (placeholderOccurrences.get(item.sku) ?? 0) + 1);
+        resolvedItems.push({
+          variantId: variantInfo.id,
+          productId: variantInfo.productId,
+          quantity: item.quantity,
+          unitPrice: item.unit_price,
+        });
+      }
+
+      // Totals
+      const subtotal = resolvedItems.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
+      const total = Math.max(0, subtotal + group.header.shipping_cost - group.header.discount_amount);
+
+      // Shipping address (placeholder if missing)
+      const shippingAddress = {
+        line1: group.header.ship_line1 || 'Imported from legacy system',
+        city: group.header.ship_city || 'Unknown',
+        state: group.header.ship_state || 'Unknown',
+        postalCode: group.header.ship_postal || '0000',
+        country: group.header.ship_country || 'BD',
+      };
+
+      // Create order + items (NO stock decrement; createdAt overridden)
+      await this.prisma.order.create({
+        data: {
+          orderNumber,
+          userId,
+          guestEmail: email,
+          guestName: group.header.customer_name || null,
+          guestPhone: phoneValid ? phoneClean : null,
+          shippingAddress,
+          subtotal,
+          discount: group.header.discount_amount,
+          shippingCost: group.header.shipping_cost,
+          total,
+          notes: group.header.notes || null,
+          status: 'DELIVERED' as const,
+          createdAt: new Date(group.header.order_date),
+          items: {
+            create: resolvedItems.map((it) => ({
+              productId: it.productId,
+              variantId: it.variantId,
+              quantity: it.quantity,
+              unitPrice: it.unitPrice,
+              total: it.quantity * it.unitPrice,
+              snapshot: { sku: 'legacy-import' },
+            })),
+          },
+        },
+      });
+      result.imported += 1;
+    }
+
+    for (const [sku, count] of placeholderOccurrences) {
+      const info = placeholderBySku.get(sku);
+      if (info) {
+        result.placeholdersReport.push({ sku, occurrences: count, productId: info.productId });
+      }
+    }
+
+    return result;
   }
 }
 
