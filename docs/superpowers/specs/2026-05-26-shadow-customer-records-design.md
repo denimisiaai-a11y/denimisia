@@ -137,11 +137,12 @@ grace@example.com,Grace,Hopper,
 - BOM and common encodings (UTF-8, UTF-16) auto-detected.
 
 **Behavior**:
-- Stream-parse the CSV (don't load fully into memory).
+- **Two-pass strategy** (resolved during audit):
+  - **Pass 1**: read entire file into memory; build a `Map<emailLower, RowRecord>` applying first-row-wins fill-blanks merging within the file. Reject the upload entirely if file size > 20 MB (caps practical row count around 100k).
+  - **Pass 2**: bulk-insert the deduped map in batches of 100 via `prisma.user.createMany({ skipDuplicates: true })`. Per-batch transactions so a mid-import failure doesn't lose earlier batches.
 - For each row, normalize email + phone.
-- **Within-CSV dedupe**: first row wins; later rows with the same email only fill blank fields on the in-memory record being built (no later overwrite of non-empty earlier fields).
-- After parsing, process inserts in batches of 100 via `prisma.user.createMany({ skipDuplicates: true })`.
-- For each row, track outcome: `created` / `skipped_existing` / `skipped_duplicate_within_upload` / `error`.
+- Per-row outcome: `created` / `skipped_existing` / `skipped_duplicate_within_upload` / `error`.
+- Multipart upload limit raised to 20 MB on this endpoint specifically (default body limit is 1 MB and applies to JSON only).
 
 **Response**:
 ```json
@@ -163,7 +164,8 @@ When the submitted email matches an existing **unclaimed** User (`claimedAt IS N
 - Update the existing record:
   - `passwordHash = bcrypt(dto.password)`
   - `claimedAt = NOW()`
-  - `firstName`, `lastName`, `phones[0]` overwritten by request values (customer's own input wins over admin-imported data)
+  - `firstName` and `lastName` overwritten by request values (customer's own input wins over admin-imported data)
+  - `phones[]` updated by **prepending the new phone** if it's not already present in the array; existing imported phones are preserved (dedup-prepend semantics)
   - `tokenVersion` incremented defensively
 - Trigger normal verification email
 - Return the same shape as a fresh registration
@@ -213,46 +215,57 @@ The `createCustomerAsAdmin` method in `users.service.ts` that generates a random
      })
 
 3. If candidate found:
-     - order.userId = candidate.id
-     - If candidate is CLAIMED and the request includes a new phone not in candidate.phones:
-         - Append new phone to candidate.phones (newest at index 0)
-     - If candidate is SHADOW:
-         - Update with any non-empty fields from guest checkout (fill blanks)
-         - Append new phone to phones[]
-     - Log whether name also matched (for visibility; doesn't change behavior)
+     - `order.userId = candidate.id`
+     - If candidate is **CLAIMED** (claimedAt IS NOT NULL):
+         - Attach order ONLY. Do NOT modify the candidate user's profile.
+         - This prevents spoofers from injecting their phone/name into a real user's account via fake guest checkout.
+     - If candidate is **SHADOW** (claimedAt IS NULL):
+         - Attach order.
+         - Fill-blanks update: any empty profile fields on the shadow get filled by the guest's input (firstName, lastName, phones[]).
+         - Phone append: if guestPhone is not already in `phones[]`, prepend it (dedup-prepend, respecting 20-phone cap).
+     - Log via Pino: `logger.info({ orderId, candidateId, matchedOn: 'email' | 'phone' | 'both', nameMatched: bool, candidateState: 'shadow' | 'claimed' }, 'guest-checkout matched user')`
 
 4. If no candidate:
      - Create new shadow User in the same transaction:
-         email = emailLower
-         firstName, lastName from guestName (split on first space)
-         phones = [phoneNormalized]
-         passwordHash = null
-         claimedAt = null
-         createdBy = null
-     - order.userId = newShadow.id
+         - `email = emailLower`
+         - `firstName = guestName.trim()` (full name goes into firstName, no auto-splitting)
+         - `lastName = ''`
+         - `phones = [phoneNormalized]`
+         - `passwordHash = null`
+         - `claimedAt = null`
+         - `createdBy = null`
+     - **Address is NOT copied** to the User's addresses table — the order's `shippingAddress` snapshot is sufficient. The user can save addresses later when they claim and use the account UI.
+     - `order.userId = newShadow.id`
 
 5. Create order + items as today (with userId now always set)
 ```
 
 **Race handling**: wrap the lookup + insert in `prisma.user.upsert({ where: { email }, ... })`. If two simultaneous guest checkouts both miss and try to insert, the unique constraint serializes them; the loser falls through to step 3.
 
-**Critical safety**: **claimed accounts ARE matched and attached.** Per user decision, the convenience of attaching forgot-to-login orders outweighs the email-spoofing risk. This is reversible later if abuse appears.
+**Claimed-account matching IS performed** (the order attaches), but the profile is read-only from the guest checkout's perspective. This decouples "convenience of attaching forgot-to-login orders" from "risk of mutating spoofed accounts." Reversible by removing the claimed-match arm of step 3 if abuse appears.
 
 ## 7. Phone Storage & Multi-Phone
 
 ### 7.1 Schema
 `phones: String[]` — array, ordered newest-first. `phones[0]` is the "current" phone for any UI that needs a single value.
 
-### 7.2 Normalization
+**Cap: max 20 phones per user.** When prepending the 21st phone, drop `phones[20]` (oldest). Prevents unbounded growth from churn or abuse.
+
+### 7.2 Normalization & validation
 
 ```
 normalize(phone):
   strip every non-digit
   if result starts with "880" AND length > 11: drop the "880"
   return result
+
+validate(normalizedPhone):
+  reject if length not in [10, 11]
+  reject if any non-digit character (defensive — should never happen after normalize)
+  accept
 ```
 
-So `+880 1776 902711`, `01776-902-711`, and `01776902711` all normalize to `01776902711`.
+Validation is **BD-strict**: accepts only 10-11 digit numbers. `+880 1776 902711`, `01776-902-711`, and `01776902711` all pass. Foreign phones rejected (when international expansion happens, this validator is the single point to update).
 
 Storage: normalized form. Display: storage value (no fancy formatting). Future enhancement could format for display.
 
@@ -260,9 +273,9 @@ Storage: normalized form. Display: storage value (no fancy formatting). Future e
 
 - If signed in and `user.phones.length > 0`: pre-fill the checkout phone input with `user.phones[0]`.
 - Input is editable. If the customer submits a phone that doesn't match `user.phones[0]`:
-  - Normalize the input.
-  - If normalized form is NOT already in `user.phones`: prepend it (becomes new `phones[0]`).
-  - If it IS already present (anywhere in the array): no change (avoid duplicates).
+  - Normalize the input. Validate (BD-strict 10-11 digits). Reject with inline error if invalid.
+  - If normalized form is NOT already in `user.phones`: prepend it (becomes new `phones[0]`), drop `phones[20]` if cap exceeded.
+  - If it IS already present (anywhere in the array): move it to position 0, no length change (avoid duplicates while still updating recency).
 - If signed in and `user.phones.length === 0`: input is blank but required.
 
 ### 7.4 Codebase migration
@@ -335,7 +348,7 @@ If login fails with the "account not set up" message (HTTP 401 with the specific
 | 1 | Two simultaneous guest checkouts, same email | `prisma.user.upsert` serializes; second one falls through to attach. |
 | 2 | Dup email within same CSV upload | First row wins. Later rows with same email fill blanks only. Reported as `skipped_duplicate_within_upload`. |
 | 3 | Admin adds email that already has a claimed account | 409 Conflict, skip silently in CSV results as `skipped_existing`. |
-| 4 | Guest checkout email matches a claimed account | Auto-attach (per user decision). Risk: spoofing. Accepted. |
+| 4 | Guest checkout email/phone matches a claimed account | Attach the order; do NOT modify the claimed user's profile. Spoofer can produce a phantom order in someone else's account history but cannot inject contact info. Support workflow: admin sets `order.userId = null` to revert to guest order. |
 | 5 | Login attempt on shadow | 401 with helpful message (per user decision). Mild email enumeration accepted. |
 | 6 | Forgot-password on shadow | Friendly "please sign up" message; no email sent (per user decision, reversing earlier silent behavior). |
 | 7 | Self-register matches shadow | Auto-claim: set password, claimedAt, overwrite firstName/lastName/phones[0], increment tokenVersion, send verification email. |
@@ -371,10 +384,21 @@ If login fails with the "account not set up" message (HTTP 401 with the specific
 - `AuthService.forgotPassword`:
   - Shadow account → returns "please sign up" message; no email send (assert email mock not called)
 - `OrdersService.createOrder` (guest path):
-  - Email match → attach
-  - Phone match (different email) → attach
-  - No match → create shadow + attach
-  - New phone on signed-in user → appended to phones[]
+  - Email match (shadow candidate) → attach + fill-blanks update
+  - Phone match (shadow candidate, different email) → attach + fill-blanks update
+  - Email match (CLAIMED candidate) → attach ONLY; assert profile (firstName, phones, etc.) NOT mutated
+  - Phone match (CLAIMED candidate, different email) → attach ONLY; assert profile NOT mutated
+  - No match → create new shadow + attach; assert no Address row created (only order.shippingAddress snapshot)
+  - guestName "Sakib Al Sajid" on new shadow → assert firstName == "Sakib Al Sajid", lastName == ""
+  - New phone on signed-in user → prepended to phones[]; existing phones preserved
+  - 21st phone appended → assert phones[20] dropped (cap enforcement)
+  - Same phone re-submitted at checkout → assert deduped; position 0 only
+- Phone normalization & validation:
+  - "+880 1776 902711" → "01776902711"
+  - "01776-902-711" → "01776902711"
+  - "abc" → reject (invalid)
+  - "01" (length 2) → reject (length out of bounds)
+  - "12345678901234567" → reject (length > 11)
 
 ### 11.2 Backend integration tests
 
@@ -395,11 +419,28 @@ If login fails with the "account not set up" message (HTTP 401 with the specific
 
 ## 12. Migration & Rollout
 
+**Deploy strategy: single atomic deploy + brief downtime accepted.** Resolved during audit. Denimisia's traffic level (low, BD-only e-commerce) makes the proper three-step zero-downtime rollout overkill. The Render rolling restart window (~30-60s) is acceptable.
+
 1. **Local-only first**: implement schema migration + backend changes, run full test suite, verify locally with seeded data.
 2. **Vercel preview deploy of admin**: lets reviewer test the Add Customer / Import CSV / Account page UI before production.
-3. **Render preview branch for API**: applies the migration to a copy of production data via Render's preview branch feature.
-4. **Production**: merge to main. Render auto-deploys API (runs migration). Vercel auto-deploys admin + web. Order of deploy doesn't matter — schema migration is additive, old code still works against new schema during the window.
-5. **Rollback plan**: schema migration is largely additive (adding columns, relaxing constraints, dropping `phone` column). Drop of `phone` is the only destructive step. If we need to rollback after this drop, we'd need to re-add `phone String?` and backfill from `phones[0]` — recoverable.
+3. **Render preview branch for API**: applies the migration to a copy of production data via Render's preview branch feature; verify against a real data snapshot.
+4. **Production**: merge to main. Render auto-deploys API (runs migration). Vercel auto-deploys admin + web. During Render's rolling restart, some requests may 502 — acceptable for current traffic level.
+5. **Rollback plan**: schema migration drops the `phone` column (destructive). To rollback after deploy, we'd need to re-add `phone String?` and backfill from `phones[0]`. Recoverable but requires a manual SQL step. Keep a snapshot of the DB taken just before migration for ~24h post-deploy in case rollback is needed.
+6. **Critical**: the schema change is NOT backward-compatible (drops `phone`). Older code reading `user.phone` will get errors. This means admin/web frontends MUST be updated to consume `phones[]` from API responses before/during the same deploy window — not after. Since they reach data via API endpoints that we control, the actual coupling is at the API service boundary, which is handled by deploying together.
+
+## 12.5 Risks (documented, accepted)
+
+These are risks we knowingly accept rather than block on:
+
+1. **Phone number reassignment**: BD telcos recycle phone numbers when customers churn. A new customer with a recycled number would auto-match to the previous holder's record. Worst case: stranger's order shows in old customer's account when they eventually claim it. Mitigation: admin can manually detach via the support workflow noted in §10 row 4. Future enhancement: a "reassign / disown phone" admin action.
+
+2. **Long-lived shadow records**: shadows created from guest checkouts may accumulate over years. Storage cost is negligible; pagination on `/users` listing handles UI scale. GDPR right-to-be-forgotten requests work via existing `DELETE /users/:id` soft-delete. No additional cleanup needed for v1.
+
+3. **Email spoofing of claimed accounts**: a malicious guest could enter someone else's email at checkout; the order attaches to the victim's account (showing a phantom order in their history). Mitigations: the spoofer pays for the order (no benefit to attacker), the victim can contact support, admin detaches via the support workflow. Accepted because the convenience of attaching forgot-to-login orders is judged more valuable than the rare abuse case.
+
+4. **Phone-only matching false positives**: families share phones, especially household landlines. Two unrelated people on the same phone would match each other's records. Mitigation: name is logged at match time so audit-trail analysis can spot suspicious matches; phone-only matches are flagged in Pino logs for ops visibility.
+
+5. **Email enumeration via shadow login error**: the helpful "this account hasn't been set up yet" message reveals shadow account existence. Accepted because the UX win (clear "please register" guidance) is judged more valuable than enumeration-resistance for a small BD e-commerce site.
 
 ## 13. Deferred Work
 
@@ -415,7 +456,12 @@ The following are EXPLICITLY out of scope for this spec, will get their own desi
 
 (To be resolved before implementation plan is written.)
 
-- None at this point — all design decisions are locked per the brainstorming conversation above.
+- None — all open items resolved during the brainstorm and the subsequent audit pass (2026-05-26).
+
+## 15. Changelog
+
+- **2026-05-26 21:30 BDT** — Initial draft committed (`28e438e`).
+- **2026-05-26 22:00 BDT** — Audit pass: resolved critical issues 1-3 (claimed-account profile protection; CSV two-pass strategy; deploy ordering) and gaps 4-9 (no address copy on shadow create, full guestName in firstName, 20-phone cap, BD-strict phone validation, dedup-prepend on claim, Pino-only match logging). Added §12.5 Risks section.
 
 ---
 
