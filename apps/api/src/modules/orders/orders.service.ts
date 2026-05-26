@@ -320,7 +320,13 @@ export class OrdersService {
         take: limit,
         include: {
           user: {
-            select: { id: true, email: true, firstName: true, lastName: true },
+            select: {
+              id: true,
+              email: true,
+              firstName: true,
+              lastName: true,
+              phone: true,
+            },
           },
           items: { select: { quantity: true, total: true } },
         },

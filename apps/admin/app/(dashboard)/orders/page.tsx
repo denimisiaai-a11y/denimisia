@@ -98,9 +98,12 @@ interface Order {
     email?: string;
     firstName?: string;
     lastName?: string;
+    phone?: string;
   };
   guestEmail?: string;
   guestName?: string;
+  guestPhone?: string;
+  items?: { quantity: number }[];
   customer?: { name?: string; email?: string };
   total: number;
   status: OrderStatus;
@@ -216,18 +219,59 @@ export default function OrdersPage() {
         }
         return value;
       };
-      const header = ['id', 'customer', 'status', 'total', 'date'];
+      const formatName = (o: Order): string => {
+        if (o.user) {
+          const combined = [o.user.firstName, o.user.lastName]
+            .filter(Boolean)
+            .join(' ')
+            .trim();
+          if (combined) return combined;
+          if (o.user.name) return o.user.name;
+          if (o.user.email) return o.user.email;
+        }
+        if (o.guestName) return o.guestName;
+        if (o.customer?.name) return o.customer.name;
+        return 'Guest';
+      };
+      const formatItemCount = (o: Order): number =>
+        (o.items ?? []).reduce((sum, it) => sum + (it.quantity ?? 0), 0);
+      // Local time so the admin (BDT) reads it naturally; raw ISO Z forces
+      // UTC and requires mental math on every row. Sortable shape preserved.
+      const formatDate = (iso: string): string => {
+        const d = new Date(iso);
+        if (Number.isNaN(d.getTime())) return iso;
+        const pad = (n: number) => String(n).padStart(2, '0');
+        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+      };
+      const header = [
+        'Order #',
+        'Customer',
+        'Email',
+        'Phone',
+        'Items',
+        'Status',
+        'Total (BDT)',
+        'Date',
+      ];
       const rows = orders.map((o) => [
         o.orderNumber ?? o.id,
-        o.user?.name ?? o.customer?.name ?? 'Unknown',
+        formatName(o),
+        o.user?.email ?? o.guestEmail ?? '',
+        o.user?.phone ?? o.guestPhone ?? '',
+        String(formatItemCount(o)),
         o.status,
         String(o.total),
-        o.createdAt,
+        formatDate(o.createdAt),
       ]);
       const csv = [header, ...rows]
         .map((row) => row.map((cell) => escapeCsv(String(cell))).join(','))
         .join('\n');
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      // Excel needs a UTF-8 BOM to render non-ASCII (৳, é, accented names)
+      // correctly. Without it the file opens as Windows-1252 and mangles
+      // anything outside that codepage.
+      const blob = new Blob(['﻿' + csv], {
+        type: 'text/csv;charset=utf-8;',
+      });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
