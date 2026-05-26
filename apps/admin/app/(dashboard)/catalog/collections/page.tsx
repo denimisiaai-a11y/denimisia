@@ -17,7 +17,6 @@ import {
 } from '@/components/admin-ui';
 import { Modal, ConfirmModal } from '@/components/modal';
 import { Field, TextInput, slugify } from '@/components/form';
-import { ManageCollectionModal } from './manage-collection-modal';
 
 type CollectionType = 'DROP' | 'EDIT' | 'AUTO' | 'PROMO';
 
@@ -59,7 +58,6 @@ export default function CollectionsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
-  const [manageId, setManageId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
 
@@ -132,7 +130,6 @@ export default function CollectionsPage() {
                 collection={c}
                 onDelete={requestDelete}
                 onOpenEditor={() => router.push(`/catalog/collections/${c.id}`)}
-                onLegacyEdit={() => setManageId(c.id)}
               />
             ))}
           </ul>
@@ -146,13 +143,6 @@ export default function CollectionsPage() {
           setModalOpen(false);
           router.push(`/catalog/collections/${id}`);
         }}
-      />
-
-      <ManageCollectionModal
-        open={manageId !== null}
-        collectionId={manageId}
-        onClose={() => setManageId(null)}
-        onChanged={() => void load()}
       />
 
       <ConfirmModal
@@ -173,12 +163,10 @@ function CollectionRow({
   collection,
   onDelete,
   onOpenEditor,
-  onLegacyEdit,
 }: {
   readonly collection: Collection;
   readonly onDelete: (id: string) => void;
   readonly onOpenEditor: () => void;
-  readonly onLegacyEdit: () => void;
 }) {
   const productCount = collection._count?.products ?? collection.products?.length ?? 0;
   const status = computeStatus(collection);
@@ -243,14 +231,13 @@ function CollectionRow({
           type="button"
           onClick={(e) => {
             e.stopPropagation();
-            onLegacyEdit();
+            onOpenEditor();
           }}
-          aria-label="Quick edit (legacy modal)"
-          title="Quick edit (legacy)"
+          aria-label="Edit"
           className="flex h-8 w-8 items-center justify-center text-secondary transition-colors duration-300 ease-editorial hover:text-on-surface"
         >
           <span className="material-symbols-outlined text-base" aria-hidden>
-            edit_note
+            edit
           </span>
         </button>
         <button
