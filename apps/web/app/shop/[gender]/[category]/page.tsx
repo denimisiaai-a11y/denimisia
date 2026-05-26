@@ -34,6 +34,8 @@ const SUBTITLES: Record<string, string> = {
   'relaxed-fit': 'Roomy, unconstrained.',
 };
 
+export const revalidate = 60;
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { gender, category } = await params;
   return {

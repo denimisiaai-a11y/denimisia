@@ -6,6 +6,8 @@ import { ShopContent } from '@/components/shop/shop-content';
 
 import { buildMetadata } from '@/lib/seo/metadata';
 
+export const revalidate = 60;
+
 export const metadata: Metadata = buildMetadata({
   title: 'Shop All',
   description: 'Browse the full Denimisia catalogue — every piece, new and classic.',

@@ -14,6 +14,8 @@ interface Props {
   params: Promise<{ gender: string }>;
 }
 
+export const revalidate = 60;
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { gender } = await params;
   const copy = SHOP_GENDER_COPY[gender];

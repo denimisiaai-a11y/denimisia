@@ -71,6 +71,8 @@ function excludeSlug(list: Product[], slug: string, limit: number): Product[] {
   return list.filter((p) => p.slug !== slug).slice(0, limit);
 }
 
+export const revalidate = 60;
+
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const product = await getProduct(slug);

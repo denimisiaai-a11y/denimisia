@@ -22,6 +22,8 @@ import { LookbookBreak } from './_components/lookbook-break';
 import { PromoBanner } from './_components/promo-banner';
 import { RelatedCollections } from './_components/related-collections';
 
+export const revalidate = 60;
+
 export async function generateMetadata({
   params,
 }: {

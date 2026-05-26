@@ -4,6 +4,8 @@ import { PLACEHOLDER_HERO } from '@/lib/placeholder-images';
 
 import { buildMetadata } from '@/lib/seo/metadata';
 
+export const revalidate = 3600;
+
 export const metadata: Metadata = buildMetadata({
   title: 'Size Guide',
   description: 'Find your perfect fit with the Denimisia size guide.',

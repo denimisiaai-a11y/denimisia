@@ -4,6 +4,8 @@ import { PLACEHOLDER_HERO } from '@/lib/placeholder-images';
 
 import { buildMetadata } from '@/lib/seo/metadata';
 
+export const revalidate = 3600;
+
 export const metadata: Metadata = buildMetadata({
   title: 'Privacy Policy',
   description: 'Denimisia privacy policy — how we collect, use, and protect your data.',

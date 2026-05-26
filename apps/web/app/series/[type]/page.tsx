@@ -14,6 +14,8 @@ interface Props {
   params: Promise<{ type: string }>;
 }
 
+export const revalidate = 60;
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { type } = await params;
   const copy = seriesTypeCopy(type);

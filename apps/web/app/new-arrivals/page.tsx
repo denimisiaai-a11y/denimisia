@@ -4,6 +4,8 @@ import { getProducts, getProductFacets } from '@/lib/api';
 import { ShopContent } from '@/components/shop/shop-content';
 import { buildMetadata } from '@/lib/seo/metadata';
 
+export const revalidate = 60;
+
 export const metadata: Metadata = buildMetadata({
   title: 'New Arrivals',
   description:
