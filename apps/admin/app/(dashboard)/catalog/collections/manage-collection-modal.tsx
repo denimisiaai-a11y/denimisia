@@ -10,7 +10,7 @@
  *
  * Uses the existing collection REST endpoints:
  *   PATCH /collections/:id
- *   POST  /collections/:id/products      { productId }
+ *   POST  /collections/:id/products      { productIds: string[] }
  *   DELETE /collections/:id/products/:productId
  *   GET   /curation/admin/search?q=      (shared with Live Media)
  */
@@ -122,7 +122,7 @@ export function ManageCollectionModal({ open, collectionId, onClose, onChanged }
     try {
       await adminFetch(`/collections/${collectionId}/products`, token, {
         method: 'POST',
-        body: JSON.stringify({ productId }),
+        body: JSON.stringify({ productIds: [productId] }),
       });
       await load();
       onChanged();
@@ -133,18 +133,17 @@ export function ManageCollectionModal({ open, collectionId, onClose, onChanged }
 
   const addProductsBulk = useCallback(async (productIds: readonly string[]) => {
     if (!token || !collectionId) return;
+    const ids = Array.from(productIds);
     let successCount = 0;
     const errors: string[] = [];
-    for (const id of productIds) {
-      try {
-        await adminFetch(`/collections/${collectionId}/products`, token, {
-          method: 'POST',
-          body: JSON.stringify({ productId: id }),
-        });
-        successCount += 1;
-      } catch (err) {
-        errors.push(err instanceof Error ? err.message : 'Unknown error');
-      }
+    try {
+      await adminFetch(`/collections/${collectionId}/products`, token, {
+        method: 'POST',
+        body: JSON.stringify({ productIds: ids }),
+      });
+      successCount = ids.length;
+    } catch (err) {
+      errors.push(err instanceof Error ? err.message : 'Unknown error');
     }
     await load();
     onChanged();
