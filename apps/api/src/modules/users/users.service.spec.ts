@@ -60,6 +60,9 @@ describe('UsersService', () => {
         delete: jest.fn(),
         findUnique: jest.fn(),
       },
+      order: {
+        groupBy: jest.fn(),
+      },
     };
 
     redis = createRedisMock();
@@ -346,23 +349,52 @@ describe('UsersService', () => {
   // ─── Admin ────────────────────────────────────────────────────────────────
 
   describe('getAllUsers', () => {
-    it('paginates and returns user list with total, excluding soft-deleted', async () => {
-      prisma.user.findMany.mockResolvedValue([mockUser]);
+    it('paginates and returns user list with total + lifetime-value, excluding soft-deleted', async () => {
+      const userWithCount = { ...mockUser, _count: { orders: 4 } };
+      prisma.user.findMany.mockResolvedValue([userWithCount]);
       prisma.user.count.mockResolvedValue(1);
+      prisma.order.groupBy.mockResolvedValue([
+        { userId: mockUser.id, _sum: { total: 5499 } },
+      ]);
 
       const result = await service.getAllUsers(1, 10);
 
-      expect(result).toEqual({
-        users: [mockUser],
-        total: 1,
-        page: 1,
-        limit: 10,
+      expect(result.total).toBe(1);
+      expect(result.page).toBe(1);
+      expect(result.limit).toBe(10);
+      expect(result.users).toHaveLength(1);
+      expect(result.users[0]).toMatchObject({
+        id: mockUser.id,
+        email: mockUser.email,
+        totalOrders: 4,
+        totalSpent: 5499,
       });
+      expect(result.users[0]).not.toHaveProperty('_count');
+
       expect(prisma.user.findMany).toHaveBeenCalledWith(
         expect.objectContaining({ where: { deletedAt: null } }),
       );
       expect(prisma.user.count).toHaveBeenCalledWith({
         where: { deletedAt: null },
+      });
+      expect(prisma.order.groupBy).toHaveBeenCalledWith({
+        by: ['userId'],
+        where: { userId: { in: [mockUser.id] } },
+        _sum: { total: true },
+      });
+    });
+
+    it('defaults totalSpent to 0 when user has no orders aggregated', async () => {
+      const userWithCount = { ...mockUser, _count: { orders: 0 } };
+      prisma.user.findMany.mockResolvedValue([userWithCount]);
+      prisma.user.count.mockResolvedValue(1);
+      prisma.order.groupBy.mockResolvedValue([]);
+
+      const result = await service.getAllUsers(1, 10);
+
+      expect(result.users[0]).toMatchObject({
+        totalOrders: 0,
+        totalSpent: 0,
       });
     });
   });

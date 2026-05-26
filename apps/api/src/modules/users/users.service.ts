@@ -390,8 +390,10 @@ export class UsersService {
           email: true,
           firstName: true,
           lastName: true,
+          phones: true,
           role: true,
           isVerified: true,
+          claimedAt: true,
           createdAt: true,
           _count: { select: { orders: true } },
         },
@@ -399,7 +401,30 @@ export class UsersService {
       }),
       this.prisma.user.count({ where }),
     ]);
-    return { users, total, page, limit };
+
+    // Compute lifetime-value (sum of all Order totals) in a second query so
+    // the admin Customers page can show Total Contribution per row. groupBy
+    // over the paginated slice's user IDs keeps the cost bounded to one
+    // extra round-trip per page.
+    const userIds = users.map((u) => u.id);
+    const aggregates = userIds.length
+      ? await this.prisma.order.groupBy({
+          by: ['userId'],
+          where: { userId: { in: userIds } },
+          _sum: { total: true },
+        })
+      : [];
+    const totalSpentByUser = new Map(
+      aggregates.map((a) => [a.userId, Number(a._sum.total ?? 0)]),
+    );
+
+    const enrichedUsers = users.map(({ _count, ...rest }) => ({
+      ...rest,
+      totalOrders: _count.orders,
+      totalSpent: totalSpentByUser.get(rest.id) ?? 0,
+    }));
+
+    return { users: enrichedUsers, total, page, limit };
   }
 
   async getUserById(userId: string) {
