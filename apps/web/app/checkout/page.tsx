@@ -1,11 +1,18 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import { useCart } from '@/stores/cart';
 import { formatPrice } from '@/lib/utils';
+
+interface CheckoutProfile {
+  id: string;
+  firstName: string;
+  lastName: string;
+  phones: string[];
+}
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api/v1';
 
@@ -13,10 +20,15 @@ export default function CheckoutPage() {
   const { data: session, status } = useSession();
   const { items, total, count, clearCart } = useCart();
 
+  const [profile, setProfile] = useState<CheckoutProfile | null>(null);
+
   const [street, setStreet] = useState('');
   const [city, setCity] = useState('');
   const [state, setState] = useState('');
   const [zip, setZip] = useState('');
+  // Phone is pre-filled from profile.phones[0] for signed-in users once
+  // the profile fetch completes. A separate useEffect syncs it when the
+  // profile arrives.
   const [phone, setPhone] = useState('');
   // Guest checkout state. Only used when the customer is not logged in.
   // The API's CreateOrderDto requires guestEmail + guestName + guestPhone
@@ -29,6 +41,46 @@ export default function CheckoutPage() {
   const [orderPlaced, setOrderPlaced] = useState<string | null>(null);
 
   const isGuest = status === 'unauthenticated';
+  const isSignedIn = status === 'authenticated';
+
+  // Fetch profile for signed-in users so we can pre-fill phones[0].
+  useEffect(() => {
+    if (!isSignedIn) return;
+    const accessToken = (session as { accessToken?: string } | null)?.accessToken;
+    if (!accessToken) return;
+
+    fetch(`${API}/users/me`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((json: { success?: boolean; data?: { id?: string; firstName?: string; lastName?: string; phones?: string[] } } | null) => {
+        if (json?.success && json.data) {
+          const raw = json.data;
+          setProfile({
+            id: raw.id ?? '',
+            firstName: raw.firstName ?? '',
+            lastName: raw.lastName ?? '',
+            phones: Array.isArray(raw.phones) ? raw.phones : [],
+          });
+        }
+      })
+      .catch(() => {
+        // Best-effort — checkout still works without the profile.
+      });
+  }, [isSignedIn, session]);
+
+  // Pre-fill phone from phones[0] when the profile loads (signed-in only).
+  // Only sets once: if the user has already typed something, respect that.
+  useEffect(() => {
+    const first = profile?.phones[0];
+    if (first && phone === '') {
+      setPhone(first);
+    }
+  }, [profile, phone]);
+
+  // Client-side phone validation: 10–11 digits (BD mobile format).
+  const phoneDigitsOnly = phone.replace(/\D/g, '');
+  const isPhoneValid = /^\d{10,11}$/.test(phoneDigitsOnly);
 
   // Shipping calculation
   const subtotal = total();
@@ -96,7 +148,14 @@ export default function CheckoutPage() {
     setLoading(true);
 
     try {
-      const accessToken = (session as any)?.accessToken;
+      const accessToken = (session as { accessToken?: string } | null)?.accessToken;
+
+      // Validate BD phone format (10–11 digits) before hitting the API.
+      if (!isPhoneValid) {
+        setError('Phone number must be 10–11 digits (BD mobile format).');
+        setLoading(false);
+        return;
+      }
 
       // Validate guest tuple up front. The API also enforces this and the
       // DB has a CHECK constraint, but failing fast in the form is friendlier.
@@ -112,6 +171,31 @@ export default function CheckoutPage() {
         setError('Session expired. Please sign in again.');
         setLoading(false);
         return;
+      }
+
+      // If signed in and the phone differs from the stored phones[0], patch
+      // the profile first so the server dedup-prepends it into phones[].
+      // This is best-effort — a failure does NOT block the order.
+      if (isSignedIn && accessToken && profile) {
+        const storedDigits = (profile.phones[0] ?? '').replace(/\D/g, '');
+        if (phoneDigitsOnly !== storedDigits) {
+          try {
+            await fetch(`${API}/users/me`, {
+              method: 'PATCH',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${accessToken}`,
+              },
+              body: JSON.stringify({
+                firstName: profile.firstName,
+                lastName: profile.lastName,
+                phone: phoneDigitsOnly,
+              }),
+            });
+          } catch {
+            // Intentionally silent — profile update failure must not block checkout.
+          }
+        }
       }
 
       const headers: Record<string, string> = {
@@ -323,8 +407,17 @@ export default function CheckoutPage() {
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 required
-                className="w-full border border-border bg-transparent px-4 py-3 text-sm text-ink outline-none focus:border-ink"
+                autoComplete="tel"
+                placeholder="01XXXXXXXXX"
+                className={`w-full border bg-transparent px-4 py-3 text-sm text-ink outline-none focus:border-ink ${
+                  phone && !isPhoneValid ? 'border-error' : 'border-border'
+                }`}
               />
+              {phone && !isPhoneValid && (
+                <p className="mt-1 text-[11px] text-error">
+                  Enter a valid BD phone number (10–11 digits).
+                </p>
+              )}
             </div>
           </div>
 
@@ -396,7 +489,7 @@ export default function CheckoutPage() {
             <button
               type="submit"
               form="checkout-form"
-              disabled={loading}
+              disabled={loading || !isPhoneValid}
               className="mt-6 w-full bg-ink py-3.5 text-sm font-semibold uppercase tracking-[0.15em] text-paper transition-colors hover:bg-ink/90 disabled:bg-muted"
             >
               {loading ? 'Placing order...' : `Place Order — ${formatPrice(grandTotal)}`}
