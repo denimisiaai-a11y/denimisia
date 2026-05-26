@@ -21,6 +21,7 @@ import {
   FitProfileDto,
   CreateCustomerByAdminDto,
 } from './users.dto';
+import { parseAndDedupeCsv } from './bulk-import.parser';
 
 // Redis keys mirror auth.service constants — keep in sync.
 const AUTH_TV_KEY = (userId: string) => `auth:tv:${userId}`;
@@ -139,6 +140,59 @@ export class UsersService {
       claimedAt: true,
       createdBy: true,
       createdAt: true,
+    };
+  }
+
+  /**
+   * Bulk-import shadow customers from a CSV buffer (field `file` via multer).
+   *
+   * Two-pass approach:
+   *   1. Parse + dedupe the CSV in memory (via parseAndDedupeCsv).
+   *   2. Query existing emails, filter them out, then insert in 100-row
+   *      batches with skipDuplicates:true as a safety net.
+   *
+   * Returns a summary object rather than throwing on partial failures so the
+   * caller always gets a machine-readable report.
+   */
+  async bulkImport(buffer: Buffer, adminUserId: string) {
+    const parsed = await parseAndDedupeCsv(buffer);
+
+    const emails = Array.from(parsed.rows.keys());
+    const existing = await this.prisma.user.findMany({
+      where: { email: { in: emails } },
+      select: { email: true },
+    });
+    const existingEmails = new Set(existing.map((u) => u.email));
+
+    const toInsert = Array.from(parsed.rows.values())
+      .filter((r) => !existingEmails.has(r.email))
+      .map((r) => ({
+        email: r.email,
+        firstName: r.firstName,
+        lastName: r.lastName,
+        phones: r.phone ? [r.phone] : [],
+        passwordHash: null,
+        role: Role.CUSTOMER,
+        isVerified: true,
+        claimedAt: null,
+        createdBy: adminUserId,
+      }));
+
+    let createdCount = 0;
+    for (let i = 0; i < toInsert.length; i += 100) {
+      const chunk = toInsert.slice(i, i + 100);
+      const result = await this.prisma.user.createMany({
+        data: chunk,
+        skipDuplicates: true,
+      });
+      createdCount += result.count;
+    }
+
+    return {
+      created: createdCount,
+      skipped_existing: existingEmails.size,
+      skipped_duplicate_within_upload: parsed.duplicates.length,
+      errors: parsed.errors,
     };
   }
 

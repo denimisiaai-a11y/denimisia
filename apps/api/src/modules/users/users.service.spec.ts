@@ -49,6 +49,7 @@ describe('UsersService', () => {
         create: jest.fn(),
         update: jest.fn(),
         findMany: jest.fn(),
+        createMany: jest.fn(),
         count: jest.fn(),
       },
       address: {
@@ -359,6 +360,89 @@ describe('UsersService', () => {
       });
       expect(redis.incr).toHaveBeenCalledWith('auth:tv:user-1');
       expect(redis.del).toHaveBeenCalledWith('auth:user:user-1');
+    });
+  });
+
+  describe('bulkImport', () => {
+    const adminId = 'admin-1';
+
+    it('creates new users from parsed rows + skips existing emails', async () => {
+      const csv = `email,firstName,lastName,phone
+new1@example.com,New,One,01776902711
+existing@example.com,Existing,User,01700000000
+new2@example.com,New,Two,`;
+      const buffer = Buffer.from(csv, 'utf-8');
+
+      prisma.user.findMany.mockResolvedValue([
+        { email: 'existing@example.com' },
+      ]);
+      prisma.user.createMany.mockResolvedValue({ count: 2 });
+
+      const result = await service.bulkImport(buffer, adminId);
+
+      expect(result).toEqual({
+        created: 2,
+        skipped_existing: 1,
+        skipped_duplicate_within_upload: 0,
+        errors: [],
+      });
+      expect(prisma.user.createMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          skipDuplicates: true,
+          data: expect.arrayContaining([
+            expect.objectContaining({
+              email: 'new1@example.com',
+              firstName: 'New',
+              phones: ['01776902711'],
+              passwordHash: null,
+              claimedAt: null,
+              createdBy: adminId,
+            }),
+            expect.objectContaining({
+              email: 'new2@example.com',
+              firstName: 'New',
+              lastName: 'Two',
+              phones: [],
+            }),
+          ]),
+        }),
+      );
+      const createArg = (prisma.user.createMany.mock.calls[0]?.[0] ?? {
+        data: [],
+      }) as { data: Array<{ email: string }> };
+      expect(createArg.data.find((d) => d.email === 'existing@example.com')).toBeUndefined();
+    });
+
+    it('reports parse errors in the result', async () => {
+      const csv = `email,firstName,lastName,phone
+bad-email,X,Y,
+ok@example.com,OK,User,01776902711`;
+      const buffer = Buffer.from(csv, 'utf-8');
+      prisma.user.findMany.mockResolvedValue([]);
+      prisma.user.createMany.mockResolvedValue({ count: 1 });
+
+      const result = await service.bulkImport(buffer, adminId);
+
+      expect(result.created).toBe(1);
+      expect(result.errors).toHaveLength(1);
+      expect(result.errors[0]).toMatchObject({
+        row: 2,
+        reason: expect.stringContaining('email'),
+      });
+    });
+
+    it('reports within-file duplicates separately', async () => {
+      const csv = `email,firstName,lastName,phone
+ada@example.com,Ada,,01776902711
+ada@example.com,IGNORE,Lovelace,02000000000`;
+      const buffer = Buffer.from(csv, 'utf-8');
+      prisma.user.findMany.mockResolvedValue([]);
+      prisma.user.createMany.mockResolvedValue({ count: 1 });
+
+      const result = await service.bulkImport(buffer, adminId);
+
+      expect(result.created).toBe(1);
+      expect(result.skipped_duplicate_within_upload).toBe(1);
     });
   });
 

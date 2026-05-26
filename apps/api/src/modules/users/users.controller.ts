@@ -12,7 +12,12 @@ import {
   DefaultValuePipe,
   HttpCode,
   HttpStatus,
+  BadRequestException,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import type { Express } from 'express';
 import { UsersService } from './users.service';
 import {
   UpdateProfileDto,
@@ -95,6 +100,26 @@ export class UsersController {
     @CurrentUser() admin: { id: string },
   ) {
     return this.usersService.createCustomerAsAdmin(dto, admin.id);
+  }
+
+  @Post('bulk')
+  @UseGuards(RolesGuard)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: { fileSize: 20 * 1024 * 1024 }, // 20 MB, matches parser cap
+    }),
+  )
+  bulkImport(
+    @UploadedFile() file: Express.Multer.File,
+    @CurrentUser() admin: { id: string },
+  ) {
+    if (!file || !file.buffer) {
+      throw new BadRequestException(
+        'No file uploaded; expected multipart field "file"',
+      );
+    }
+    return this.usersService.bulkImport(file.buffer, admin.id);
   }
 
   @Get()
