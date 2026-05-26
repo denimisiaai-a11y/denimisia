@@ -250,7 +250,6 @@ export default function CustomersPage() {
           lastName: addForm.lastName,
           email: addForm.email,
           phone: addForm.phone || undefined,
-          role: 'CUSTOMER',
         }),
       });
       setAddOpen(false);
