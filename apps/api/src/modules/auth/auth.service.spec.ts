@@ -301,6 +301,27 @@ describe('AuthService', () => {
         '$hashed-refresh$',
       );
     });
+
+    it('returns a shadow-specific message when user.passwordHash is null', async () => {
+      prisma.user.findFirst.mockResolvedValue({
+        id: 'shadow-1',
+        email: 'shadow@example.com',
+        passwordHash: null,
+        isActive: true,
+        deletedAt: null,
+        isVerified: true,
+        firstName: 'Shadow',
+        lastName: 'User',
+        role: 'CUSTOMER',
+        tokenVersion: 0,
+      });
+
+      await expect(
+        service.login({ email: 'shadow@example.com', password: 'anything' }),
+      ).rejects.toThrow(
+        /not been set up yet|please sign up/i,
+      );
+    });
   });
 
   // ─── logout() ──────────────────────────────────────────────────────────────

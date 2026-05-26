@@ -150,6 +150,12 @@ export class AuthService {
     });
     if (!user) throw new UnauthorizedException('Invalid credentials');
 
+    if (user.passwordHash === null) {
+      throw new UnauthorizedException(
+        "This account hasn't been set up yet. Please sign up with this email to set your password.",
+      );
+    }
+
     const passwordMatch = await bcrypt.compare(dto.password, user.passwordHash);
     if (!passwordMatch) throw new UnauthorizedException('Invalid credentials');
 
