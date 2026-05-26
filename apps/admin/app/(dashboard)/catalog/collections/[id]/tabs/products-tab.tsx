@@ -89,6 +89,7 @@ function ManualProductsForm({
   const [q, setQ] = useState('');
   const [results, setResults] = useState<ProductSummary[]>([]);
   const [searching, setSearching] = useState(false);
+  const [picked, setPicked] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (!showSearch || !token) return;
@@ -117,15 +118,16 @@ function ManualProductsForm({
 
   const existingIds = useMemo(() => new Set(order), [order]);
 
-  async function addProduct(productId: string) {
-    if (!token) return;
+  async function addProducts(productIds: string[]) {
+    if (!token || productIds.length === 0) return;
     setBusy(true);
     setError(null);
     try {
       await adminFetch(`/collections/${collection.id}/products`, token, {
         method: 'POST',
-        body: JSON.stringify({ productIds: [productId] }),
+        body: JSON.stringify({ productIds }),
       });
+      setPicked(new Set());
       await onReload();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Add failed');
@@ -133,6 +135,20 @@ function ManualProductsForm({
       setBusy(false);
     }
   }
+
+  function togglePick(id: string) {
+    setPicked((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  const pickableResults = results.filter((p) => !existingIds.has(p.id));
+  const selectAllPickable = () =>
+    setPicked(new Set(pickableResults.map((p) => p.id)));
+  const clearPicked = () => setPicked(new Set());
 
   async function removeProduct(productId: string) {
     if (!token) return;
@@ -214,9 +230,39 @@ function ManualProductsForm({
             id="search"
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Search by name, slug, or SKU…"
+            placeholder="Search by name, slug, or SKU (e.g. baggy, 2125)…"
             autoFocus
           />
+
+          {/* Batch controls */}
+          {pickableResults.length > 0 && (
+            <div className="flex items-center justify-between border-b border-outline-variant/10 pb-2">
+              <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-secondary">
+                {picked.size > 0
+                  ? `${picked.size} selected`
+                  : `${pickableResults.length} addable`}
+              </p>
+              <div className="flex gap-3">
+                {picked.size > 0 && (
+                  <button
+                    type="button"
+                    onClick={clearPicked}
+                    className="font-mono text-[10px] uppercase tracking-[0.15em] text-tertiary hover:text-on-surface"
+                  >
+                    Clear
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={selectAllPickable}
+                  className="font-mono text-[10px] uppercase tracking-[0.15em] text-primary hover:opacity-80"
+                >
+                  Select all {pickableResults.length}
+                </button>
+              </div>
+            </div>
+          )}
+
           {searching ? (
             <p className="text-sm text-secondary p-4 text-center">Searching…</p>
           ) : results.length === 0 ? (
@@ -225,11 +271,22 @@ function ManualProductsForm({
             <ul className="max-h-80 overflow-y-auto divide-y divide-outline-variant/10">
               {results.map((p) => {
                 const already = existingIds.has(p.id);
+                const isPicked = picked.has(p.id);
                 return (
                   <li
                     key={p.id}
-                    className={`flex items-center gap-3 p-2 ${already ? 'opacity-40' : ''}`}
+                    className={`flex items-center gap-3 p-2 transition-colors ${
+                      already ? 'opacity-40' : ''
+                    } ${isPicked ? 'bg-primary/5' : ''}`}
                   >
+                    <input
+                      type="checkbox"
+                      disabled={already || busy}
+                      checked={isPicked}
+                      onChange={() => !already && togglePick(p.id)}
+                      className="h-4 w-4 cursor-pointer accent-primary"
+                      aria-label={`Select ${p.name}`}
+                    />
                     <div className="relative h-10 w-10 flex-shrink-0 overflow-hidden bg-surface">
                       {p.images?.[0] ? (
                         <Image src={p.images[0]} alt={p.name} fill className="object-cover" />
@@ -249,16 +306,32 @@ function ManualProductsForm({
                       <button
                         type="button"
                         disabled={busy}
-                        onClick={() => addProduct(p.id)}
+                        onClick={() => addProducts([p.id])}
                         className="font-mono text-[10px] uppercase tracking-[0.15em] text-primary hover:opacity-80"
                       >
-                        Add
+                        Add only
                       </button>
                     )}
                   </li>
                 );
               })}
             </ul>
+          )}
+
+          {/* Batch add footer */}
+          {picked.size > 0 && (
+            <div className="flex items-center justify-between border-t border-outline-variant/10 pt-3">
+              <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-secondary">
+                Tick more or add now
+              </p>
+              <PrimaryButton
+                icon="add"
+                onClick={() => addProducts(Array.from(picked))}
+                disabled={busy}
+              >
+                {busy ? 'Adding…' : `Add ${picked.size} selected`}
+              </PrimaryButton>
+            </div>
           )}
         </div>
       )}
