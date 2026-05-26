@@ -252,12 +252,38 @@ export class UsersService {
   async updateProfile(userId: string, dto: UpdateProfileDto) {
     // Explicit allow-list — never spread the DTO to prevent mass assignment
     // (e.g. role, isVerified, email, passwordHash).
+    const data: Prisma.UserUpdateInput = {
+      firstName: dto.firstName,
+      lastName: dto.lastName,
+    };
+
+    // Phone handling — dedup-prepend to phones[] if provided + valid.
+    // Empty string / null clears phones[0] (preserves history).
+    // undefined leaves phones unchanged.
+    if (dto.phone !== undefined) {
+      const current = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { phones: true },
+      });
+      if (!current) throw new NotFoundException('User not found');
+
+      if (dto.phone === '' || dto.phone === null) {
+        // Remove the most-recent entry but keep history.
+        data.phones = current.phones.slice(1);
+      } else {
+        const phoneResult = normalizeAndValidate(dto.phone);
+        if (!phoneResult.ok) {
+          throw new BadRequestException(
+            'Phone must be a valid Bangladesh number (10-11 digits)',
+          );
+        }
+        data.phones = prependPhoneToArray(current.phones, phoneResult.phone);
+      }
+    }
+
     return this.prisma.user.update({
       where: { id: userId },
-      data: {
-        firstName: dto.firstName,
-        lastName: dto.lastName,
-      },
+      data,
       select: {
         id: true,
         email: true,

@@ -141,7 +141,7 @@ describe('UsersService', () => {
   // ─── updateProfile ────────────────────────────────────────────────────────
 
   describe('updateProfile', () => {
-    it('updates only allow-listed fields', async () => {
+    it('updates only allow-listed fields (no phone)', async () => {
       prisma.user.update.mockResolvedValue({
         ...mockUser,
         firstName: 'Updated',
@@ -152,10 +152,112 @@ describe('UsersService', () => {
       const callArgs = prisma.user.update.mock.calls[0][0] as {
         data: Record<string, unknown>;
       };
-      expect(callArgs.data).toEqual({
-        firstName: 'Updated',
-        lastName: undefined,
+      // phones key must be absent when dto.phone is undefined
+      expect(callArgs.data.phones).toBeUndefined();
+      expect(callArgs.data.firstName).toBe('Updated');
+      // findUnique NOT called — we skip the phone branch entirely
+      expect(prisma.user.findUnique).not.toHaveBeenCalled();
+    });
+
+    it('dedup-prepends new phone to phones[]', async () => {
+      prisma.user.findUnique.mockResolvedValue({ phones: ['01700000000'] });
+      prisma.user.update.mockResolvedValue({
+        id: 'user-1',
+        email: 'a@b.com',
+        firstName: 'A',
+        lastName: 'B',
+        phones: ['01776902711', '01700000000'],
+        role: 'CUSTOMER',
+        isVerified: true,
       });
+
+      await service.updateProfile('user-1', {
+        firstName: 'A',
+        lastName: 'B',
+        phone: '01776902711',
+      });
+
+      expect(prisma.user.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'user-1' },
+          data: expect.objectContaining({
+            phones: ['01776902711', '01700000000'],
+          }),
+        }),
+      );
+    });
+
+    it('clears phones[0] when phone is empty string', async () => {
+      prisma.user.findUnique.mockResolvedValue({
+        phones: ['01776902711', '01700000000'],
+      });
+      prisma.user.update.mockResolvedValue({
+        id: 'user-1',
+        email: 'a@b.com',
+        firstName: 'A',
+        lastName: 'B',
+        phones: ['01700000000'],
+        role: 'CUSTOMER',
+        isVerified: true,
+      });
+
+      await service.updateProfile('user-1', {
+        firstName: 'A',
+        lastName: 'B',
+        phone: '',
+      });
+
+      expect(prisma.user.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ phones: ['01700000000'] }),
+        }),
+      );
+    });
+
+    it('rejects invalid phone format', async () => {
+      prisma.user.findUnique.mockResolvedValue({ phones: [] });
+
+      await expect(
+        service.updateProfile('user-1', {
+          firstName: 'A',
+          lastName: 'B',
+          phone: 'not-a-phone',
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('leaves phones unchanged when phone is undefined', async () => {
+      prisma.user.update.mockResolvedValue({
+        id: 'user-1',
+        email: 'a@b.com',
+        firstName: 'A',
+        lastName: 'B',
+        phones: ['01700000000'],
+        role: 'CUSTOMER',
+        isVerified: true,
+      });
+
+      await service.updateProfile('user-1', {
+        firstName: 'A',
+        lastName: 'B',
+        // no phone field
+      });
+
+      // findUnique NOT called — we skip the phone branch entirely when undefined
+      expect(prisma.user.findUnique).not.toHaveBeenCalled();
+      expect(prisma.user.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            firstName: 'A',
+            lastName: 'B',
+          }),
+        }),
+      );
+      // phones must NOT appear in the update data
+      const updateArg = (prisma.user.update.mock.calls[0]?.[0] ?? {
+        data: {},
+      }) as { data: Record<string, unknown> };
+      expect(updateArg.data.phones).toBeUndefined();
     });
   });
 
