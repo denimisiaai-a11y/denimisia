@@ -190,6 +190,10 @@ export class AuthService {
         firstName: dto.firstName,
         lastName: dto.lastName,
         phones,
+        // Mark the account as claimed at creation so a subsequent register
+        // with the same email returns 409 instead of being treated as a
+        // shadow and silently re-claimed (account-takeover vector).
+        claimedAt: new Date(),
       },
     });
 
@@ -313,6 +317,9 @@ export class AuthService {
           firstName,
           lastName,
           isVerified: true,
+          // Google-verified account is claimed at creation; otherwise a
+          // later credentials-register with the same email would re-claim it.
+          claimedAt: new Date(),
         },
       });
       isNewUser = true;
