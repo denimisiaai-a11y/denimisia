@@ -387,7 +387,7 @@ function CollectionProductSearch({
   const pickableCount = results.filter((p) => !existingIds.has(p.id)).length;
 
   return (
-    <div onClick={onClose} className="fixed inset-0 z-[60] flex items-start justify-center bg-black/70 p-8 backdrop-blur-sm">
+    <div onClick={onClose} className="fixed inset-0 z-[200] flex items-start justify-center bg-black/70 p-8 backdrop-blur-sm">
       <div onClick={(e) => e.stopPropagation()} className="flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl bg-surface-container shadow-2xl">
         <div className="flex items-center gap-2 border-b border-outline-variant/10 px-4 py-3">
           <span className="material-symbols-outlined text-secondary">search</span>
