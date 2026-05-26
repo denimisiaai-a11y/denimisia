@@ -25,6 +25,15 @@ import { REQUIRED_DIMENSIONS_FOR_TYPE } from '../bot/bot.constants';
 const FIND_BY_SLUG_TTL_SECONDS = 60;
 const FIND_BY_SLUG_KEY = (slug: string) => `product:slug:${slug}`;
 
+// Public-listing caches are 60s — same freshness target as PDP cache. Covers
+// findAll (every /shop URL combo), plus the three homepage rails. Any product
+// write blasts every list key via invalidateAllLists().
+const LIST_TTL_SECONDS = 60;
+const LIST_KEY_PREFIX = 'product:list:';
+const FEATURED_KEY = 'product:featured';
+const NEW_ARRIVALS_KEY = 'product:new-arrivals';
+const TRENDING_KEY = 'product:trending';
+
 /**
  * Shared include for listing endpoints (featured, new-arrivals, trending,
  * findAll). Extracted so the shape can't drift between call sites — e.g. when
@@ -66,15 +75,19 @@ export class ProductsService {
   ) {}
 
   private async invalidateSlugCache(slug: string | null | undefined): Promise<void> {
-    if (!slug) return;
-    try {
-      await this.redis.del(FIND_BY_SLUG_KEY(slug));
-    } catch (err) {
-      // Cache invalidation is best-effort; never block the write path.
-      this.logger.warn(
-        `redis del failed for slug=${slug}: ${err instanceof Error ? err.message : 'unknown'}`,
-      );
+    if (slug) {
+      try {
+        await this.redis.del(FIND_BY_SLUG_KEY(slug));
+      } catch (err) {
+        // Cache invalidation is best-effort; never block the write path.
+        this.logger.warn(
+          `redis del failed for slug=${slug}: ${err instanceof Error ? err.message : 'unknown'}`,
+        );
+      }
     }
+    // Any product write also stales every list-shaped cache (homepage rails,
+    // /shop filter combos). Cheap to over-invalidate; correctness > efficiency.
+    await this.invalidateAllLists();
   }
 
   private async invalidateByProductId(productId: string): Promise<void> {
@@ -85,9 +98,89 @@ export class ProductsService {
     await this.invalidateSlugCache(p?.slug);
   }
 
+  private async invalidateAllLists(): Promise<void> {
+    try {
+      await this.redis.del(FEATURED_KEY, NEW_ARRIVALS_KEY, TRENDING_KEY);
+      // SCAN through every `product:list:*` key in cursor batches. Upstash
+      // handles SCAN identically to standard Redis; pages of 100 keep each
+      // round-trip small.
+      let cursor = '0';
+      do {
+        const [next, keys] = await this.redis.scan(
+          cursor,
+          'MATCH',
+          `${LIST_KEY_PREFIX}*`,
+          'COUNT',
+          100,
+        );
+        cursor = next;
+        if (keys.length > 0) await this.redis.del(...keys);
+      } while (cursor !== '0');
+    } catch (err) {
+      this.logger.warn(
+        `redis invalidate-lists failed: ${err instanceof Error ? err.message : 'unknown'}`,
+      );
+    }
+  }
+
+  private async getOrSetCached<T>(
+    key: string,
+    ttlSeconds: number,
+    fetcher: () => Promise<T>,
+  ): Promise<T> {
+    try {
+      const cached = await this.redis.get(key);
+      if (cached) return JSON.parse(cached) as T;
+    } catch (err) {
+      this.logger.warn(
+        `redis get failed for ${key}: ${err instanceof Error ? err.message : 'unknown'}`,
+      );
+    }
+    const result = await fetcher();
+    try {
+      await this.redis.set(key, JSON.stringify(result), 'EX', ttlSeconds);
+    } catch (err) {
+      this.logger.warn(
+        `redis set failed for ${key}: ${err instanceof Error ? err.message : 'unknown'}`,
+      );
+    }
+    return result;
+  }
+
   // ─── Public ───────────────────────────────────────────────────────────────
 
   async findAll(
+    query: ProductQueryDto,
+    options: { includeInactive?: boolean } = {},
+  ) {
+    // Admin views (includeInactive) skip cache — admins need fresh data and
+    // their request volume is too low to warrant separate keying.
+    if (options.includeInactive) return this.findAllInternal(query, options);
+    const cacheKey = `${LIST_KEY_PREFIX}${this.buildListCacheKey(query)}`;
+    return this.getOrSetCached(cacheKey, LIST_TTL_SECONDS, () =>
+      this.findAllInternal(query, options),
+    );
+  }
+
+  private buildListCacheKey(q: ProductQueryDto): string {
+    return JSON.stringify({
+      category: q.category ?? '',
+      collection: q.collection ?? '',
+      sort: q.sort ?? '',
+      page: q.page ?? '1',
+      limit: q.limit ?? '24',
+      featured: q.featured ?? '',
+      trending: q.trending ?? '',
+      newArrival: q.newArrival ?? '',
+      minPrice: q.minPrice ?? '',
+      maxPrice: q.maxPrice ?? '',
+      size: q.size ?? '',
+      color: q.color ?? '',
+      search: q.search ?? '',
+    });
+  }
+
+  private async findAllInternal(
     query: ProductQueryDto,
     options: { includeInactive?: boolean } = {},
   ) {
@@ -164,31 +257,35 @@ export class ProductsService {
   }
 
   async findFeatured() {
-    return this.prisma.product.findMany({
-      where: { isActive: true, isFeatured: true },
-      take: 8,
-      include: PRODUCT_LIST_INCLUDE,
-      orderBy: { createdAt: 'desc' },
-    });
+    return this.getOrSetCached(FEATURED_KEY, LIST_TTL_SECONDS, () =>
+      this.prisma.product.findMany({
+        where: { isActive: true, isFeatured: true },
+        take: 8,
+        include: PRODUCT_LIST_INCLUDE,
+        orderBy: { createdAt: 'desc' },
+      }),
+    );
   }
 
   async findNewArrivals() {
-    // Prefers admin-flagged "new arrival" rows; falls back to most-recent
-    // active products when no rows are explicitly flagged so the homepage
-    // never renders an empty section.
-    const flagged = await this.prisma.product.findMany({
-      where: { isActive: true, isNewArrival: true },
-      take: 8,
-      include: PRODUCT_LIST_INCLUDE,
-      orderBy: { createdAt: 'desc' },
-    });
-    if (flagged.length > 0) return flagged;
+    return this.getOrSetCached(NEW_ARRIVALS_KEY, LIST_TTL_SECONDS, async () => {
+      // Prefers admin-flagged "new arrival" rows; falls back to most-recent
+      // active products when no rows are explicitly flagged so the homepage
+      // never renders an empty section.
+      const flagged = await this.prisma.product.findMany({
+        where: { isActive: true, isNewArrival: true },
+        take: 8,
+        include: PRODUCT_LIST_INCLUDE,
+        orderBy: { createdAt: 'desc' },
+      });
+      if (flagged.length > 0) return flagged;
 
-    return this.prisma.product.findMany({
-      where: { isActive: true },
-      take: 8,
-      include: PRODUCT_LIST_INCLUDE,
-      orderBy: { createdAt: 'desc' },
+      return this.prisma.product.findMany({
+        where: { isActive: true },
+        take: 8,
+        include: PRODUCT_LIST_INCLUDE,
+        orderBy: { createdAt: 'desc' },
+      });
     });
   }
 
@@ -198,12 +295,14 @@ export class ProductsService {
     // slider any time the admin tweaked an unrelated field (price, image,
     // etc.). The flag itself is the signal; ordering by creation date keeps
     // the row stable until you explicitly unflag / reflag.
-    return this.prisma.product.findMany({
-      where: { isActive: true, isTrending: true },
-      take: 8,
-      include: PRODUCT_LIST_INCLUDE,
-      orderBy: { createdAt: 'desc' },
-    });
+    return this.getOrSetCached(TRENDING_KEY, LIST_TTL_SECONDS, () =>
+      this.prisma.product.findMany({
+        where: { isActive: true, isTrending: true },
+        take: 8,
+        include: PRODUCT_LIST_INCLUDE,
+        orderBy: { createdAt: 'desc' },
+      }),
+    );
   }
 
   /**
@@ -312,7 +411,7 @@ export class ProductsService {
     // Fast path: no inline bundle and no tags/size-charts — preserve the
     // single-call behaviour so existing callers / tests stay valid.
     if (!bundle && !productTags?.length && !sizeCharts?.length) {
-      return this.prisma.product.create({
+      const created = await this.prisma.product.create({
         data: {
           ...productData,
           ...(type !== undefined ? { type } : {}),
@@ -320,12 +419,14 @@ export class ProductsService {
         },
         include: { variants: true, category: true },
       });
+      await this.invalidateAllLists();
+      return created;
     }
 
     // Multi-write path: wrap product + bundle + tags + size-charts in one
     // transaction so a failed leg rolls back the product. Avoids orphan
     // rows the chained client flow used to leave behind.
-    return this.prisma.$transaction(async (tx) => {
+    const created = await this.prisma.$transaction(async (tx) => {
       const product = await tx.product.create({
         data: {
           ...productData,
@@ -386,6 +487,8 @@ export class ProductsService {
         },
       });
     });
+    await this.invalidateAllLists();
+    return created;
   }
 
   async update(id: string, dto: UpdateProductDto) {
