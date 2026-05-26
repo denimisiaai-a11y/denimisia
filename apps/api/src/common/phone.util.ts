@@ -37,3 +37,28 @@ export function normalizeAndValidate(input: string | null | undefined): Normaliz
   }
   return { ok: true, phone: normalized };
 }
+
+const PHONE_CAP = 20;
+
+/**
+ * Prepend `phone` to the front of `existing`, de-duplicating and capping
+ * the array at PHONE_CAP entries. Returns a new array (immutable input).
+ *
+ * - If phone is empty/falsy, returns a shallow copy of existing unchanged.
+ * - If phone is already at any position, moves it to position 0 (no growth).
+ * - If new and array is full (length == PHONE_CAP), drops the oldest
+ *   (last) entry.
+ */
+export function prependPhoneToArray(
+  existing: readonly string[],
+  phone: string,
+): string[] {
+  if (!phone) return [...existing];
+
+  const dedupedTail = existing.filter((p) => p !== phone);
+  const result = [phone, ...dedupedTail];
+  if (result.length > PHONE_CAP) {
+    return result.slice(0, PHONE_CAP);
+  }
+  return result;
+}
