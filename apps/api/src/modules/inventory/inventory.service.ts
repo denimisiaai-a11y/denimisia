@@ -5,7 +5,14 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { InventoryType } from '@prisma/client';
+import { InventoryType, Prisma } from '@prisma/client';
+
+export interface ListVariantsOpts {
+  page?: number;
+  limit?: number;
+  search?: string;
+  bucket?: 'all' | 'out' | 'low' | 'healthy';
+}
 
 export class AdjustStockDto {
   variantId: string;
@@ -116,15 +123,88 @@ export class InventoryService {
       deletedAt: null,
       product: { isActive: true, deletedAt: null },
     };
-    const [totalVariants, lowStock, outOfStock] = await Promise.all([
-      this.prisma.productVariant.count({ where: activeWhere }),
-      this.prisma.productVariant.count({
-        where: { ...activeWhere, stock: { gt: 0, lte: 5 } },
+    const [totalVariants, healthyStock, lowStock, outOfStock] =
+      await Promise.all([
+        this.prisma.productVariant.count({ where: activeWhere }),
+        this.prisma.productVariant.count({
+          where: { ...activeWhere, stock: { gt: 5 } },
+        }),
+        this.prisma.productVariant.count({
+          where: { ...activeWhere, stock: { gt: 0, lte: 5 } },
+        }),
+        this.prisma.productVariant.count({
+          where: { ...activeWhere, stock: 0 },
+        }),
+      ]);
+    return { totalVariants, healthyStock, lowStock, outOfStock };
+  }
+
+  /**
+   * Paginated full inventory list for the admin stock dashboard. Supports
+   * filtering by stock bucket (out/low/healthy) and case-insensitive
+   * search across SKU and parent product name. Always excludes soft-
+   * deleted variants/products and inactive products — same active-rows
+   * scope as the summary, so totals stay consistent.
+   */
+  async listVariants(opts: ListVariantsOpts) {
+    const page = Math.max(1, opts.page ?? 1);
+    const limit = Math.min(100, Math.max(1, opts.limit ?? 50));
+
+    let stockFilter: Prisma.IntFilter | number | undefined;
+    switch (opts.bucket) {
+      case 'out':
+        stockFilter = 0;
+        break;
+      case 'low':
+        stockFilter = { gt: 0, lte: 5 };
+        break;
+      case 'healthy':
+        stockFilter = { gt: 5 };
+        break;
+      default:
+        stockFilter = undefined;
+    }
+
+    const search = opts.search?.trim();
+    const where: Prisma.ProductVariantWhereInput = {
+      deletedAt: null,
+      product: { isActive: true, deletedAt: null },
+      ...(stockFilter !== undefined ? { stock: stockFilter } : {}),
+      ...(search
+        ? {
+            OR: [
+              { sku: { contains: search, mode: 'insensitive' } },
+              {
+                product: {
+                  is: {
+                    name: { contains: search, mode: 'insensitive' },
+                    isActive: true,
+                    deletedAt: null,
+                  },
+                },
+              },
+            ],
+          }
+        : {}),
+    };
+
+    const [variants, total] = await Promise.all([
+      this.prisma.productVariant.findMany({
+        where,
+        include: {
+          product: {
+            select: { id: true, name: true, slug: true, images: true },
+          },
+        },
+        // Stock asc surfaces problem variants first so admin sees them
+        // without scrolling. SKU as secondary tie-breaker for stable order.
+        orderBy: [{ stock: 'asc' }, { sku: 'asc' }],
+        skip: (page - 1) * limit,
+        take: limit,
       }),
-      this.prisma.productVariant.count({
-        where: { ...activeWhere, stock: 0 },
-      }),
+      this.prisma.productVariant.count({ where }),
     ]);
-    return { totalVariants, lowStock, outOfStock };
+
+    return { variants, total, page, limit };
   }
 }

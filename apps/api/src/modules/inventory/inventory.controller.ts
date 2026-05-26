@@ -62,6 +62,29 @@ export class InventoryController {
     return this.inventoryService.getLowStockVariants(Number(threshold) || 5);
   }
 
+  // Full paginated inventory list backing the admin stock dashboard.
+  // `bucket` filters by stock level, `search` matches SKU or product name.
+  @Get('variants')
+  listVariants(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('search') search?: string,
+    @Query('bucket') bucket?: string,
+  ) {
+    const allowedBuckets = ['all', 'out', 'low', 'healthy'] as const;
+    const normalizedBucket = allowedBuckets.includes(
+      bucket as (typeof allowedBuckets)[number],
+    )
+      ? (bucket as (typeof allowedBuckets)[number])
+      : undefined;
+    return this.inventoryService.listVariants({
+      page: Number(page) || 1,
+      limit: Number(limit) || 50,
+      search: search?.trim() || undefined,
+      bucket: normalizedBucket,
+    });
+  }
+
   @Get('logs/:variantId')
   getVariantLogs(
     @Param('variantId') variantId: string,
