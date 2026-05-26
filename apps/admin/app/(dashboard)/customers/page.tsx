@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { adminFetch } from '@/lib/api';
 import { Banner } from '@/components/admin-ui';
 import { Modal } from '@/components/modal';
+import { ImportCsvModal } from '@/components/customers/import-csv-modal';
 
 function buildPageWindow(current: number, total: number, windowSize = 5): number[] {
   if (total <= 0) return [];
@@ -132,6 +133,7 @@ export default function CustomersPage() {
   const [showMoreFilters, setShowMoreFilters] = useState(false);
   const [minOrders, setMinOrders] = useState<string>('');
   const [minLtv, setMinLtv] = useState<string>('');
+  const [importOpen, setImportOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [addBusy, setAddBusy] = useState(false);
   const [addError, setAddError] = useState('');
@@ -302,6 +304,13 @@ export default function CustomersPage() {
             className="px-6 py-2 bg-surface-container-highest text-on-surface text-xs font-semibold uppercase tracking-widest border border-outline-variant/15 hover:bg-surface-container-high transition-colors duration-300 ease-editorial"
           >
             Export List
+          </button>
+          <button
+            type="button"
+            onClick={() => setImportOpen(true)}
+            className="px-6 py-2 bg-surface-container-highest text-on-surface text-xs font-semibold uppercase tracking-widest border border-outline-variant/30 hover:bg-surface-container-high transition-colors duration-300 ease-editorial"
+          >
+            Import CSV
           </button>
           <button
             type="button"
@@ -698,6 +707,17 @@ export default function CustomersPage() {
           </div>
         </form>
       </Modal>
+
+      <ImportCsvModal
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        onImported={() => {
+          setImportOpen(false);
+          void loadCustomers();
+        }}
+        apiBase={process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api/v1'}
+        token={token}
+      />
     </>
   );
 }
