@@ -4,16 +4,16 @@ import {
   NotFoundException,
   ConflictException,
   ForbiddenException,
+  BadRequestException,
 } from '@nestjs/common';
 import { InjectRedis } from '../redis/redis.decorator';
 import type Redis from 'ioredis';
 import { Prisma, Role } from '@prisma/client';
-import * as bcrypt from 'bcrypt';
-import { randomBytes } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
-import { EmailService } from '../email/email.service';
-import { buildPasswordResetEmail } from '../email/email-templates';
-import { env } from '../../common/env';
+import {
+  normalizeAndValidate,
+  prependPhoneToArray,
+} from '../../common/phone.util';
 import {
   UpdateProfileDto,
   CreateAddressDto,
@@ -34,78 +34,112 @@ export class UsersService {
   constructor(
     private prisma: PrismaService,
     @InjectRedis() private redis: Redis,
-    private readonly email: EmailService,
   ) {}
 
   /**
-   * Admin-only customer creation. Caller's admin role is enforced upstream
-   * by RolesGuard; here we enforce business rules: role is forced to
-   * CUSTOMER (no privilege escalation) and the password is server-generated
-   * so the new account is technically valid but unloggable until the
-   * customer sets their own password via the password-reset email.
+   * Admin-only customer creation.
+   *
+   * Three cases:
+   *   1. Email is new → create a shadow record (no password, no email sent).
+   *   2. Email belongs to a CLAIMED user → 409 Conflict.
+   *   3. Email belongs to an existing SHADOW → fill-blanks update (no
+   *      overwrite of non-empty fields). Phone array is dedup-prepended.
+   *
+   * The caller's admin id (`adminUserId`) is captured as `createdBy` on
+   * new shadows. For fill-blanks updates we do not change createdBy.
    */
-  async createCustomerAsAdmin(dto: CreateCustomerByAdminDto) {
+  async createCustomerAsAdmin(
+    dto: CreateCustomerByAdminDto,
+    adminUserId: string,
+  ) {
     const email = dto.email.trim().toLowerCase();
 
-    const existing = await this.prisma.user.findUnique({ where: { email } });
-    if (existing) {
-      throw new ConflictException('A user with that email already exists');
+    let normalizedPhone = '';
+    if (dto.phone && dto.phone.trim()) {
+      const phoneResult = normalizeAndValidate(dto.phone);
+      if (!phoneResult.ok) {
+        throw new BadRequestException(
+          'Phone must be a valid Bangladesh number (10-11 digits)',
+        );
+      }
+      normalizedPhone = phoneResult.phone;
     }
 
-    // Throwaway password — customer never sees this; they receive a reset
-    // link and choose their own. Stored hashed so the user row is valid.
-    const tempPassword = randomBytes(32).toString('hex');
-    const passwordHash = await bcrypt.hash(tempPassword, 10);
-
-    const created = await this.prisma.user.create({
-      data: {
-        email,
-        firstName: dto.firstName,
-        lastName: dto.lastName ?? '',
-        phone: dto.phone ?? null,
-        passwordHash,
-        role: Role.CUSTOMER,
-        isVerified: true,
-      },
+    const existing = await this.prisma.user.findUnique({
+      where: { email },
       select: {
         id: true,
         email: true,
         firstName: true,
         lastName: true,
-        phone: true,
-        role: true,
-        isActive: true,
-        isVerified: true,
-        createdAt: true,
+        phones: true,
+        claimedAt: true,
+        deletedAt: true,
       },
     });
 
-    // Best-effort onboarding email — fires the same password-reset flow auth
-    // uses for /forgot-password. If email infra is down, creation still
-    // succeeds and admin can resend manually via the password-reset link.
-    try {
-      const token = randomBytes(32).toString('hex');
-      await this.redis.setex(`reset:${token}`, 3600, created.id);
-      const resetUrl = `${env.STOREFRONT_URL}/reset-password?token=${token}`;
-      const rendered = buildPasswordResetEmail({
-        firstName: created.firstName,
-        resetUrl,
-        expiresInHours: 1,
+    if (existing) {
+      if (existing.deletedAt !== null) {
+        throw new ConflictException(
+          'A user with this email previously existed and was deactivated',
+        );
+      }
+      if (existing.claimedAt !== null) {
+        throw new ConflictException('A user with this email already exists');
+      }
+      // Existing SHADOW: fill-blanks update.
+      const updates: Prisma.UserUpdateInput = {};
+      if (!existing.firstName && dto.firstName) updates.firstName = dto.firstName;
+      if (!existing.lastName && dto.lastName) updates.lastName = dto.lastName;
+      if (normalizedPhone) {
+        const newPhones = prependPhoneToArray(existing.phones, normalizedPhone);
+        if (
+          newPhones.length !== existing.phones.length ||
+          newPhones[0] !== existing.phones[0]
+        ) {
+          updates.phones = newPhones;
+        }
+      }
+      if (Object.keys(updates).length === 0) {
+        return existing;
+      }
+      return this.prisma.user.update({
+        where: { id: existing.id },
+        data: updates,
+        select: this.publicUserSelect(),
       });
-      await this.email.send({
-        to: created.email,
-        subject: rendered.subject,
-        text: rendered.text,
-        html: rendered.html,
-      });
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      this.logger.warn(
-        `Onboarding email failed for ${created.email}: ${message}`,
-      );
     }
 
-    return created;
+    return this.prisma.user.create({
+      data: {
+        email,
+        firstName: dto.firstName,
+        lastName: dto.lastName ?? '',
+        phones: normalizedPhone ? [normalizedPhone] : [],
+        passwordHash: null,
+        role: Role.CUSTOMER,
+        isVerified: true,
+        claimedAt: null,
+        createdBy: adminUserId,
+      },
+      select: this.publicUserSelect(),
+    });
+  }
+
+  private publicUserSelect() {
+    return {
+      id: true,
+      email: true,
+      firstName: true,
+      lastName: true,
+      phones: true,
+      role: true,
+      isActive: true,
+      isVerified: true,
+      claimedAt: true,
+      createdBy: true,
+      createdAt: true,
+    };
   }
 
   // ─── Profile ──────────────────────────────────────────────────────────────
@@ -120,9 +154,10 @@ export class UsersService {
         email: true,
         firstName: true,
         lastName: true,
-        phone: true,
+        phones: true,
         role: true,
         isVerified: true,
+        claimedAt: true,
         createdAt: true,
       },
     });
@@ -168,14 +203,13 @@ export class UsersService {
       data: {
         firstName: dto.firstName,
         lastName: dto.lastName,
-        phone: dto.phone === undefined ? undefined : dto.phone?.trim() || null,
       },
       select: {
         id: true,
         email: true,
         firstName: true,
         lastName: true,
-        phone: true,
+        phones: true,
         role: true,
         isVerified: true,
       },
