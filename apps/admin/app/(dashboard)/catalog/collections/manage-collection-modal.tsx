@@ -396,7 +396,7 @@ function CollectionProductSearch({
             value={q}
             onChange={(e) => setQ(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Escape') onClose(); }}
-            placeholder="Search by name, slug, or model code (e.g. 21003)…"
+            placeholder="Search by name, slug, or SKU (e.g. baggy, 2125, denim)…"
             className="flex-1 bg-transparent py-1 font-body text-sm text-on-surface placeholder:text-tertiary focus:outline-none"
           />
           <kbd className="rounded bg-surface-container-low px-1.5 py-0.5 font-mono text-[10px] text-tertiary">Esc</kbd>
