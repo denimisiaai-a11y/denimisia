@@ -253,7 +253,15 @@ export default function CustomersPage() {
       setAddForm({ firstName: '', lastName: '', email: '', phone: '' });
       await loadCustomers();
     } catch (err: unknown) {
-      setAddError(err instanceof Error ? err.message : 'Failed to add participant');
+      const message =
+        err instanceof Error ? err.message : 'Failed to add customer';
+      if (/already exists/i.test(message)) {
+        setAddError(
+          'This email is already registered. The customer can update their own profile by signing in.',
+        );
+      } else {
+        setAddError(message);
+      }
     } finally {
       setAddBusy(false);
     }
@@ -300,7 +308,7 @@ export default function CustomersPage() {
             onClick={() => setAddOpen(true)}
             className="px-6 py-2 bg-primary text-on-primary text-xs font-semibold uppercase tracking-widest hover:opacity-90 transition-opacity duration-300 ease-editorial"
           >
-            Add Participant
+            Add Customer
           </button>
         </div>
       </div>
@@ -586,8 +594,8 @@ export default function CustomersPage() {
       <Modal
         open={addOpen}
         onClose={() => setAddOpen(false)}
-        title="Add Participant"
-        description="Create a new customer record. They will receive an onboarding email if configured."
+        title="Add Customer"
+        description="Creates a customer record immediately. No password or email is sent — the customer can later sign up with this email to claim the account."
         width="sm"
         footer={
           <>
@@ -605,7 +613,7 @@ export default function CustomersPage() {
               disabled={addBusy}
               className="atelier-shadow-sm px-5 py-2 text-[11px] font-bold uppercase tracking-[0.2em] bg-inverse-surface text-inverse-on-surface transition-transform duration-300 ease-editorial hover:scale-[1.02] disabled:opacity-50"
             >
-              {addBusy ? 'Saving…' : 'Add Participant'}
+              {addBusy ? 'Saving…' : 'Add Customer'}
             </button>
           </>
         }
