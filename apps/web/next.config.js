@@ -48,13 +48,16 @@ const nextConfig = {
   async headers() {
     const adminOrigins = (process.env.NEXT_PUBLIC_ADMIN_ORIGINS ?? 'http://localhost:3002')
       .split(',').map((s) => s.trim()).filter(Boolean).join(' ');
+    // Cloudflare Web Analytics: storefront benefits from analytics so the
+    // beacon script + its POST endpoint are allowed. Safe to leave even if
+    // CF Web Analytics is later disabled on this zone (no-op).
     const csp = [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' static.cloudflareinsights.com",
       "style-src 'self' 'unsafe-inline' fonts.googleapis.com",
       "font-src 'self' fonts.gstatic.com data:",
       "img-src 'self' data: blob: https:",
-      "connect-src 'self' http://localhost:3001 https://denimisiabd.com https://*.denimisiabd.com https://*.denimisia.com https://*.supabase.co https://*.r2.cloudflarestorage.com https://*.r2.dev",
+      "connect-src 'self' http://localhost:3001 https://denimisiabd.com https://*.denimisiabd.com https://*.denimisia.com https://*.supabase.co https://*.r2.cloudflarestorage.com https://*.r2.dev cloudflareinsights.com",
       `frame-ancestors 'self' ${adminOrigins}`,
       "object-src 'none'",
       "base-uri 'self'",
