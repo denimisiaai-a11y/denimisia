@@ -26,6 +26,7 @@ import {
   OrderCancelledEvent,
 } from '../../common/events/order.events';
 import { OrderNumberService } from './order-number.service';
+import { parseOrderHistoryCsv } from './orders-import.parser';
 
 const ORDER_CREATE_MAX_RETRIES = 3;
 
@@ -1021,6 +1022,141 @@ export class OrdersService {
         },
       });
     }
+  }
+
+  // ─── Bulk order history import helpers ────────────────────────────────────
+
+  private async ensureLegacyCategoryId(): Promise<string> {
+    const existing = await this.prisma.category.findFirst({
+      where: { slug: 'legacy-imports' },
+      select: { id: true },
+    });
+    if (existing) return existing.id;
+    const created = await this.prisma.category.create({
+      data: { slug: 'legacy-imports', name: 'Legacy Imports' },
+    });
+    return created.id;
+  }
+
+  private async createPlaceholderVariant(
+    sku: string,
+    unitPrice: number,
+    categoryId: string,
+  ): Promise<{ id: string; productId: string }> {
+    const slugSafeSku = sku
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '');
+    const product = await this.prisma.product.create({
+      data: {
+        name: sku,
+        slug: `legacy-${slugSafeSku}`,
+        description: `Legacy product imported from order history. SKU: ${sku}`,
+        price: unitPrice,
+        images: [],
+        isActive: false,
+        categoryId,
+      },
+    });
+    const variant = await this.prisma.productVariant.create({
+      data: {
+        productId: product.id,
+        sku,
+        size: '-',
+        color: '-',
+        stock: 0,
+        price: unitPrice,
+        images: [],
+      },
+    });
+    return { id: variant.id, productId: product.id };
+  }
+
+  async bulkImportHistory(buffer: Buffer, adminUserId: string) {
+    const parsed = await parseOrderHistoryCsv(buffer);
+    const totalOrdersInFile = parsed.groups.size;
+
+    // Pre-flight: collect SKUs + emails, look up existing.
+    const allSkus = new Set<string>();
+    const allEmails = new Set<string>();
+    for (const group of parsed.groups.values()) {
+      allEmails.add(group.header.customer_email);
+      for (const item of group.items) allSkus.add(item.sku);
+    }
+    const existingVariants = await this.prisma.productVariant.findMany({
+      where: { sku: { in: Array.from(allSkus) } },
+      select: { id: true, sku: true, productId: true },
+    });
+    const variantBySku = new Map(existingVariants.map((v) => [v.sku, v]));
+    const existingUsers = await this.prisma.user.findMany({
+      where: { email: { in: Array.from(allEmails) } },
+      select: { id: true, email: true, claimedAt: true, firstName: true, phones: true },
+    });
+    const userByEmail = new Map(existingUsers.map((u) => [u.email, u]));
+
+    // Ensure Legacy Imports category exists (lazily, only when needed).
+    let legacyCategoryId: string | null = null;
+    const ensureLegacyCategory = async () => {
+      if (legacyCategoryId === null) legacyCategoryId = await this.ensureLegacyCategoryId();
+      return legacyCategoryId;
+    };
+
+    const placeholderBySku = new Map<string, { id: string; productId: string }>();
+    const placeholderOccurrences = new Map<string, number>();
+
+    const result = {
+      totalOrdersInFile,
+      imported: 0,
+      skipped_duplicate: 0,
+      skipped_invalid: 0,
+      placeholdersCreated: 0,
+      newShadowsCreated: 0,
+      ordersAttachedToExisting: 0,
+      errors: parsed.errors,
+      placeholdersReport: [] as Array<{ sku: string; occurrences: number; productId: string }>,
+    };
+
+    for (const [orderRef, group] of parsed.groups) {
+      const orderNumber = `LEGACY-${orderRef}`;
+
+      // Skip if already imported (dedup on orderNumber).
+      const existingOrder = await this.prisma.order.findFirst({
+        where: { orderNumber },
+        select: { id: true },
+      });
+      if (existingOrder) {
+        result.skipped_duplicate += 1;
+        continue;
+      }
+
+      // Resolve variants for every item, creating placeholders as needed.
+      for (const item of group.items) {
+        let variantInfo = variantBySku.get(item.sku) ?? placeholderBySku.get(item.sku);
+        if (!variantInfo) {
+          const categoryId = await ensureLegacyCategory();
+          const created = await this.createPlaceholderVariant(item.sku, item.unit_price, categoryId);
+          placeholderBySku.set(item.sku, created);
+          result.placeholdersCreated += 1;
+          variantInfo = created;
+        }
+        placeholderOccurrences.set(item.sku, (placeholderOccurrences.get(item.sku) ?? 0) + 1);
+      }
+
+      // Task 3 adds: customer resolution + order/orderItem creation.
+      // For Task 2 stub, count as imported once placeholder logic ran.
+      // userByEmail is pre-fetched above and available for Task 3.
+      void userByEmail;
+      result.imported += 1;
+    }
+
+    for (const [sku, count] of placeholderOccurrences) {
+      const info = placeholderBySku.get(sku);
+      if (info) {
+        result.placeholdersReport.push({ sku, occurrences: count, productId: info.productId });
+      }
+    }
+
+    return result;
   }
 }
 
