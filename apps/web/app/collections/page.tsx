@@ -5,6 +5,7 @@ import { ArrowRight } from 'lucide-react';
 import { CATEGORY_IMAGES, NAV_FEATURED } from '@/lib/placeholder-images';
 import { SlotHero } from '@/components/slot/slot-hero';
 import { buildMetadata } from '@/lib/seo/metadata';
+import { getActiveCollections } from '@/lib/collections';
 
 export const metadata: Metadata = buildMetadata({
   title: 'Collections',
@@ -88,7 +89,46 @@ const STATUS_LABEL: Record<CollectionEntry['status'], string> = {
   upcoming: 'Upcoming',
 };
 
-export default function CollectionsPage() {
+function statusFor(api: { isActive: boolean; startDate: string | null; endDate: string | null }): 'active' | 'archive' | 'upcoming' {
+  const now = Date.now();
+  if (!api.isActive) return 'archive';
+  if (api.startDate && new Date(api.startDate).getTime() > now) return 'upcoming';
+  if (api.endDate && new Date(api.endDate).getTime() < now) return 'archive';
+  return 'active';
+}
+
+function seasonBadge(type: string): string {
+  if (type === 'AUTO') return 'AUTO';
+  if (type === 'PROMO') return 'PROMO';
+  if (type === 'DROP') return 'DROP';
+  return 'EDIT';
+}
+
+export default async function CollectionsPage() {
+  const apiCollections = await getActiveCollections();
+
+  // Render API collections when present, otherwise fall back to the hardcoded
+  // editorial list so the page never looks empty for a customer.
+  const entries: CollectionEntry[] = apiCollections.length > 0
+    ? apiCollections.map((c) => ({
+        slug: c.slug,
+        name: c.name,
+        season: seasonBadge(c.type),
+        tagline: c.subtitle ?? c.railTitle ?? c.type,
+        description:
+          c.description ??
+          c.seoDescription ??
+          'A curated edit from the Denimisia studio.',
+        image:
+          c.heroImageDesktop ??
+          c.image ??
+          c.ogImage ??
+          NAV_FEATURED.collectionLatest,
+        itemCount: 0, // not returned in list endpoint; could add _count later
+        status: statusFor(c),
+      }))
+    : COLLECTIONS;
+
   return (
     <div className="bg-paper pb-32">
       <SlotHero
@@ -109,7 +149,7 @@ export default function CollectionsPage() {
 
       <section className="mx-auto max-w-[1440px] px-6 md:px-12">
         <ul className="denimisia-bundle-grid grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {COLLECTIONS.map((collection) => (
+          {entries.map((collection) => (
             <li key={collection.slug} className="relative bg-paper">
               <Link
                 href={`/collections/${collection.slug}`}
@@ -133,11 +173,13 @@ export default function CollectionsPage() {
                       </span>
                     )}
                   </div>
-                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-ink/60 via-ink/10 to-transparent px-5 py-4 text-paper">
-                    <p className="text-[10px] uppercase tracking-[0.3em] text-paper/80">
-                      {collection.itemCount} pieces
-                    </p>
-                  </div>
+                  {collection.itemCount > 0 && (
+                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-ink/60 via-ink/10 to-transparent px-5 py-4 text-paper">
+                      <p className="text-[10px] uppercase tracking-[0.3em] text-paper/80">
+                        {collection.itemCount} pieces
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex items-start justify-between gap-4 px-1 pt-5">
