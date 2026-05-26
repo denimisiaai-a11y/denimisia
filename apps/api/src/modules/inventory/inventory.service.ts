@@ -26,7 +26,10 @@ export class InventoryService {
         product: { isActive: true, deletedAt: null },
       },
       include: {
-        product: { select: { id: true, name: true, slug: true } },
+        // Admin inventory page falls back to product.images[0] when the
+        // variant has no images of its own — selecting images here keeps
+        // the row renderable instead of crashing on undefined.
+        product: { select: { id: true, name: true, slug: true, images: true } },
       },
       orderBy: { stock: 'asc' },
     });

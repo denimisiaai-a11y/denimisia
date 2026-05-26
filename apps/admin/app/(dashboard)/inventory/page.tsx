@@ -37,7 +37,7 @@ interface LowStockVariant {
 }
 
 export default function InventoryPage() {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const token = (session as { accessToken?: string } | null)?.accessToken;
 
   const [summary, setSummary] = useState<InventorySummary | null>(null);
@@ -64,8 +64,25 @@ export default function InventoryPage() {
   }, [token]);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    // Wait for NextAuth to resolve. If hydration takes too long, or if the
+    // user is signed out, surface an actionable error instead of spinning
+    // on "Loading…" forever (which is what the page used to do).
+    if (status === 'authenticated' && token) {
+      void load();
+      return;
+    }
+    if (status === 'unauthenticated' || (status === 'authenticated' && !token)) {
+      setLoading(false);
+      setError('Session expired. Please sign in again.');
+      return;
+    }
+    // status === 'loading' — give NextAuth a few seconds before giving up.
+    const timeoutId = setTimeout(() => {
+      setLoading(false);
+      setError('Session is taking too long to load. Try refreshing the page.');
+    }, 3000);
+    return () => clearTimeout(timeoutId);
+  }, [status, token, load]);
 
   return (
     <PageShell
