@@ -119,6 +119,11 @@ interface OrdersResponse {
 }
 
 interface GlobalStats {
+  // `total` is the all-statuses count so the "Total Orders" card stays
+  // accurate when the user is filtered to a specific status. Without it
+  // the card mirrors the current filter and shows 0 whenever the active
+  // tab has no rows.
+  total: number;
   pending: number;
   processing: number;
   shipped: number;
@@ -174,27 +179,30 @@ export default function OrdersPage() {
   const fetchStats = useCallback(async () => {
     if (!token) return;
     try {
-      const countFor = async (status: OrderStatus): Promise<number> => {
-        const qs = new URLSearchParams({
-          page: '1',
-          limit: '1',
-          status,
-        });
+      const countFor = async (status?: OrderStatus): Promise<number> => {
+        const qs = new URLSearchParams({ page: '1', limit: '1' });
+        if (status) qs.set('status', status);
         const data = await adminFetch<OrdersResponse>(
           `/orders/admin/all?${qs.toString()}`,
           token,
         );
         return data.total ?? 0;
       };
-      const [pending, confirmed, processing, shipped, delivered] = await Promise.all([
+      // Each stat card now matches its corresponding tab exactly — clicking
+      // PENDING shows the same count of rows the card advertises. The previous
+      // behaviour summed PENDING + CONFIRMED for the "Pending" card while the
+      // tab filtered strictly, which produced the bug where the card said "2"
+      // but the table said "No orders found".
+      const [total, pending, processing, shipped, delivered] = await Promise.all([
+        countFor(),
         countFor('PENDING'),
-        countFor('CONFIRMED'),
         countFor('PROCESSING'),
         countFor('SHIPPED'),
         countFor('DELIVERED'),
       ]);
       setGlobalStats({
-        pending: pending + confirmed,
+        total,
+        pending,
         processing,
         shipped,
         delivered,
@@ -394,10 +402,10 @@ export default function OrdersPage() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
         <div className="bg-surface-container-lowest p-6 rounded-sm border border-outline-variant/5">
           <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-secondary">
-            Total Orders
+            {globalStats ? 'Total Orders' : 'Total Orders (this page)'}
           </p>
           <h3 className="font-headline text-3xl font-semibold mt-2 text-on-surface">
-            {total.toLocaleString()}
+            {(globalStats ? globalStats.total : total).toLocaleString()}
           </h3>
         </div>
         <div className="bg-surface-container-lowest p-6 rounded-sm border border-outline-variant/5">
