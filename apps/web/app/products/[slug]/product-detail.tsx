@@ -10,6 +10,7 @@ import { formatPrice, cn } from '@/lib/utils';
 import { ImageWithFallback } from '@/components/ui/image-with-fallback';
 import { SizeGuideModal } from '@/components/product/size-guide-modal';
 import { SizeAndFitModal } from '@/components/products/size-and-fit-modal';
+import { ProductDescription } from '@/components/product/product-description';
 import type { FitLandmarks } from '@repo/fit-engine';
 import { WishlistButton } from '@/components/ui/wishlist-button';
 import { pickCategory, detectRise, detectGender } from '@/lib/size-charts';
@@ -351,7 +352,7 @@ export function ProductDetail({ product }: ProductDetailProps) {
                 <Plus size={16} className="text-muted transition-transform duration-200 group-open:rotate-45" />
               </summary>
               <div className="space-y-4 pb-5 pl-7 pr-2 text-sm leading-relaxed text-muted">
-                <p>{product.description}</p>
+                <ProductDescription html={product.description} />
                 {product.tags.length > 0 && (
                   <div className="flex flex-wrap gap-2 pt-1">
                     {product.tags.map((tag) => (

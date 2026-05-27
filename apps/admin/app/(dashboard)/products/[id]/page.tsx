@@ -7,6 +7,7 @@ import { adminFetch } from '@/lib/api';
 import { Banner } from '@/components/admin-ui';
 import { ConfirmModal } from '@/components/modal';
 import { ImageUploader } from '@/components/image-uploader';
+import { RichTextEditor } from '@/components/rich-text-editor';
 import {
   TypeAttributeFields,
   type TagPair,
@@ -477,17 +478,21 @@ export default function EditProductPage() {
                 />
               </label>
 
-              <label className="block">
+              <div className="block">
                 <span className="block text-[10px] font-bold uppercase tracking-[0.2em] text-secondary mb-2">
                   Description
                 </span>
-                <textarea
+                <RichTextEditor
                   value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  rows={4}
-                  className="w-full border-0 border-b border-outline-variant/25 bg-transparent py-2 text-sm text-on-surface placeholder:text-secondary focus:border-primary focus:outline-none focus:ring-0 resize-y"
+                  onChange={setDescription}
+                  placeholder="Describe the product. Use the toolbar for bold, headings, bullet lists, and links."
                 />
-              </label>
+                <p className="mt-1.5 text-[11px] text-secondary">
+                  Use headings (H2/H3) for sections, bullet lists for spec
+                  details, and bold/italic for emphasis. Formatting renders
+                  exactly the same on the storefront.
+                </p>
+              </div>
             </div>
           </section>
 
