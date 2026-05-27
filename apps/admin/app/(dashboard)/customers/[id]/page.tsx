@@ -6,6 +6,8 @@ import { useParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { adminFetch } from '@/lib/api';
 import { Banner } from '@/components/admin-ui';
+import { EditProfileModal } from '@/components/customers/edit-profile-modal';
+import { AddressModal } from '@/components/customers/address-modal';
 
 interface CustomerOrder {
   id: string;
@@ -18,12 +20,15 @@ interface CustomerOrder {
 
 interface CustomerAddress {
   id: string;
+  firstName?: string;
+  lastName?: string;
   line1: string;
   line2?: string | null;
   city: string;
   state: string;
   postalCode: string;
   country: string;
+  phone?: string | null;
   isDefault?: boolean;
   label?: string | null;
 }
@@ -87,6 +92,10 @@ export default function CustomerDetailPage() {
   const [customer, setCustomer] = useState<CustomerDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [editProfileOpen, setEditProfileOpen] = useState(false);
+  const [addressModalOpen, setAddressModalOpen] = useState(false);
+  const [addressBeingEdited, setAddressBeingEdited] = useState<CustomerAddress | null>(null);
+  const [deletingAddressId, setDeletingAddressId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!token || !id) return;
@@ -106,6 +115,22 @@ export default function CustomerDetailPage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  const handleDeleteAddress = async (addressId: string) => {
+    if (!token || !customer) return;
+    if (!confirm('Delete this address? This cannot be undone.')) return;
+    setDeletingAddressId(addressId);
+    try {
+      await adminFetch(`/users/${customer.id}/addresses/${addressId}`, token, {
+        method: 'DELETE',
+      });
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete address');
+    } finally {
+      setDeletingAddressId(null);
+    }
+  };
 
   if (loading) {
     return (
@@ -155,10 +180,19 @@ export default function CustomerDetailPage() {
             )}
           </div>
         </div>
-        <div className="text-right">
-          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-secondary">Total Contribution</p>
-          <p className="mt-1 font-headline text-2xl font-semibold">{formatBdt(customer.totalSpent ?? 0)}</p>
-          <p className="mt-1 text-xs text-secondary">{totalOrders} {totalOrders === 1 ? 'order' : 'orders'}</p>
+        <div className="flex items-start gap-6">
+          <div className="text-right">
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-secondary">Total Contribution</p>
+            <p className="mt-1 font-headline text-2xl font-semibold">{formatBdt(customer.totalSpent ?? 0)}</p>
+            <p className="mt-1 text-xs text-secondary">{totalOrders} {totalOrders === 1 ? 'order' : 'orders'}</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setEditProfileOpen(true)}
+            className="border border-outline-variant/30 px-4 py-2 text-[10px] font-semibold uppercase tracking-widest text-on-surface hover:bg-surface-container"
+          >
+            Edit Profile
+          </button>
         </div>
       </header>
 
@@ -190,17 +224,58 @@ export default function CustomerDetailPage() {
         </div>
 
         <div className="atelier-shadow bg-surface-container-lowest p-6">
-          <h2 className="mb-4 text-[10px] font-bold uppercase tracking-[0.2em] text-secondary">Addresses</h2>
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-[10px] font-bold uppercase tracking-[0.2em] text-secondary">Addresses</h2>
+            <button
+              type="button"
+              onClick={() => {
+                setAddressBeingEdited(null);
+                setAddressModalOpen(true);
+              }}
+              className="text-[10px] font-semibold uppercase tracking-widest text-on-surface hover:text-primary"
+            >
+              + Add
+            </button>
+          </div>
           {(customer.addresses?.length ?? 0) === 0 ? (
             <p className="text-sm text-secondary">No saved addresses.</p>
           ) : (
-            <ul className="space-y-3 text-sm">
+            <ul className="space-y-4 text-sm">
               {customer.addresses!.map((a) => (
                 <li key={a.id} className="border-l-2 border-outline-variant/20 pl-3">
-                  {a.label && <p className="text-xs font-semibold uppercase text-secondary">{a.label} {a.isDefault && '(default)'}</p>}
-                  <p>{a.line1}</p>
-                  {a.line2 && <p>{a.line2}</p>}
-                  <p>{a.city}, {a.state} {a.postalCode}, {a.country}</p>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1">
+                      {a.label && (
+                        <p className="text-xs font-semibold uppercase text-secondary">
+                          {a.label} {a.isDefault && '(default)'}
+                        </p>
+                      )}
+                      <p>{a.line1}</p>
+                      {a.line2 && <p>{a.line2}</p>}
+                      <p>{a.city}, {a.state} {a.postalCode}, {a.country}</p>
+                      {a.phone && <p className="mt-1 text-xs text-secondary">{a.phone}</p>}
+                    </div>
+                    <div className="flex shrink-0 gap-3 text-[10px] font-semibold uppercase tracking-widest">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAddressBeingEdited(a);
+                          setAddressModalOpen(true);
+                        }}
+                        className="text-secondary hover:text-on-surface"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteAddress(a.id)}
+                        disabled={deletingAddressId === a.id}
+                        className="text-secondary hover:text-error disabled:opacity-50"
+                      >
+                        {deletingAddressId === a.id ? '…' : 'Remove'}
+                      </button>
+                    </div>
+                  </div>
                 </li>
               ))}
             </ul>
@@ -253,6 +328,31 @@ export default function CustomerDetailPage() {
           </div>
         )}
       </section>
+
+      {token && (
+        <EditProfileModal
+          open={editProfileOpen}
+          onClose={() => setEditProfileOpen(false)}
+          token={token}
+          customer={customer}
+          onSaved={load}
+        />
+      )}
+
+      {token && (
+        <AddressModal
+          open={addressModalOpen}
+          onClose={() => {
+            setAddressModalOpen(false);
+            setAddressBeingEdited(null);
+          }}
+          token={token}
+          customerId={customer.id}
+          customer={{ firstName: customer.firstName, lastName: customer.lastName }}
+          initial={addressBeingEdited ?? undefined}
+          onSaved={load}
+        />
+      )}
     </div>
   );
 }

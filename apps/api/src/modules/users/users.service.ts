@@ -20,8 +20,10 @@ import {
   UpdateAddressDto,
   FitProfileDto,
   CreateCustomerByAdminDto,
+  AdminUpdateUserDto,
 } from './users.dto';
 import { parseAndDedupeCsv } from './bulk-import.parser';
+import { AuditLogService } from '../audit-log/audit-log.service';
 
 // Redis keys mirror auth.service constants — keep in sync.
 const AUTH_TV_KEY = (userId: string) => `auth:tv:${userId}`;
@@ -35,6 +37,7 @@ export class UsersService {
   constructor(
     private prisma: PrismaService,
     @InjectRedis() private redis: Redis,
+    private auditLog: AuditLogService,
   ) {}
 
   /**
@@ -488,6 +491,162 @@ export class UsersService {
     // Invalidate all outstanding JWTs issued to this user so the
     // deactivated account cannot continue making authenticated requests.
     await this.bumpTokenVersion(userId);
+  }
+
+  // ─── Admin profile + address edits ───────────────────────────────────────
+
+  /**
+   * Admin edits a customer's name, email, or phone. Three security rules:
+   *   1. Email must not collide with another user (incl. soft-deleted —
+   *      Prisma's unique constraint on email doesn't honour deletedAt).
+   *   2. If the user is CLAIMED and email changes, bump tokenVersion to
+   *      force re-login. Same rationale as a password reset — staff
+   *      shouldn't be able to silently take over a session.
+   *   3. Role / isActive / passwordHash are never touched (explicit
+   *      allow-list, no spread).
+   * Every successful edit writes an AuditLog row keyed to the admin actor.
+   */
+  async adminUpdateUser(
+    targetUserId: string,
+    adminUserId: string,
+    dto: AdminUpdateUserDto,
+  ) {
+    const existing = await this.prisma.user.findUnique({
+      where: { id: targetUserId },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        phones: true,
+        claimedAt: true,
+        deletedAt: true,
+      },
+    });
+    if (!existing || existing.deletedAt !== null) {
+      throw new NotFoundException('User not found');
+    }
+
+    const data: Prisma.UserUpdateInput = {};
+    const changed: Record<string, { from: unknown; to: unknown }> = {};
+
+    if (dto.firstName !== undefined && dto.firstName !== existing.firstName) {
+      data.firstName = dto.firstName;
+      changed.firstName = { from: existing.firstName, to: dto.firstName };
+    }
+    if (dto.lastName !== undefined && (dto.lastName ?? null) !== existing.lastName) {
+      data.lastName = dto.lastName ?? null;
+      changed.lastName = { from: existing.lastName, to: dto.lastName ?? null };
+    }
+
+    if (dto.email !== undefined && dto.email !== existing.email) {
+      const lowerEmail = dto.email.toLowerCase();
+      const collision = await this.prisma.user.findFirst({
+        where: { email: lowerEmail, id: { not: targetUserId } },
+        select: { id: true },
+      });
+      if (collision) {
+        throw new ConflictException('Email already in use by another account');
+      }
+      data.email = lowerEmail;
+      changed.email = { from: existing.email, to: lowerEmail };
+    }
+
+    if (dto.phone !== undefined && dto.phone !== '') {
+      const phoneResult = normalizeAndValidate(dto.phone);
+      if (!phoneResult.ok) {
+        throw new BadRequestException(
+          'Phone must be a valid Bangladesh number (10-11 digits)',
+        );
+      }
+      const nextPhones = prependPhoneToArray(existing.phones, phoneResult.phone);
+      // Only mark as changed if phones[0] actually moved.
+      if (nextPhones[0] !== existing.phones[0]) {
+        data.phones = nextPhones;
+        changed.phone = { from: existing.phones[0] ?? null, to: nextPhones[0] };
+      }
+    }
+
+    // Email change on a claimed account → force re-login.
+    if (changed.email && existing.claimedAt !== null) {
+      data.tokenVersion = { increment: 1 };
+      await this.bumpTokenVersion(targetUserId);
+    }
+
+    if (Object.keys(changed).length === 0) {
+      // No-op edit — return the row as-is so the UI can refresh without a
+      // misleading "updated" toast.
+      return this.getUserById(targetUserId);
+    }
+
+    await this.prisma.user.update({ where: { id: targetUserId }, data });
+    await this.auditLog.log(
+      adminUserId,
+      'admin.user.update',
+      'User',
+      targetUserId,
+      changed as Prisma.InputJsonValue,
+    );
+    return this.getUserById(targetUserId);
+  }
+
+  /**
+   * Admin creates an address on behalf of a customer. Mirrors the self-serve
+   * createAddress path but logs the admin actor for the audit trail.
+   */
+  async adminCreateAddress(
+    targetUserId: string,
+    adminUserId: string,
+    dto: CreateAddressDto,
+  ) {
+    const target = await this.prisma.user.findUnique({
+      where: { id: targetUserId },
+      select: { id: true, deletedAt: true },
+    });
+    if (!target || target.deletedAt !== null) {
+      throw new NotFoundException('User not found');
+    }
+    const created = await this.createAddress(targetUserId, dto);
+    await this.auditLog.log(
+      adminUserId,
+      'admin.address.create',
+      'Address',
+      created.id,
+      { userId: targetUserId } as Prisma.InputJsonValue,
+    );
+    return created;
+  }
+
+  async adminUpdateAddress(
+    targetUserId: string,
+    addressId: string,
+    adminUserId: string,
+    dto: UpdateAddressDto,
+  ) {
+    const updated = await this.updateAddress(targetUserId, addressId, dto);
+    await this.auditLog.log(
+      adminUserId,
+      'admin.address.update',
+      'Address',
+      addressId,
+      { userId: targetUserId } as Prisma.InputJsonValue,
+    );
+    return updated;
+  }
+
+  async adminDeleteAddress(
+    targetUserId: string,
+    addressId: string,
+    adminUserId: string,
+  ) {
+    await this.deleteAddress(targetUserId, addressId);
+    await this.auditLog.log(
+      adminUserId,
+      'admin.address.delete',
+      'Address',
+      addressId,
+      { userId: targetUserId } as Prisma.InputJsonValue,
+    );
   }
 
   // ─── Helpers ──────────────────────────────────────────────────────────────

@@ -25,6 +25,7 @@ import {
   UpdateAddressDto,
   FitProfileDto,
   CreateCustomerByAdminDto,
+  AdminUpdateUserDto,
 } from './users.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -145,5 +146,58 @@ export class UsersController {
   @HttpCode(HttpStatus.NO_CONTENT)
   deactivateUser(@Param('id') userId: string) {
     return this.usersService.deactivateUser(userId);
+  }
+
+  // ─── Admin edit + address CRUD ────────────────────────────────────────────
+
+  @Patch(':id')
+  @UseGuards(RolesGuard)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  adminUpdateUser(
+    @Param('id') userId: string,
+    @Body() dto: AdminUpdateUserDto,
+    @CurrentUser() admin: { id: string },
+  ) {
+    return this.usersService.adminUpdateUser(userId, admin.id, dto);
+  }
+
+  @Post(':id/addresses')
+  @UseGuards(RolesGuard)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  adminCreateAddress(
+    @Param('id') userId: string,
+    @Body() dto: CreateAddressDto,
+    @CurrentUser() admin: { id: string },
+  ) {
+    return this.usersService.adminCreateAddress(userId, admin.id, dto);
+  }
+
+  @Patch(':id/addresses/:addressId')
+  @UseGuards(RolesGuard)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  adminUpdateAddress(
+    @Param('id') userId: string,
+    @Param('addressId') addressId: string,
+    @Body() dto: UpdateAddressDto,
+    @CurrentUser() admin: { id: string },
+  ) {
+    return this.usersService.adminUpdateAddress(
+      userId,
+      addressId,
+      admin.id,
+      dto,
+    );
+  }
+
+  @Delete(':id/addresses/:addressId')
+  @UseGuards(RolesGuard)
+  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  adminDeleteAddress(
+    @Param('id') userId: string,
+    @Param('addressId') addressId: string,
+    @CurrentUser() admin: { id: string },
+  ) {
+    return this.usersService.adminDeleteAddress(userId, addressId, admin.id);
   }
 }

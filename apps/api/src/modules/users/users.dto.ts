@@ -45,6 +45,36 @@ export class CreateCustomerByAdminDto {
   phone?: string;
 }
 
+/**
+ * Admin-only profile edit. Lets a staff member fix typos in a customer's
+ * name, swap their email, or update their phone (dedup-prepended to phones[]
+ * by the service). Email change on a CLAIMED account bumps tokenVersion so
+ * the customer is forced to log in again — same security guarantee as a
+ * password reset. Role / isActive / passwordHash are never editable here.
+ */
+export class AdminUpdateUserDto {
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(100)
+  firstName?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  lastName?: string;
+
+  @IsOptional()
+  @IsEmail()
+  @MaxLength(254)
+  email?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(32)
+  phone?: string;
+}
+
 export class UpdateProfileDto {
   @IsOptional()
   @IsString()
