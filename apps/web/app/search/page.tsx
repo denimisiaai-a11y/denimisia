@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { Suspense, useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { Search, X } from 'lucide-react';
 import { formatPrice } from '@/lib/utils';
 
@@ -19,8 +20,16 @@ interface SearchProduct {
   variants: { id: string; size: string; color: string; price: string; stock: number }[];
 }
 
-export default function SearchPage() {
-  const [query, setQuery] = useState('');
+function SearchPageInner() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  // Seed from ?q= so deep links (`/search?q=jeans`) and the navbar overlay's
+  // recent-search pills actually populate the field. Prior version stayed
+  // empty until the user typed, so clicking a recent search appeared to do
+  // nothing.
+  const [query, setQuery] = useState(() => searchParams.get('q') ?? '');
   const [results, setResults] = useState<SearchProduct[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
@@ -56,6 +65,17 @@ export default function SearchPage() {
     }, 400);
     return () => clearTimeout(timer);
   }, [query, search]);
+
+  // Keep the URL in sync with the current query so results are shareable
+  // and the browser back/forward buttons restore prior searches. router.replace
+  // (not push) avoids polluting history with one entry per keystroke.
+  useEffect(() => {
+    const current = searchParams.get('q') ?? '';
+    const next = query.trim();
+    if (current === next) return;
+    const url = next ? `${pathname}?q=${encodeURIComponent(next)}` : pathname;
+    router.replace(url, { scroll: false });
+  }, [query, pathname, router, searchParams]);
 
   return (
     <div className="min-h-screen pt-24">
@@ -156,5 +176,15 @@ export default function SearchPage() {
         </div>
       )}
     </div>
+  );
+}
+
+// Suspense wrapper — useSearchParams suspends during prerender; the outer
+// boundary lets Next.js stream the page shell while it resolves.
+export default function SearchPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen pt-24" />}>
+      <SearchPageInner />
+    </Suspense>
   );
 }
