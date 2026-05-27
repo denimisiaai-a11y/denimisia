@@ -161,15 +161,35 @@ export function SeoTab({ collection, onSaved }: Props) {
       {/* Homepage */}
       <div className="border-t border-outline-variant/10 pt-6 space-y-4">
         <h3 className="font-display text-base">Homepage</h3>
+        <p className="text-xs leading-relaxed text-secondary">
+          A collection always lives at{' '}
+          <span className="font-mono">/collections/{collection.slug}</span>
+          {' '}regardless of the options below. These settings only decide whether
+          — and where — it also appears on the storefront <strong>homepage</strong>.
+        </p>
 
-        <Checkbox
-          label="Featured in homepage drops carousel"
-          checked={form.isFeaturedHome}
-          onChange={(e) => setForm({ ...form, isFeaturedHome: e.target.checked })}
-        />
+        <div className="space-y-1">
+          <Checkbox
+            label="Featured in homepage drops carousel"
+            checked={form.isFeaturedHome}
+            onChange={(e) => setForm({ ...form, isFeaturedHome: e.target.checked })}
+          />
+          <p className="pl-7 text-xs leading-relaxed text-secondary">
+            Places this collection as a full-bleed hero card in the rotating
+            carousel directly under <strong>New Arrivals</strong> on the
+            homepage. The eyebrow label is derived from the collection Type
+            (DROP → &ldquo;New drop&rdquo;, PROMO → &ldquo;Promo&rdquo;,
+            EDIT → &ldquo;Featured edit&rdquo;). Uses the collection&rsquo;s
+            hero image; falls back to the main image if unset.
+          </p>
+        </div>
 
         {form.isFeaturedHome && (
-          <Field label="Slot priority (1-5)" name="homepageSlot" hint="1 = first slot in carousel">
+          <Field
+            label="Slot priority (1-5)"
+            name="homepageSlot"
+            hint="1 = first card shown when the carousel loads. Other featured collections rotate after it."
+          >
             <select
               id="homepageSlot"
               value={form.homepageSlot}
@@ -185,11 +205,20 @@ export function SeoTab({ collection, onSaved }: Props) {
           </Field>
         )}
 
-        <Checkbox
-          label="Show as horizontal product rail on homepage"
-          checked={form.showAsRail}
-          onChange={(e) => setForm({ ...form, showAsRail: e.target.checked })}
-        />
+        <div className="space-y-1 pt-2">
+          <Checkbox
+            label="Show as horizontal product rail on homepage"
+            checked={form.showAsRail}
+            onChange={(e) => setForm({ ...form, showAsRail: e.target.checked })}
+          />
+          <p className="pl-7 text-xs leading-relaxed text-secondary">
+            Adds a scrollable strip of this collection&rsquo;s products further
+            down the homepage. Independent from the carousel above — you can
+            enable both, neither, or one. Use <strong>Rail Title</strong> below
+            to override the displayed heading (e.g. &ldquo;Trending now&rdquo;
+            instead of the collection&rsquo;s real name).
+          </p>
+        </div>
 
         {form.showAsRail && (
           <Field label="Rail title (overrides Name)" name="railTitle">
