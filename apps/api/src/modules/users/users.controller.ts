@@ -26,6 +26,7 @@ import {
   FitProfileDto,
   CreateCustomerByAdminDto,
   AdminUpdateUserDto,
+  CreateStaffDto,
 } from './users.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -95,7 +96,7 @@ export class UsersController {
   // it later by self-registering with the same email.
   @Post()
   @UseGuards(RolesGuard)
-  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN, Role.MANAGER, Role.SUPPORT_STAFF)
   createCustomer(
     @Body() dto: CreateCustomerByAdminDto,
     @CurrentUser() admin: { id: string },
@@ -103,9 +104,19 @@ export class UsersController {
     return this.usersService.createCustomerAsAdmin(dto, admin.id);
   }
 
+  @Post('staff')
+  @UseGuards(RolesGuard)
+  @Roles(Role.SUPER_ADMIN)
+  createStaff(
+    @Body() dto: CreateStaffDto,
+    @CurrentUser() admin: { id: string },
+  ) {
+    return this.usersService.createStaff(dto, admin.id);
+  }
+
   @Post('bulk')
   @UseGuards(RolesGuard)
-  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN, Role.MANAGER, Role.SUPPORT_STAFF)
   @UseInterceptors(
     FileInterceptor('file', {
       limits: { fileSize: 20 * 1024 * 1024 }, // 20 MB, matches parser cap
@@ -125,7 +136,7 @@ export class UsersController {
 
   @Get()
   @UseGuards(RolesGuard)
-  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN, Role.MANAGER, Role.SUPPORT_STAFF)
   getAllUsers(
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
     @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
@@ -135,14 +146,14 @@ export class UsersController {
 
   @Get(':id')
   @UseGuards(RolesGuard)
-  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN, Role.MANAGER, Role.SUPPORT_STAFF)
   getUserById(@Param('id') userId: string) {
     return this.usersService.getUserById(userId);
   }
 
   @Delete(':id')
   @UseGuards(RolesGuard)
-  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN, Role.MANAGER, Role.SUPPORT_STAFF)
   @HttpCode(HttpStatus.NO_CONTENT)
   deactivateUser(@Param('id') userId: string) {
     return this.usersService.deactivateUser(userId);
@@ -152,7 +163,7 @@ export class UsersController {
 
   @Patch(':id')
   @UseGuards(RolesGuard)
-  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN, Role.MANAGER, Role.SUPPORT_STAFF)
   adminUpdateUser(
     @Param('id') userId: string,
     @Body() dto: AdminUpdateUserDto,
@@ -163,7 +174,7 @@ export class UsersController {
 
   @Post(':id/addresses')
   @UseGuards(RolesGuard)
-  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN, Role.MANAGER, Role.SUPPORT_STAFF)
   adminCreateAddress(
     @Param('id') userId: string,
     @Body() dto: CreateAddressDto,
@@ -174,7 +185,7 @@ export class UsersController {
 
   @Patch(':id/addresses/:addressId')
   @UseGuards(RolesGuard)
-  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN, Role.MANAGER, Role.SUPPORT_STAFF)
   adminUpdateAddress(
     @Param('id') userId: string,
     @Param('addressId') addressId: string,
@@ -191,7 +202,7 @@ export class UsersController {
 
   @Delete(':id/addresses/:addressId')
   @UseGuards(RolesGuard)
-  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN, Role.MANAGER, Role.SUPPORT_STAFF)
   @HttpCode(HttpStatus.NO_CONTENT)
   adminDeleteAddress(
     @Param('id') userId: string,

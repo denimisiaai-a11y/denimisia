@@ -64,7 +64,7 @@ export class UploadsController {
 
   @Post('presign')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN, Role.MANAGER, Role.SUPPORT_STAFF)
   @Throttle({ default: { limit: 20, ttl: 60000 } })
   getPresignedUrl(@Body() dto: PresignedUrlDto) {
     return this.uploadsService.getPresignedUrl(
@@ -76,7 +76,7 @@ export class UploadsController {
 
   @Post('process')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN, Role.MANAGER, Role.SUPPORT_STAFF)
   @Throttle({ default: { limit: 30, ttl: 60000 } })
   processImage(@Body() dto: ProcessImageDto) {
     return this.uploadsService.processImage(dto.key);
@@ -84,7 +84,7 @@ export class UploadsController {
 
   @Delete('file')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN, Role.MANAGER, Role.SUPPORT_STAFF)
   @Throttle({ default: { limit: 20, ttl: 60000 } })
   @HttpCode(HttpStatus.NO_CONTENT)
   deleteFile(@Body() dto: DeleteFileDto) {

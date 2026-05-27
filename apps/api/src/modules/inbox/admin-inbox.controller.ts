@@ -32,7 +32,7 @@ import {
 import { ImageRef } from './inbox.types';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(Role.ADMIN, Role.SUPER_ADMIN)
+@Roles(Role.SUPER_ADMIN, Role.ADMIN, Role.MANAGER, Role.SUPPORT_STAFF)
 @Controller('inbox/admin')
 export class AdminInboxController {
   constructor(

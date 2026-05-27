@@ -16,6 +16,7 @@ import {
 } from '@/components/admin-ui';
 import { Modal, ConfirmModal } from '@/components/modal';
 import { Field, Select } from '@/components/form';
+import { InviteAdminModal } from '@/components/staff/invite-admin-modal';
 
 type UserRole = 'CUSTOMER' | 'ADMIN' | 'SUPER_ADMIN' | 'STAFF';
 
@@ -72,6 +73,7 @@ export default function AdminUsersPage() {
   const [editTarget, setEditTarget] = useState<AdminUser | null>(null);
   const [deactivateTarget, setDeactivateTarget] = useState<AdminUser | null>(null);
   const [deactivating, setDeactivating] = useState(false);
+  const [inviteOpen, setInviteOpen] = useState(false);
 
   const load = useCallback(async () => {
     if (!token) return;
@@ -143,7 +145,13 @@ export default function AdminUsersPage() {
       title="Admin Users"
       description="Staff with elevated access — admins, super admins, and operational staff."
       breadcrumbs={[{ label: 'System' }, { label: 'Admin Users' }]}
-      actions={<PrimaryButton icon="person_add">Invite Admin</PrimaryButton>}
+      actions={
+        isSuperAdmin ? (
+          <PrimaryButton icon="person_add" onClick={() => setInviteOpen(true)}>
+            Invite Admin
+          </PrimaryButton>
+        ) : null
+      }
     >
       {error && <Banner tone="error" message={error} />}
 
@@ -302,6 +310,15 @@ export default function AdminUsersPage() {
         tone="danger"
         busy={deactivating}
       />
+
+      {token && isSuperAdmin && (
+        <InviteAdminModal
+          open={inviteOpen}
+          onClose={() => setInviteOpen(false)}
+          token={token}
+          onCreated={() => load()}
+        />
+      )}
     </PageShell>
   );
 }

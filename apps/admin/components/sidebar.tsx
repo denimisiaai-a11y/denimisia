@@ -2,6 +2,9 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useSession } from 'next-auth/react';
+import { useMemo } from 'react';
+import { canAccessPage, HREF_TO_SLUG } from '@/lib/permissions';
 
 interface NavItem {
   readonly href: string;
@@ -106,6 +109,25 @@ function isActive(pathname: string | null, href: string): boolean {
 
 export function Sidebar() {
   const pathname = usePathname();
+  const { data: session } = useSession();
+  const role = session?.user?.role;
+  const permissions = session?.user?.permissions;
+
+  // Filter nav by the current user's permissions. Groups whose every item
+  // is hidden disappear entirely so the sidebar doesn't leave empty section
+  // headers (e.g. "System" with no children for a non-SUPER_ADMIN).
+  const visibleGroups = useMemo(() => {
+    return NAV_GROUPS.map((group) => ({
+      ...group,
+      items: group.items.filter((item) => {
+        const slug = HREF_TO_SLUG[item.href];
+        // Items without a slug entry are unrestricted — keeps the catalog
+        // safe-by-default during incremental rollout.
+        if (!slug) return true;
+        return canAccessPage(role, permissions, slug);
+      }),
+    })).filter((group) => group.items.length > 0);
+  }, [role, permissions]);
 
   return (
     <aside className="fixed left-0 top-0 z-50 flex h-screen w-64 flex-col border-r border-outline-variant/15 bg-surface py-6 dark:bg-ink">
@@ -119,7 +141,7 @@ export function Sidebar() {
       </div>
 
       <nav className="flex-1 space-y-4 overflow-y-auto px-3 pb-4 scrollbar-hide">
-        {NAV_GROUPS.map((group) => (
+        {visibleGroups.map((group) => (
           <div key={group.label}>
             <p className="mb-1.5 px-4 text-[9px] font-bold uppercase tracking-[0.25em] text-secondary/70">
               {group.label}

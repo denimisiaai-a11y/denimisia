@@ -98,7 +98,7 @@ export class ProductsController {
   // see and re-activate them.
   @Get('admin/all')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN, Role.MANAGER, Role.SUPPORT_STAFF)
   findAllForAdmin(@Query() query: ProductQueryDto) {
     return this.productsService.findAll(query, { includeInactive: true });
   }
@@ -108,28 +108,28 @@ export class ProductsController {
   // dedicated admin lookup.
   @Get('admin/:id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN, Role.MANAGER, Role.SUPPORT_STAFF)
   findOneForAdmin(@Param('id') id: string) {
     return this.productsService.findByIdForAdmin(id);
   }
 
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN, Role.MANAGER, Role.SUPPORT_STAFF)
   create(@Body() dto: CreateProductDto) {
     return this.productsService.create(dto);
   }
 
   @Patch(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN, Role.MANAGER, Role.SUPPORT_STAFF)
   update(@Param('id') id: string, @Body() dto: UpdateProductDto) {
     return this.productsService.update(id, dto);
   }
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN, Role.MANAGER, Role.SUPPORT_STAFF)
   @HttpCode(HttpStatus.NO_CONTENT)
   softDelete(@Param('id') id: string) {
     return this.productsService.softDelete(id);
@@ -137,14 +137,14 @@ export class ProductsController {
 
   @Post(':id/variants')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN, Role.MANAGER, Role.SUPPORT_STAFF)
   addVariant(@Param('id') id: string, @Body() dto: CreateVariantDto) {
     return this.productsService.addVariant(id, dto);
   }
 
   @Patch(':id/variants/:variantId')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN, Role.MANAGER, Role.SUPPORT_STAFF)
   updateVariant(
     @Param('id') id: string,
     @Param('variantId') variantId: string,
@@ -155,7 +155,7 @@ export class ProductsController {
 
   @Delete(':id/variants/:variantId')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN, Role.MANAGER, Role.SUPPORT_STAFF)
   @HttpCode(HttpStatus.NO_CONTENT)
   deleteVariant(
     @Param('id') id: string,

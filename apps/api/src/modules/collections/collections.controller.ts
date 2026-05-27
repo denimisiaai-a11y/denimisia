@@ -51,14 +51,14 @@ export class CollectionsController {
 
   @Get('admin/all')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN, Role.MANAGER, Role.SUPPORT_STAFF)
   findAllAdmin() {
     return this.collectionsService.findAllAdmin();
   }
 
   @Get('admin/:id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN, Role.MANAGER, Role.SUPPORT_STAFF)
   findByIdAdmin(@Param('id') id: string) {
     return this.collectionsService.findByIdAdmin(id);
   }
@@ -67,21 +67,21 @@ export class CollectionsController {
 
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN, Role.MANAGER, Role.SUPPORT_STAFF)
   create(@Body() dto: CreateCollectionDto) {
     return this.collectionsService.create(dto);
   }
 
   @Patch(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN, Role.MANAGER, Role.SUPPORT_STAFF)
   update(@Param('id') id: string, @Body() dto: UpdateCollectionDto) {
     return this.collectionsService.update(id, dto);
   }
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN, Role.MANAGER, Role.SUPPORT_STAFF)
   @HttpCode(HttpStatus.NO_CONTENT)
   delete(@Param('id') id: string) {
     return this.collectionsService.delete(id);
@@ -91,7 +91,7 @@ export class CollectionsController {
 
   @Post(':id/products')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN, Role.MANAGER, Role.SUPPORT_STAFF)
   addProducts(
     @Param('id') id: string,
     @Body() dto: AddProductsToCollectionDto,
@@ -101,7 +101,7 @@ export class CollectionsController {
 
   @Delete(':id/products/:productId')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN, Role.MANAGER, Role.SUPPORT_STAFF)
   @HttpCode(HttpStatus.NO_CONTENT)
   removeProduct(
     @Param('id') id: string,
@@ -112,7 +112,7 @@ export class CollectionsController {
 
   @Patch(':id/products/reorder')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN, Role.MANAGER, Role.SUPPORT_STAFF)
   reorderProducts(
     @Param('id') id: string,
     @Body() dto: ReorderProductsDto,
@@ -124,7 +124,7 @@ export class CollectionsController {
 
   @Post(':id/lookbook')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN, Role.MANAGER, Role.SUPPORT_STAFF)
   addLookbookItem(
     @Param('id') id: string,
     @Body() dto: UpsertLookbookItemDto,
@@ -134,7 +134,7 @@ export class CollectionsController {
 
   @Delete('lookbook/:lookbookId')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN, Role.MANAGER, Role.SUPPORT_STAFF)
   @HttpCode(HttpStatus.NO_CONTENT)
   removeLookbookItem(@Param('lookbookId') lookbookId: string) {
     return this.collectionsService.removeLookbookItem(lookbookId);

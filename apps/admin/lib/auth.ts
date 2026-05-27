@@ -4,7 +4,16 @@ import Credentials from 'next-auth/providers/credentials';
 import './auth-types';
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api/v1';
-const ALLOWED_ROLES = new Set(['ADMIN', 'SUPER_ADMIN']);
+// All staff roles allowed to authenticate into the admin app. MANAGER and
+// SUPPORT_STAFF are surfaced in the UI as "Moderator" and "Staff" — see
+// apps/admin/lib/roles.ts for the label mapping. Anything outside this set
+// (e.g. CUSTOMER) gets a 401 even with valid credentials.
+const ALLOWED_ROLES = new Set([
+  'SUPER_ADMIN',
+  'ADMIN',
+  'MANAGER',
+  'SUPPORT_STAFF',
+]);
 
 type JwtPayload = {
   sub?: string;
@@ -69,10 +78,36 @@ const nextAuth: NextAuthResult = NextAuth({
           if (!payload?.role || !payload.sub || !payload.email) return null;
           if (!ALLOWED_ROLES.has(payload.role)) return null;
 
+          // Fetch /users/me so we can stash permissions on the session.
+          // The Nest API doesn't put permissions on the JWT itself; the
+          // sidebar reads them straight off useSession() to decide what
+          // to render. Best-effort — if the call fails the user gets an
+          // empty array (= legacy "all pages" fallback in canAccessPage).
+          let permissions: string[] = [];
+          try {
+            const meRes = await fetch(`${API}/users/me`, {
+              headers: { Authorization: `Bearer ${accessToken}` },
+            });
+            if (meRes.ok) {
+              const meBody = (await meRes.json().catch(() => null)) as
+                | { data?: { permissions?: string[] }; permissions?: string[] }
+                | null;
+              const me = meBody?.data ?? meBody;
+              if (me && Array.isArray(me.permissions)) {
+                permissions = me.permissions.filter(
+                  (p): p is string => typeof p === 'string',
+                );
+              }
+            }
+          } catch {
+            // swallow — permissions stays []
+          }
+
           return {
             id: payload.sub,
             email: payload.email,
             role: payload.role,
+            permissions,
             accessToken,
           };
         } catch {
@@ -85,6 +120,7 @@ const nextAuth: NextAuthResult = NextAuth({
     async jwt({ token, user }) {
       if (user) {
         token.role = user.role;
+        token.permissions = user.permissions ?? [];
         token.accessToken = user.accessToken;
       }
       return token;
@@ -93,6 +129,7 @@ const nextAuth: NextAuthResult = NextAuth({
       if (session.user) {
         session.accessToken = token.accessToken;
         session.user.role = token.role;
+        session.user.permissions = token.permissions ?? [];
         if (typeof token.sub === 'string') {
           session.user.id = token.sub;
         }

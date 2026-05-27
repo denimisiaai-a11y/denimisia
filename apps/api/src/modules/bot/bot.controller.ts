@@ -194,7 +194,7 @@ export class BotController {
 
   @Get('admin/synonyms')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN, Role.MANAGER, Role.SUPPORT_STAFF)
   async listAllSynonyms() {
     return this.prisma.botSynonym.findMany({
       orderBy: [{ dimension: 'asc' }, { canonical: 'asc' }],
@@ -203,7 +203,7 @@ export class BotController {
 
   @Post('admin/synonyms')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN, Role.MANAGER, Role.SUPPORT_STAFF)
   async createSynonym(
     @Body() body: { dimension: string; canonical: string; aliases: string[] },
   ) {
@@ -223,7 +223,7 @@ export class BotController {
 
   @Delete('admin/synonyms/:id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN, Role.MANAGER, Role.SUPPORT_STAFF)
   async deleteSynonym(@Param('id') id: string) {
     await this.prisma.botSynonym.delete({ where: { id } });
     this.synonyms.invalidate();
@@ -234,7 +234,7 @@ export class BotController {
 
   @Get('admin/unrecognized')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN, Role.MANAGER, Role.SUPPORT_STAFF)
   async listUnrecognized(@Query('limit') limit?: string) {
     const take = Math.min(Math.max(Number(limit ?? 50), 1), 500);
     return this.prisma.botUnrecognizedQuery.findMany({
@@ -245,7 +245,7 @@ export class BotController {
 
   @Get('admin/fallback/recent')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN, Role.MANAGER, Role.SUPPORT_STAFF)
   async listRecentFallbacks(@Query('limit') limit?: string) {
     const take = Math.min(Math.max(Number(limit ?? 50), 1), 200);
     return this.prisma.botLlmAudit.findMany({
@@ -268,14 +268,14 @@ export class BotController {
 
   @Post('admin/fallback/purge-old-previews')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN, Role.MANAGER, Role.SUPPORT_STAFF)
   async purgeOldFallbackPreviews() {
     return this.purgeHandler.run({});
   }
 
   @Get('admin/fit-data-coverage')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN, Role.MANAGER, Role.SUPPORT_STAFF)
   async fitDataCoverage() {
     const baseWhere = { isActive: true, deletedAt: null } as const;
     const total = await this.prisma.product.count({ where: baseWhere });

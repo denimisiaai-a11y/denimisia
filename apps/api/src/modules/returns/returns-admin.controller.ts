@@ -36,7 +36,7 @@ import type { ManualReturnDto } from './dto/manual-return.dto';
 
 @Controller('admin/returns')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(Role.ADMIN, Role.SUPER_ADMIN)
+@Roles(Role.SUPER_ADMIN, Role.ADMIN, Role.MANAGER, Role.SUPPORT_STAFF)
 export class ReturnsAdminController {
   constructor(
     private readonly returns: ReturnsService,

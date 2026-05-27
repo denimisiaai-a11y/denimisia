@@ -69,7 +69,7 @@ export class ReviewsController {
 
   @Get('admin/all')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN, Role.MANAGER, Role.SUPPORT_STAFF)
   getAllReviews(
     @Query('page') page?: string,
     @Query('limit') limit?: string,
@@ -92,7 +92,7 @@ export class ReviewsController {
   // DELETE /admin/:id below.
   @Patch('admin/:id/approval')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN, Role.MANAGER, Role.SUPPORT_STAFF)
   setReviewApproval(
     @Param('id') id: string,
     @Body() body: { isApproved: boolean },
@@ -102,7 +102,7 @@ export class ReviewsController {
 
   @Delete('admin/:id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN, Role.MANAGER, Role.SUPPORT_STAFF)
   @HttpCode(HttpStatus.NO_CONTENT)
   adminDeleteReview(@CurrentUser() user: any, @Param('id') id: string) {
     return this.reviewsService.deleteReview(user.id, id, true);

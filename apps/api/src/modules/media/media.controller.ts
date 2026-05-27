@@ -128,21 +128,21 @@ export class MediaController {
 
   @Get('admin/slots')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN, Role.MANAGER, Role.SUPPORT_STAFF)
   adminListAll() {
     return this.media.listAll();
   }
 
   @Get('admin/storage')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN, Role.MANAGER, Role.SUPPORT_STAFF)
   storage() {
     return this.media.storageStats();
   }
 
   @Post('admin/upload')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN, Role.MANAGER, Role.SUPPORT_STAFF)
   // Image uploads go through sharp; video uploads pass through transcodeVideo
   // from the same handler. The tighter video cap is enforced inside the
   // service via rate-limit key; here we apply the general upload limit.
@@ -175,7 +175,7 @@ export class MediaController {
 
   @Post('admin/upload-asset')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN, Role.MANAGER, Role.SUPPORT_STAFF)
   // Tighter cap: this endpoint may transcode video and is the most expensive
   // route in the module. 3/min/IP protects the ffmpeg pool from abuse.
   @Throttle({ default: { limit: 3, ttl: 60000 } })
@@ -194,7 +194,7 @@ export class MediaController {
 
   @Patch('admin/slots/:pageKey/:slotKey')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN, Role.MANAGER, Role.SUPPORT_STAFF)
   async updateSlot(
     @Param('pageKey') pageKey: string,
     @Param('slotKey') slotKey: string,
@@ -206,14 +206,14 @@ export class MediaController {
 
   @Get('admin/history/:slotId')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN, Role.MANAGER, Role.SUPPORT_STAFF)
   history(@Param('slotId') slotId: string) {
     return this.media.historyFor(slotId);
   }
 
   @Put('admin/rollback/:slotId/:historyId')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN, Role.MANAGER, Role.SUPPORT_STAFF)
   rollback(
     @Param('slotId') slotId: string,
     @Param('historyId') historyId: string,

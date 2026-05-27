@@ -73,6 +73,51 @@ export class AdminUpdateUserDto {
   @IsString()
   @MaxLength(32)
   phone?: string;
+
+  // SUPER_ADMIN-only. Service rejects role changes from any other actor.
+  @IsOptional()
+  @IsIn(['SUPER_ADMIN', 'ADMIN', 'MANAGER', 'SUPPORT_STAFF', 'CUSTOMER'])
+  role?: string;
+
+  // Page-slug allowlist. Empty array = full access (matches schema default).
+  @IsOptional()
+  @IsString({ each: true })
+  permissions?: string[];
+}
+
+/**
+ * Admin-creates a staff account (SUPER_ADMIN only). Sets a starter password
+ * directly — no invite email yet. Account is created claimed + verified so
+ * the staff member can log in immediately with the credentials shown to the
+ * SUPER_ADMIN at create time.
+ */
+export class CreateStaffDto {
+  @IsEmail()
+  @MaxLength(254)
+  email!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(100)
+  firstName!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  lastName?: string;
+
+  // 12-char minimum — same floor as the customer register endpoint.
+  @IsString()
+  @MaxLength(128)
+  password!: string;
+
+  @IsIn(['SUPER_ADMIN', 'ADMIN', 'MANAGER', 'SUPPORT_STAFF'])
+  role!: string;
+
+  // Empty / omitted = all pages (full access).
+  @IsOptional()
+  @IsString({ each: true })
+  permissions?: string[];
 }
 
 export class UpdateProfileDto {

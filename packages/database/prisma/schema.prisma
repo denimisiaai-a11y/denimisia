@@ -156,6 +156,12 @@ model User {
   // admin user.id who imported this record (null for shadows auto-created
   // from guest checkouts, and for self-registered users).
   createdBy    String?
+  // Page-permission allowlist for staff accounts (ADMIN / MANAGER /
+  // SUPPORT_STAFF). Empty array = all pages (used by SUPER_ADMIN and
+  // legacy ADMINs created before this column existed). Non-empty array
+  // = only those page slugs are visible in the admin sidebar. CUSTOMER
+  // rows ignore this column entirely.
+  permissions  String[]  @default([])
   fitProfile   Json?
   addresses    Address[]
   orders       Order[]

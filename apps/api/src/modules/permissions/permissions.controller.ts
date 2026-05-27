@@ -12,14 +12,14 @@ export class PermissionsController {
 
   @Get()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN, Role.MANAGER, Role.SUPPORT_STAFF)
   getAllPermissions() {
     return this.permissionsService.getAllPermissions();
   }
 
   @Get('role/:role')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN, Role.MANAGER, Role.SUPPORT_STAFF)
   getPermissionsByRole(@Param('role') role: string) {
     return this.permissionsService.getPermissionsByRole(role);
   }

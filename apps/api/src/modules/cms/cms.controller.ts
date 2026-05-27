@@ -58,14 +58,14 @@ export class CmsController {
 
   @Get('homepage/sections')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN, Role.MANAGER, Role.SUPPORT_STAFF)
   listAllHomepageSections() {
     return this.cmsService.listAllSections();
   }
 
   @Post('homepage/sections')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN, Role.MANAGER, Role.SUPPORT_STAFF)
   createHomepageSection(
     @Body() dto: CreateHomepageSectionDto,
     @Req() req: AuthedRequest,
@@ -75,7 +75,7 @@ export class CmsController {
 
   @Patch('homepage/sections/reorder')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN, Role.MANAGER, Role.SUPPORT_STAFF)
   reorderHomepageSections(
     @Body() dto: ReorderHomepageSectionsDto,
     @Req() req: AuthedRequest,
@@ -85,7 +85,7 @@ export class CmsController {
 
   @Patch('homepage/sections/:id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN, Role.MANAGER, Role.SUPPORT_STAFF)
   updateHomepageSection(
     @Param('id') id: string,
     @Body() dto: UpdateHomepageSectionDto,
@@ -96,7 +96,7 @@ export class CmsController {
 
   @Delete('homepage/sections/:id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN, Role.MANAGER, Role.SUPPORT_STAFF)
   @HttpCode(HttpStatus.NO_CONTENT)
   deleteHomepageSection(
     @Param('id') id: string,
@@ -107,7 +107,7 @@ export class CmsController {
 
   @Patch('homepage/styles')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN, Role.MANAGER, Role.SUPPORT_STAFF)
   updateStyles(
     @Body() dto: UpdateGlobalStylesDto,
     @Req() req: AuthedRequest,
@@ -119,21 +119,21 @@ export class CmsController {
 
   @Post('banners')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN, Role.MANAGER, Role.SUPPORT_STAFF)
   createBanner(@Body() dto: CreateBannerDto) {
     return this.cmsService.createBanner(dto);
   }
 
   @Patch('banners/:id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN, Role.MANAGER, Role.SUPPORT_STAFF)
   updateBanner(@Param('id') id: string, @Body() dto: UpdateBannerDto) {
     return this.cmsService.updateBanner(id, dto);
   }
 
   @Delete('banners/:id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN, Role.MANAGER, Role.SUPPORT_STAFF)
   @HttpCode(HttpStatus.NO_CONTENT)
   deleteBanner(@Param('id') id: string) {
     return this.cmsService.deleteBanner(id);

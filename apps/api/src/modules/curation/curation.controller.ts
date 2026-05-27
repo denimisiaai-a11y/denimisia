@@ -35,7 +35,7 @@ export class CurationController {
 
   @Get('admin/search')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN, Role.MANAGER, Role.SUPPORT_STAFF)
   search(@Query('q') q = '', @Query('limit') limit = '10') {
     return this.curation.searchProducts(q, Number(limit) || 10);
   }
@@ -54,7 +54,7 @@ export class CurationController {
 
   @Get('admin/page/:pageKey')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN, Role.MANAGER, Role.SUPPORT_STAFF)
   listByPage(@Param('pageKey') pageKey: string) {
     return this.curation.listByPage(pageKey);
   }
@@ -63,7 +63,7 @@ export class CurationController {
 
   @Get('admin/:pageKey/:sectionKey')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN, Role.MANAGER, Role.SUPPORT_STAFF)
   getAdmin(
     @Param('pageKey') pageKey: string,
     @Param('sectionKey') sectionKey: string,
@@ -76,7 +76,7 @@ export class CurationController {
 
   @Put('admin/:pageKey/:sectionKey')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN, Role.MANAGER, Role.SUPPORT_STAFF)
   upsert(
     @Param('pageKey') pageKey: string,
     @Param('sectionKey') sectionKey: string,
@@ -89,7 +89,7 @@ export class CurationController {
 
   @Post('admin/:pageKey/:sectionKey/products')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN, Role.MANAGER, Role.SUPPORT_STAFF)
   addProduct(
     @Param('pageKey') pageKey: string,
     @Param('sectionKey') sectionKey: string,
@@ -100,7 +100,7 @@ export class CurationController {
 
   @Patch('admin/products/:sectionProductId')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN, Role.MANAGER, Role.SUPPORT_STAFF)
   updateProduct(
     @Param('sectionProductId') sectionProductId: string,
     @Body() dto: UpdateSectionProductDto,
@@ -110,14 +110,14 @@ export class CurationController {
 
   @Delete('admin/products/:sectionProductId')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN, Role.MANAGER, Role.SUPPORT_STAFF)
   removeProduct(@Param('sectionProductId') sectionProductId: string) {
     return this.curation.removeProduct(sectionProductId);
   }
 
   @Post('admin/:pageKey/:sectionKey/products/bulk')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN, Role.MANAGER, Role.SUPPORT_STAFF)
   bulkAdd(
     @Param('pageKey') pageKey: string,
     @Param('sectionKey') sectionKey: string,
@@ -128,7 +128,7 @@ export class CurationController {
 
   @Post('admin/:pageKey/:sectionKey/fill-from-collection')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN, Role.MANAGER, Role.SUPPORT_STAFF)
   fillFromCollection(
     @Param('pageKey') pageKey: string,
     @Param('sectionKey') sectionKey: string,
@@ -138,7 +138,7 @@ export class CurationController {
 
   @Put('admin/:pageKey/:sectionKey/reorder')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN, Role.MANAGER, Role.SUPPORT_STAFF)
   reorder(
     @Param('pageKey') pageKey: string,
     @Param('sectionKey') sectionKey: string,

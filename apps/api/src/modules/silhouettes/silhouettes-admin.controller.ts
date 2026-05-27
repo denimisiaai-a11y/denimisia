@@ -21,7 +21,7 @@ const ALLOWED_GENDERS = new Set<SilhouetteGender>(['MALE', 'FEMALE']);
 
 @Controller('admin/silhouettes')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(Role.ADMIN, Role.SUPER_ADMIN)
+@Roles(Role.SUPER_ADMIN, Role.ADMIN, Role.MANAGER, Role.SUPPORT_STAFF)
 export class SilhouettesAdminController {
   constructor(private readonly service: SilhouettesService) {}
 

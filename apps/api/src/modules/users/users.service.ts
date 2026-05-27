@@ -14,6 +14,7 @@ import {
   normalizeAndValidate,
   prependPhoneToArray,
 } from '../../common/phone.util';
+import * as bcrypt from 'bcrypt';
 import {
   UpdateProfileDto,
   CreateAddressDto,
@@ -21,6 +22,7 @@ import {
   FitProfileDto,
   CreateCustomerByAdminDto,
   AdminUpdateUserDto,
+  CreateStaffDto,
 } from './users.dto';
 import { parseAndDedupeCsv } from './bulk-import.parser';
 import { AuditLogService } from '../audit-log/audit-log.service';
@@ -158,6 +160,73 @@ export class UsersService {
    * caller always gets a machine-readable report.
    */
   async bulkImport(buffer: Buffer, adminUserId: string) {
+    return this._bulkImport(buffer, adminUserId);
+  }
+
+  /**
+   * SUPER_ADMIN-only staff creation. Hashes the starter password, marks the
+   * account claimed + verified + active so they can log in immediately, and
+   * writes an AuditLog row with the role + permissions snapshot.
+   *
+   * Rejects emails that already belong to ANY account (customer or staff) —
+   * the same email cannot be both a customer and a staff member.
+   */
+  async createStaff(dto: CreateStaffDto, adminUserId: string) {
+    if (dto.password.length < 12) {
+      throw new BadRequestException(
+        'Password must be at least 12 characters',
+      );
+    }
+    const emailLower = dto.email.trim().toLowerCase();
+    const collision = await this.prisma.user.findUnique({
+      where: { email: emailLower },
+      select: { id: true, deletedAt: true },
+    });
+    if (collision && collision.deletedAt === null) {
+      throw new ConflictException('An account with this email already exists');
+    }
+
+    const hash = await bcrypt.hash(dto.password, 12);
+    const created = await this.prisma.user.create({
+      data: {
+        email: emailLower,
+        firstName: dto.firstName,
+        lastName: dto.lastName ?? '',
+        passwordHash: hash,
+        role: dto.role as Role,
+        permissions: dto.permissions ?? [],
+        isVerified: true,
+        isActive: true,
+        claimedAt: new Date(),
+        createdBy: adminUserId,
+      },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        role: true,
+        permissions: true,
+        isActive: true,
+        createdAt: true,
+      },
+    });
+
+    await this.auditLog.log(
+      adminUserId,
+      'admin.staff.create',
+      'User',
+      created.id,
+      {
+        email: created.email,
+        role: created.role,
+        permissionsCount: created.permissions.length,
+      } as Prisma.InputJsonValue,
+    );
+    return created;
+  }
+
+  private async _bulkImport(buffer: Buffer, adminUserId: string) {
     const parsed = await parseAndDedupeCsv(buffer);
 
     const emails = Array.from(parsed.rows.keys());
@@ -216,6 +285,10 @@ export class UsersService {
         isVerified: true,
         claimedAt: true,
         createdAt: true,
+        // Permissions are surfaced here so NextAuth (admin app) can stash
+        // them on the session right after credentials login and use them
+        // to drive sidebar visibility.
+        permissions: true,
       },
     });
     if (!user) throw new NotFoundException('User not found');
@@ -519,6 +592,8 @@ export class UsersService {
         firstName: true,
         lastName: true,
         phones: true,
+        role: true,
+        permissions: true,
         claimedAt: true,
         deletedAt: true,
       },
@@ -527,8 +602,47 @@ export class UsersService {
       throw new NotFoundException('User not found');
     }
 
+    // Role + permission changes are SUPER_ADMIN-only. Anyone else trying
+    // to escalate themselves or a peer gets a 403 here regardless of the
+    // RolesGuard on the controller.
+    if (dto.role !== undefined || dto.permissions !== undefined) {
+      const actor = await this.prisma.user.findUnique({
+        where: { id: adminUserId },
+        select: { role: true },
+      });
+      if (actor?.role !== Role.SUPER_ADMIN) {
+        throw new ForbiddenException(
+          'Only SUPER_ADMIN can change role or permissions',
+        );
+      }
+    }
+
     const data: Prisma.UserUpdateInput = {};
     const changed: Record<string, { from: unknown; to: unknown }> = {};
+
+    if (dto.role !== undefined && dto.role !== existing.role) {
+      data.role = dto.role as Role;
+      changed.role = { from: existing.role, to: dto.role };
+      // Role transitions invalidate any outstanding JWTs for this user
+      // (their token still carries the old role; jwt.strategy rejects the
+      // mismatch but we also force a fresh login via tokenVersion bump).
+      data.tokenVersion = { increment: 1 };
+    }
+
+    if (dto.permissions !== undefined) {
+      const next = [...dto.permissions].sort();
+      const current = [...existing.permissions].sort();
+      const same =
+        next.length === current.length &&
+        next.every((p, i) => p === current[i]);
+      if (!same) {
+        data.permissions = dto.permissions;
+        changed.permissions = {
+          from: existing.permissions,
+          to: dto.permissions,
+        };
+      }
+    }
 
     if (dto.firstName !== undefined && dto.firstName !== existing.firstName) {
       data.firstName = dto.firstName;
@@ -567,8 +681,13 @@ export class UsersService {
       }
     }
 
-    // Email change on a claimed account → force re-login.
-    if (changed.email && existing.claimedAt !== null) {
+    // Email change on a claimed account → force re-login. Role change does
+    // the same — a stale JWT still claims the old role, jwt.strategy
+    // currently rejects mismatches but we also bump tokenVersion so the
+    // session ends immediately.
+    const shouldBumpTv =
+      (changed.email && existing.claimedAt !== null) || changed.role;
+    if (shouldBumpTv) {
       data.tokenVersion = { increment: 1 };
       await this.bumpTokenVersion(targetUserId);
     }
