@@ -15,18 +15,20 @@ import {
 
 interface AuditLog {
   readonly id: string;
-  readonly userId: string;
+  readonly userId: string | null;
   readonly action: string;
   readonly entity: string;
   readonly entityId: string | null;
   readonly details: unknown;
   readonly createdAt: string;
+  // Nullable: guest-checkout flows emit rows with userId = null because no
+  // authenticated actor exists (see schema.prisma AuditLog comment).
   readonly user: {
     readonly id: string;
     readonly email: string;
     readonly firstName: string;
     readonly lastName: string;
-  };
+  } | null;
 }
 
 interface LogsResponse {
@@ -163,10 +165,16 @@ export default function AuditLogPage() {
                       </span>
                     </div>
                     <p className="mt-1.5 font-body text-sm text-on-surface">
-                      <span className="font-semibold">
-                        {log.user.firstName} {log.user.lastName}
-                      </span>{' '}
-                      <span className="text-secondary">({log.user.email})</span>
+                      {log.user ? (
+                        <>
+                          <span className="font-semibold">
+                            {log.user.firstName} {log.user.lastName}
+                          </span>{' '}
+                          <span className="text-secondary">({log.user.email})</span>
+                        </>
+                      ) : (
+                        <span className="italic text-secondary">guest checkout</span>
+                      )}
                     </p>
                   </div>
                 </div>
