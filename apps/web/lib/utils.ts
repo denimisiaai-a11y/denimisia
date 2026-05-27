@@ -12,6 +12,27 @@ export function formatPrice(amount: number): string {
   }).format(amount);
 }
 
+/**
+ * Resolve the display price + the strikethrough comparison for a product
+ * card / PDP. When the API returns an active campaign, the campaign's
+ * finalPrice becomes the headline price and the original product price
+ * becomes the strikethrough. Otherwise returns the raw price with no
+ * comparison.
+ *
+ * Accepts both string (Prisma Decimal) and number price inputs so callers
+ * can pass API rows directly.
+ */
+export function priceWithCampaign(input: {
+  price: string | number;
+  activeCampaign?: { finalPrice: number } | null;
+}): { price: number; originalPrice?: number } {
+  const base = typeof input.price === 'string' ? Number(input.price) : input.price;
+  if (input.activeCampaign) {
+    return { price: input.activeCampaign.finalPrice, originalPrice: base };
+  }
+  return { price: base };
+}
+
 export function slugify(text: string): string {
   return text
     .toLowerCase()

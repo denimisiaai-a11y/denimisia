@@ -16,6 +16,12 @@ export interface CategoryCard {
   name: string;
   slug: string;
   price: number;
+  // Optional active-campaign summary. When set, the card renders the
+  // campaign final price as headline + strikethrough original price.
+  activeCampaign?: {
+    finalPrice: number;
+    savingsPercent: number;
+  } | null;
   image: string;
   hoverImage?: string;
   sizes?: string[];
@@ -256,7 +262,8 @@ export function CategoryGrid({
                     productId={product.id}
                     name={product.name}
                     slug={product.slug}
-                    price={product.price}
+                    price={product.activeCampaign ? product.activeCampaign.finalPrice : product.price}
+                    originalPrice={product.activeCampaign ? product.price : undefined}
                     image={product.image}
                     hoverImage={product.hoverImage}
                     starBadge={

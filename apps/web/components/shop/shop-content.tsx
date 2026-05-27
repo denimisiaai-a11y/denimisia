@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { SlidersHorizontal, ChevronDown } from 'lucide-react';
 import { ProductCard } from '@/components/ui/product-card';
+import { priceWithCampaign } from '@/lib/utils';
 import { CollectionFilters } from './collection-filters';
 import { MobileFilterDrawer } from './mobile-filter-drawer';
 import type { Product, FacetsResponse } from '@/lib/api';
@@ -124,13 +125,15 @@ export function ShopContent({ products, total, page, totalPages, facets }: ShopC
               <div className="grid grid-cols-2 gap-x-4 gap-y-12 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 xl:gap-x-6">
                 {products.map((product) => {
                   const colors = new Set(product.variants.map((v) => v.color));
+                  const { price: displayPrice, originalPrice } = priceWithCampaign(product);
                   return (
                     <ProductCard
                       key={product.slug}
                       productId={product.id}
                       name={product.name}
                       slug={product.slug}
-                      price={parseFloat(product.price)}
+                      price={displayPrice}
+                      originalPrice={originalPrice}
                       image={resolveProductImage(product.images[0], product.slug)}
                       hoverImage={product.images[1]}
                       colourCount={colors.size || undefined}

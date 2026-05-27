@@ -32,6 +32,17 @@ export interface ProductVariant {
   sku: string;
 }
 
+export interface ActiveCampaignSummary {
+  campaignId: string;
+  campaignSlug: string;
+  campaignName: string;
+  campaignType: string;
+  discountType: 'PERCENTAGE' | 'FIXED_AMOUNT' | 'FREE_SHIPPING';
+  discountValue: number;
+  finalPrice: number;
+  savingsPercent: number;
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -48,6 +59,10 @@ export interface Product {
   category: { name: string; slug: string };
   variants: ProductVariant[];
   _count: { reviews: number };
+  // Populated server-side when the product is in an active campaign.
+  // priceWithCampaign() in lib/utils turns this into card-ready price
+  // + originalPrice pair.
+  activeCampaign?: ActiveCampaignSummary | null;
 }
 
 export interface ProductListResponse {

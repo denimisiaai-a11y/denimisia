@@ -66,6 +66,7 @@ export default async function SeriesSubtypePage({ params }: Props) {
         price: Number(p.price),
         image: resolveProductImage(p.images[0], p.slug),
         hoverImage: resolveHoverImage(p.images[1], p.slug),
+        activeCampaign: p.activeCampaign ?? null,
         sizes: Array.from(new Set(p.variants.map((v) => v.size))),
         washes: Array.from(new Set(p.variants.map((v) => v.color))),
       }));

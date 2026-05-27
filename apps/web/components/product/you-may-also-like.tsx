@@ -12,6 +12,7 @@ interface RelatedProduct {
   images: string[];
   variants?: { color: string }[];
   showStarBadge?: boolean;
+  activeCampaign?: { finalPrice: number; savingsPercent: number } | null;
 }
 
 interface YouMayAlsoLikeProps {
@@ -177,7 +178,8 @@ export function YouMayAlsoLike({
                   productId={product.id}
                   name={product.name}
                   slug={product.slug}
-                  price={Number(product.price)}
+                  price={product.activeCampaign ? product.activeCampaign.finalPrice : Number(product.price)}
+                  originalPrice={product.activeCampaign ? Number(product.price) : undefined}
                   image={product.images[0] ?? ''}
                   hoverImage={product.images[1]}
                   colourCount={countColors(product)}

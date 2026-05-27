@@ -36,6 +36,13 @@ export interface ProductInCollection {
     images: string[];
     showStarBadge?: boolean;
     variants?: { id: string; size: string; color: string; stock: number }[];
+    // Populated server-side when the product is in an active campaign.
+    activeCampaign?: {
+      finalPrice: number;
+      savingsPercent: number;
+      campaignSlug: string;
+      campaignName: string;
+    } | null;
   };
   position: number;
 }

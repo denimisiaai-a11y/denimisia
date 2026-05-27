@@ -59,6 +59,10 @@ interface VariantLineResolved {
   quantity: number;
   unitPrice: number;
   total: number;
+  // Set when a campaign discount was applied to this line. Used
+  // post-order-creation to record a CampaignUsage row per (campaign,
+  // order) pair so attribution reports stay accurate.
+  campaignId?: string;
   variant: {
     size: string;
     color: string;
@@ -277,6 +281,37 @@ export class OrdersService {
       const cart = await this.prisma.cart.findUnique({ where: { userId } });
       if (cart) {
         await this.prisma.cartItem.deleteMany({ where: { cartId: cart.id } });
+      }
+    }
+
+    // Record CampaignUsage rows for any campaign(s) that contributed a
+    // discount to this order. De-duplicated by campaignId — one row per
+    // (campaign, order) pair, even if multiple line items from the same
+    // campaign were in the cart. Best-effort: failures here must not
+    // brick the checkout, so we log and continue.
+    if (effectiveUserId) {
+      const campaignIds = Array.from(
+        new Set(
+          variantLines
+            .map((l) => l.campaignId)
+            .filter((id): id is string => Boolean(id)),
+        ),
+      );
+      if (campaignIds.length > 0) {
+        try {
+          await this.prisma.campaignUsage.createMany({
+            data: campaignIds.map((campaignId) => ({
+              campaignId,
+              orderId: order.id,
+              userId: effectiveUserId,
+            })),
+            skipDuplicates: true,
+          });
+        } catch (err) {
+          this.logger.warn(
+            `campaign usage write failed for order ${order.id}: ${err instanceof Error ? err.message : 'unknown'}`,
+          );
+        }
       }
     }
 
@@ -656,6 +691,7 @@ export class OrdersService {
         quantity: item.quantity,
         unitPrice,
         total,
+        campaignId: campaign?.campaignId,
         variant: {
           size: variant.size,
           color: variant.color,

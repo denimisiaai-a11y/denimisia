@@ -38,7 +38,8 @@ export function CollectionGrid({ collection, products }: Props) {
           productId={product.id}
           name={product.name}
           slug={product.slug}
-          price={Number(product.price)}
+          price={product.activeCampaign ? product.activeCampaign.finalPrice : Number(product.price)}
+          originalPrice={product.activeCampaign ? Number(product.price) : undefined}
           image={resolveProductImage(product.images?.[0], product.slug)}
           hoverImage={resolveHoverImage(product.images?.[1], product.slug)}
           starBadge={Boolean(product.showStarBadge)}
