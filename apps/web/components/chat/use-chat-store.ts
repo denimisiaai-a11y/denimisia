@@ -113,6 +113,18 @@ export const useChatStore = create<ChatState>()(
           state.threadStatus = 'idle';
           state.threadMessages = [];
           state.lastUpdatedAt = Date.now();
+          return;
+        }
+        // Identity / phone collection are mid-flow UI states. If the user
+        // reloaded or returned in a new tab without finishing the form, they
+        // shouldn't be dropped back into it — reset to idle so the bot greets
+        // them normally. Active threads (real ongoing conversations) survive.
+        if (
+          (state.threadStatus === 'collecting_identity' ||
+            state.threadStatus === 'collecting_phone') &&
+          !state.threadId
+        ) {
+          state.threadStatus = 'idle';
         }
       },
     },

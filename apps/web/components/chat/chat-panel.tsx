@@ -143,7 +143,18 @@ export function ChatPanel() {
         </h2>
         <button
           type="button"
-          onClick={() => setOpen(false)}
+          onClick={() => {
+            // If the user closes the chat while still on one of the identity-
+            // collection forms (no thread created yet), treat it as a cancel —
+            // otherwise the form re-appears every time they re-open the chat.
+            if (
+              threadStatus === 'collecting_identity' ||
+              threadStatus === 'collecting_phone'
+            ) {
+              setThreadStatus('idle');
+            }
+            setOpen(false);
+          }}
           aria-label="Close"
           className="rounded-full p-1 text-ink/60 transition-colors hover:bg-ink/5 hover:text-ink"
         >
@@ -152,9 +163,27 @@ export function ChatPanel() {
       </header>
 
       {threadStatus === 'collecting_identity' ? (
-        <div className="flex-1 overflow-y-auto"><GuestIdentityForm /></div>
+        <div className="flex flex-1 flex-col overflow-y-auto">
+          <button
+            type="button"
+            onClick={() => setThreadStatus('idle')}
+            className="self-start px-3 pt-2 text-xs text-ink/60 hover:text-ink"
+          >
+            ← Back to chat
+          </button>
+          <GuestIdentityForm />
+        </div>
       ) : threadStatus === 'collecting_phone' ? (
-        <div className="flex-1 overflow-y-auto"><PhonePrompt /></div>
+        <div className="flex flex-1 flex-col overflow-y-auto">
+          <button
+            type="button"
+            onClick={() => setThreadStatus('idle')}
+            className="self-start px-3 pt-2 text-xs text-ink/60 hover:text-ink"
+          >
+            ← Back to chat
+          </button>
+          <PhonePrompt />
+        </div>
       ) : threadStatus === 'active' ? (
         <HandoffThreadView />
       ) : (
