@@ -1,3 +1,4 @@
+import { Fragment } from 'react';
 import type { Metadata } from 'next';
 import { buildMetadata } from '@/lib/seo/metadata';
 import { brand } from '@/config/brand';
@@ -229,17 +230,25 @@ export default async function HomePage() {
   const firstHalf  = sections.slice(0, half);
   const secondHalf = sections.slice(half);
 
+  // DropsCarousel renders directly under the New Arrivals section so the
+  // brand hero + category cards above it stay visible first. Wherever
+  // NEW_ARRIVALS lands in the section order (first or second half), the
+  // carousel follows it. No-op if no collection has isFeaturedHome=true.
+  const renderSection = (section: HomepageSection) => (
+    <Fragment key={section.id}>
+      <SectionRenderer section={section} data={sectionData} />
+      {section.type === 'NEW_ARRIVALS' && featuredDrops.length > 0 && (
+        <DropsCarousel collections={featuredDrops} />
+      )}
+    </Fragment>
+  );
+
   return (
     <>
       <SplashPrerender />
-      {featuredDrops.length > 0 && <DropsCarousel collections={featuredDrops} />}
-      {firstHalf.map((section) => (
-        <SectionRenderer key={section.id} section={section} data={sectionData} />
-      ))}
+      {firstHalf.map(renderSection)}
       <PromoBanner position="middle" />
-      {secondHalf.map((section) => (
-        <SectionRenderer key={section.id} section={section} data={sectionData} />
-      ))}
+      {secondHalf.map(renderSection)}
       <PromoBanner position="bottom" />
     </>
   );
