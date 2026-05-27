@@ -18,6 +18,10 @@ import {
   ProductQueryDto,
 } from './products.dto';
 import { REQUIRED_DIMENSIONS_FOR_TYPE } from '../bot/bot.constants';
+import {
+  fetchActiveCampaignPrices,
+  type CampaignPriceInfo,
+} from '../campaigns/campaign-pricing';
 
 // 60s is enough to absorb a viewer flipping through 10-20 product cards in
 // quick succession (the QuickView prefetch use case) without serving stale
@@ -123,6 +127,38 @@ export class ProductsService {
     }
   }
 
+  // ─── Campaign pricing enrichment ─────────────────────────────────────────
+
+  /**
+   * Look up any active campaign discount for `product` and attach it as
+   * `activeCampaign`. Returns the same object reference (mutated) so callers
+   * can keep the existing shape. Null = no active campaign.
+   *
+   * NOT cached — campaign go-live timing is sometimes scheduled to the
+   * minute. PDP read paths add one extra small query but the Campaign
+   * (isActive, startDate, endDate) index makes it cheap.
+   */
+  private async attachCampaignToOne<T extends { id: string }>(
+    product: T,
+  ): Promise<T & { activeCampaign: CampaignPriceInfo | null }> {
+    const map = await fetchActiveCampaignPrices(this.prisma, [product.id]);
+    return { ...product, activeCampaign: map.get(product.id) ?? null };
+  }
+
+  private async attachCampaignToMany<T extends { id: string }>(
+    products: T[],
+  ): Promise<(T & { activeCampaign: CampaignPriceInfo | null })[]> {
+    if (products.length === 0) return [];
+    const map = await fetchActiveCampaignPrices(
+      this.prisma,
+      products.map((p) => p.id),
+    );
+    return products.map((p) => ({
+      ...p,
+      activeCampaign: map.get(p.id) ?? null,
+    }));
+  }
+
   private async getOrSetCached<T>(
     key: string,
     ttlSeconds: number,
@@ -154,12 +190,15 @@ export class ProductsService {
     options: { includeInactive?: boolean } = {},
   ) {
     // Admin views (includeInactive) skip cache — admins need fresh data and
-    // their request volume is too low to warrant separate keying.
+    // their request volume is too low to warrant separate keying. Admin
+    // views also skip campaign enrichment (raw price is what they want).
     if (options.includeInactive) return this.findAllInternal(query, options);
     const cacheKey = `${LIST_KEY_PREFIX}${this.buildListCacheKey(query)}`;
-    return this.getOrSetCached(cacheKey, LIST_TTL_SECONDS, () =>
+    const cached = await this.getOrSetCached(cacheKey, LIST_TTL_SECONDS, () =>
       this.findAllInternal(query, options),
     );
+    const enriched = await this.attachCampaignToMany(cached.products);
+    return { ...cached, products: enriched };
   }
 
   private buildListCacheKey(q: ProductQueryDto): string {
@@ -257,36 +296,45 @@ export class ProductsService {
   }
 
   async findFeatured() {
-    return this.getOrSetCached(FEATURED_KEY, LIST_TTL_SECONDS, () =>
-      this.prisma.product.findMany({
-        where: { isActive: true, isFeatured: true },
-        take: 8,
-        include: PRODUCT_LIST_INCLUDE,
-        orderBy: { createdAt: 'desc' },
-      }),
+    const cached = await this.getOrSetCached(
+      FEATURED_KEY,
+      LIST_TTL_SECONDS,
+      () =>
+        this.prisma.product.findMany({
+          where: { isActive: true, isFeatured: true },
+          take: 8,
+          include: PRODUCT_LIST_INCLUDE,
+          orderBy: { createdAt: 'desc' },
+        }),
     );
+    return this.attachCampaignToMany(cached);
   }
 
   async findNewArrivals() {
-    return this.getOrSetCached(NEW_ARRIVALS_KEY, LIST_TTL_SECONDS, async () => {
-      // Prefers admin-flagged "new arrival" rows; falls back to most-recent
-      // active products when no rows are explicitly flagged so the homepage
-      // never renders an empty section.
-      const flagged = await this.prisma.product.findMany({
-        where: { isActive: true, isNewArrival: true },
-        take: 8,
-        include: PRODUCT_LIST_INCLUDE,
-        orderBy: { createdAt: 'desc' },
-      });
-      if (flagged.length > 0) return flagged;
+    const cached = await this.getOrSetCached(
+      NEW_ARRIVALS_KEY,
+      LIST_TTL_SECONDS,
+      async () => {
+        // Prefers admin-flagged "new arrival" rows; falls back to most-recent
+        // active products when no rows are explicitly flagged so the homepage
+        // never renders an empty section.
+        const flagged = await this.prisma.product.findMany({
+          where: { isActive: true, isNewArrival: true },
+          take: 8,
+          include: PRODUCT_LIST_INCLUDE,
+          orderBy: { createdAt: 'desc' },
+        });
+        if (flagged.length > 0) return flagged;
 
-      return this.prisma.product.findMany({
-        where: { isActive: true },
-        take: 8,
-        include: PRODUCT_LIST_INCLUDE,
-        orderBy: { createdAt: 'desc' },
-      });
-    });
+        return this.prisma.product.findMany({
+          where: { isActive: true },
+          take: 8,
+          include: PRODUCT_LIST_INCLUDE,
+          orderBy: { createdAt: 'desc' },
+        });
+      },
+    );
+    return this.attachCampaignToMany(cached);
   }
 
   async findTrending() {
@@ -295,7 +343,7 @@ export class ProductsService {
     // slider any time the admin tweaked an unrelated field (price, image,
     // etc.). The flag itself is the signal; ordering by creation date keeps
     // the row stable until you explicitly unflag / reflag.
-    return this.getOrSetCached(TRENDING_KEY, LIST_TTL_SECONDS, () =>
+    const cached = await this.getOrSetCached(TRENDING_KEY, LIST_TTL_SECONDS, () =>
       this.prisma.product.findMany({
         where: { isActive: true, isTrending: true },
         take: 8,
@@ -303,6 +351,7 @@ export class ProductsService {
         orderBy: { createdAt: 'desc' },
       }),
     );
+    return this.attachCampaignToMany(cached);
   }
 
   /**
@@ -344,7 +393,7 @@ export class ProductsService {
     const cacheKey = FIND_BY_SLUG_KEY(slug);
     try {
       const cached = await this.redis.get(cacheKey);
-      if (cached) return JSON.parse(cached);
+      if (cached) return this.attachCampaignToOne(JSON.parse(cached));
     } catch (err) {
       // On cache read failure fall through to DB — never block reads on Redis.
       this.logger.warn(
@@ -393,7 +442,7 @@ export class ProductsService {
         `redis set failed for ${cacheKey}: ${err instanceof Error ? err.message : 'unknown'}`,
       );
     }
-    return product;
+    return this.attachCampaignToOne(product);
   }
 
   // ─── Admin ────────────────────────────────────────────────────────────────

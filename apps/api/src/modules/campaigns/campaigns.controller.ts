@@ -33,6 +33,28 @@ export class CampaignsController {
     );
   }
 
+  @Get('by-slug/:slug')
+  findBySlug(@Param('slug') slug: string) {
+    return this.campaignsService.findBySlugPublic(slug);
+  }
+
+  @Get('admin/all')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN, Role.MANAGER, Role.SUPPORT_STAFF)
+  findAllAdmin(@Query('page') page?: string, @Query('limit') limit?: string) {
+    return this.campaignsService.findAllAdmin(
+      Math.max(Number(page) || 1, 1),
+      Math.min(Number(limit) || 20, 100),
+    );
+  }
+
+  @Get('admin/:id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN, Role.MANAGER, Role.SUPPORT_STAFF)
+  findOneAdmin(@Param('id') id: string) {
+    return this.campaignsService.findOneAdmin(id);
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.campaignsService.findOnePublic(id);

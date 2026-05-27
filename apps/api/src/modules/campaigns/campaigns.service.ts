@@ -78,7 +78,80 @@ export class CampaignsService {
     return { success: true, data: campaign };
   }
 
+  /**
+   * Storefront /campaigns/[slug] landing page. Same activeness guard as
+   * findOnePublic but keyed on slug instead of cuid.
+   */
+  async findBySlugPublic(slug: string) {
+    const now = new Date();
+    const campaign = await this.prisma.campaign.findFirst({
+      where: {
+        slug,
+        isActive: true,
+        startDate: { lte: now },
+        endDate: { gte: now },
+      },
+      include: {
+        products: {
+          where: { product: { isActive: true, deletedAt: null } },
+          include: {
+            product: {
+              include: {
+                variants: {
+                  where: { deletedAt: null },
+                  orderBy: { createdAt: 'asc' },
+                },
+                category: true,
+              },
+            },
+          },
+        },
+      },
+    });
+    if (!campaign) throw new NotFoundException('Campaign not found');
+    return { success: true, data: campaign };
+  }
+
   // ─── Admin ────────────────────────────────────────────────────────────────────
+
+  /**
+   * Admin list — every campaign regardless of isActive or date window so
+   * staff can manage paused, future, and expired campaigns.
+   */
+  async findAllAdmin(page = 1, limit = 20) {
+    const skip = (page - 1) * limit;
+    const [campaigns, total] = await Promise.all([
+      this.prisma.campaign.findMany({
+        orderBy: { startDate: 'desc' },
+        skip,
+        take: limit,
+        include: {
+          products: { include: { product: true } },
+        },
+      }),
+      this.prisma.campaign.count(),
+    ]);
+    return { success: true, data: { campaigns, total, page, limit } };
+  }
+
+  /**
+   * Admin single read. Includes the joined product so the Edit modal can
+   * render name + image + current price next to per-product discount config.
+   */
+  async findOneAdmin(id: string) {
+    const campaign = await this.prisma.campaign.findUnique({
+      where: { id },
+      include: {
+        products: {
+          include: { product: true },
+          orderBy: { createdAt: 'asc' },
+        },
+      },
+    });
+    if (!campaign) throw new NotFoundException('Campaign not found');
+    return { success: true, data: campaign };
+  }
+
 
   async create(dto: CreateCampaignDto) {
     const existing = await this.prisma.campaign.findUnique({

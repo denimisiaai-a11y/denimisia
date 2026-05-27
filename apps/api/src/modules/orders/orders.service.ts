@@ -27,6 +27,7 @@ import {
 } from '../../common/events/order.events';
 import { OrderNumberService } from './order-number.service';
 import { parseOrderHistoryCsv } from './orders-import.parser';
+import { fetchActiveCampaignPrices } from '../campaigns/campaign-pricing';
 
 const ORDER_CREATE_MAX_RETRIES = 3;
 
@@ -613,6 +614,13 @@ export class OrdersService {
       throw new NotFoundException('One or more variants not found');
     }
 
+    // Fetch active campaign discounts for every distinct product in the
+    // cart in one round-trip. If a product is in an active campaign the
+    // unit price gets replaced with the campaign's finalPrice — same
+    // number the customer saw on the storefront.
+    const productIds = Array.from(new Set(variants.map((v) => v.product.id)));
+    const campaignMap = await fetchActiveCampaignPrices(this.prisma, productIds);
+
     return inputs.map((item) => {
       const variant = variants.find((v) => v.id === item.variantId)!;
       if (variant.product.id !== item.productId) {
@@ -629,12 +637,18 @@ export class OrdersService {
       // colorway costs more than the base SKU). When null, fall back to
       // product.price so orders never save a 0-priced line.
       const rawPrice = variant.price ?? variant.product.price;
-      const unitPrice = Number(rawPrice);
-      if (!Number.isFinite(unitPrice) || unitPrice <= 0) {
+      const baseUnitPrice = Number(rawPrice);
+      if (!Number.isFinite(baseUnitPrice) || baseUnitPrice <= 0) {
         throw new BadRequestException(
           `No price configured for ${variant.product.name} (${variant.size}/${variant.color})`,
         );
       }
+      // Campaign discounts apply per-product, not per-variant. If the
+      // product is in an active campaign, the campaign's finalPrice
+      // wins over both product.price and any variant.price override —
+      // the storefront price the customer agreed to.
+      const campaign = campaignMap.get(variant.product.id);
+      const unitPrice = campaign ? campaign.finalPrice : baseUnitPrice;
       const total = unitPrice * item.quantity;
       return {
         productId: item.productId,

@@ -24,6 +24,17 @@ export interface ProductVariant {
   images: string[];
 }
 
+export interface ActiveCampaign {
+  campaignId: string;
+  campaignSlug: string;
+  campaignName: string;
+  campaignType: string;
+  discountType: 'PERCENTAGE' | 'FIXED_AMOUNT' | 'FREE_SHIPPING';
+  discountValue: number;
+  finalPrice: number;
+  savingsPercent: number;
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -35,6 +46,10 @@ export interface Product {
   tags: string[];
   category: { id: string; name: string; slug: string };
   variants: ProductVariant[];
+  // Populated server-side when the product is in an active campaign.
+  // Null otherwise. The campaign's finalPrice takes priority over
+  // compareAtPrice for the strikethrough display.
+  activeCampaign?: ActiveCampaign | null;
 }
 
 // React cache dedupes per-request so generateMetadata and the page share a

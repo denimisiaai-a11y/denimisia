@@ -90,10 +90,19 @@ export function ProductDetail({ product }: ProductDetailProps) {
   // Per-variant price is optional in the admin form, so variant.price is
   // commonly null. Fall back to product.price so we don't render ৳0 the
   // moment a size is selected.
-  const price = Number(selectedVariant?.price ?? product.price);
-  const compareAtPrice = product.compareAtPrice
-    ? Number(product.compareAtPrice)
-    : null;
+  const baseUnit = Number(selectedVariant?.price ?? product.price);
+  // Active campaign price wins over both variant price and product price
+  // — same number the customer will be charged at checkout (orders.service
+  // re-applies the campaign rule against the product's base price).
+  const price = product.activeCampaign ? product.activeCampaign.finalPrice : baseUnit;
+  // Strikethrough comparison: prefer the original product price when a
+  // campaign is active (the customer is saving against today's price, not
+  // against a historical compareAtPrice marketing strikethrough).
+  const compareAtPrice = product.activeCampaign
+    ? baseUnit
+    : product.compareAtPrice
+      ? Number(product.compareAtPrice)
+      : null;
 
   return (
     <div className="pt-24">
@@ -171,6 +180,15 @@ export function ProductDetail({ product }: ProductDetailProps) {
                 <span className="whitespace-nowrap text-sm text-muted line-through">
                   {formatPrice(compareAtPrice)}
                 </span>
+              )}
+              {product.activeCampaign && (
+                <Link
+                  href={`/campaigns/${product.activeCampaign.campaignSlug}`}
+                  className="mt-1 inline-flex items-center gap-1 bg-ink px-2 py-1 text-[10px] font-bold uppercase tracking-widest text-paper hover:opacity-90"
+                  title={product.activeCampaign.campaignName}
+                >
+                  −{product.activeCampaign.savingsPercent}% · {product.activeCampaign.campaignName}
+                </Link>
               )}
             </div>
           </div>

@@ -16,14 +16,17 @@ import {
 } from '@/components/admin-ui';
 import { Modal, ConfirmModal } from '@/components/modal';
 import { Checkbox, Field, Select, TextInput, slugify } from '@/components/form';
+import { CampaignProductsEditor } from '@/components/campaigns/campaign-products-editor';
 
-type CampaignType = 'FLASH_SALE' | 'SEASONAL' | 'CLEARANCE' | 'PRE_ORDER';
+// Schema enum is FLASH_SALE / SEASONAL / PROMO. Earlier dev iteration had
+// CLEARANCE + PRE_ORDER as UI options but those don't pass class-validator
+// on the API side and would hard-fail at create time.
+type CampaignType = 'FLASH_SALE' | 'SEASONAL' | 'PROMO';
 
 const CAMPAIGN_TYPE_OPTIONS: readonly { value: CampaignType; label: string }[] = [
   { value: 'FLASH_SALE', label: 'Flash Sale' },
   { value: 'SEASONAL', label: 'Seasonal' },
-  { value: 'CLEARANCE', label: 'Clearance' },
-  { value: 'PRE_ORDER', label: 'Pre-Order' },
+  { value: 'PROMO', label: 'Promo' },
 ];
 
 interface Campaign {
@@ -98,9 +101,13 @@ export default function CampaignsPage() {
     setLoading(true);
     setError('');
     try {
+      // `/campaigns/admin/all` returns all campaigns regardless of
+      // isActive or date window — admin needs to see paused, scheduled,
+      // and expired ones to manage them. The public `/campaigns` endpoint
+      // only returns active-now campaigns.
       const res = await adminFetch<
         { campaigns: Campaign[]; total: number; page: number; limit: number } | Campaign[]
-      >('/campaigns', token);
+      >('/campaigns/admin/all', token);
       setCampaigns(Array.isArray(res) ? res : res.campaigns ?? []);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load campaigns');
@@ -475,7 +482,8 @@ function EditCampaignModal({ campaign, onClose, onSaved }: EditCampaignModalProp
       open={campaign !== null}
       onClose={onClose}
       title="Edit Campaign"
-      description="Update the live window, type, or status."
+      description="Update the live window, type, status — and attach the products on sale."
+      width="lg"
       footer={
         <>
           <button
@@ -543,6 +551,10 @@ function EditCampaignModal({ campaign, onClose, onSaved }: EditCampaignModalProp
           checked={isActive}
           onChange={(e) => setIsActive(e.target.checked)}
         />
+
+        {campaign && token && (
+          <CampaignProductsEditor campaignId={campaign.id} token={token} />
+        )}
       </div>
     </Modal>
   );

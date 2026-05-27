@@ -11,7 +11,13 @@ interface ProductCardProps {
   productId?: string;
   name: string;
   slug: string;
+  /** Current sticker price the customer pays. If a campaign discount
+   *  applies, this is the campaign's `finalPrice`. */
   price: number;
+  /** Original (pre-discount) price. When set AND greater than `price`,
+   *  it renders as strikethrough alongside the discounted price and a
+   *  small "-N%" pill appears on the card. */
+  originalPrice?: number;
   image: string;
   hoverImage?: string;
   colourCount?: number;
@@ -29,6 +35,7 @@ export function ProductCard({
   name,
   slug,
   price,
+  originalPrice,
   image,
   hoverImage,
   colourCount,
@@ -38,6 +45,11 @@ export function ProductCard({
   hideWishlist = false,
   starBadge = false,
 }: ProductCardProps) {
+  const hasDiscount =
+    typeof originalPrice === 'number' && originalPrice > price;
+  const savingsPercent = hasDiscount
+    ? Math.round(((originalPrice - price) / originalPrice) * 100)
+    : 0;
   const [isHovered, setIsHovered] = useState(false);
   const baseSrc = isHovered && hoverImage ? hoverImage : image;
 
@@ -71,6 +83,11 @@ export function ProductCard({
           <WishlistButton productId={productId} variant="card" />
         )}
         {starBadge && <StarBadge position="top-left" size="sm" />}
+        {hasDiscount && (
+          <span className="absolute top-3 right-3 bg-ink px-2 py-1 text-[10px] font-bold uppercase tracking-widest text-paper">
+            −{savingsPercent}%
+          </span>
+        )}
       </div>
 
       {/* Info */}
@@ -106,9 +123,16 @@ export function ProductCard({
             </p>
           )}
         </div>
-        <span className="shrink-0 text-xs font-medium text-ink">
-          {formatPrice(price)}
-        </span>
+        <div className="shrink-0 text-right">
+          <span className="text-xs font-medium text-ink">
+            {formatPrice(price)}
+          </span>
+          {hasDiscount && (
+            <span className="ml-2 text-[11px] text-muted line-through">
+              {formatPrice(originalPrice!)}
+            </span>
+          )}
+        </div>
       </div>
     </Link>
   );
