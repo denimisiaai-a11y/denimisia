@@ -37,13 +37,25 @@ const READ_ACTIONS = new Set<string>([
  * appeared to "reappear" in admin product edit pages: the variants
  * relation include skipped the filter.
  */
-function buildRelationMap(): Map<string, Map<string, string>> {
-  const map = new Map<string, Map<string, string>>();
+interface RelationInfo {
+  readonly relatedModel: string;
+  // True for one-to-many (`variants ProductVariant[]`); false for the
+  // singular back-reference (`product Product`). Prisma rejects a `where`
+  // filter on scalar/many-to-one relations at runtime, so we can only
+  // inject `deletedAt: null` on isList=true relations.
+  readonly isList: boolean;
+}
+
+function buildRelationMap(): Map<string, Map<string, RelationInfo>> {
+  const map = new Map<string, Map<string, RelationInfo>>();
   for (const model of Prisma.dmmf.datamodel.models) {
-    const relations = new Map<string, string>();
+    const relations = new Map<string, RelationInfo>();
     for (const field of model.fields) {
       if (field.kind === 'object' && field.type) {
-        relations.set(field.name, field.type);
+        relations.set(field.name, {
+          relatedModel: field.type,
+          isList: field.isList === true,
+        });
       }
     }
     map.set(model.name, relations);
@@ -75,14 +87,21 @@ function applyRelationSoftDeleteFilters(
 
   const block = config as Record<string, unknown>;
   for (const [key, value] of Object.entries(block)) {
-    const relatedModel = relations.get(key);
-    if (!relatedModel) continue; // not a relation — skip scalar fields
+    const info = relations.get(key);
+    if (!info) continue; // not a relation — skip scalar fields
 
+    const { relatedModel, isList } = info;
     const isSoftDeletable = SOFT_DELETE_MODELS.has(relatedModel);
+    // `where` is only valid on list (one-to-many) relations in Prisma. On
+    // scalar (many-to-one) relations like `cartItem.product`, adding
+    // `where` triggers "Invalid query parameters" at runtime. So we only
+    // inject the soft-delete filter on list relations and let many-to-one
+    // relations through. (The parent row still loads; if the related row
+    // is soft-deleted the caller can detect deletedAt themselves.)
+    const canInjectWhere = isSoftDeletable && isList;
 
     if (value === true) {
-      if (isSoftDeletable) {
-        // Convert `variants: true` → `variants: { where: { deletedAt: null } }`
+      if (canInjectWhere) {
         block[key] = { where: { deletedAt: null } };
       }
       continue;
@@ -92,14 +111,16 @@ function applyRelationSoftDeleteFilters(
 
     const child = value as Record<string, unknown>;
 
-    if (isSoftDeletable) {
+    if (canInjectWhere) {
       const where = (child.where as Record<string, unknown> | undefined) ?? {};
       if (where.deletedAt === undefined) {
         child.where = { ...where, deletedAt: null };
       }
     }
 
-    // Recurse — deeply chained relations get filtered at every hop.
+    // Recurse regardless of list-vs-scalar — deeply chained relations like
+    // CampaignProduct → product → variants still need each soft-deletable
+    // list relation filtered at its own hop.
     if (child.include) applyRelationSoftDeleteFilters(child.include, relatedModel);
     if (child.select) applyRelationSoftDeleteFilters(child.select, relatedModel);
   }
