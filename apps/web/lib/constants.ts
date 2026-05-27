@@ -143,8 +143,8 @@ export const NAV_ITEMS: NavMenuItem[] = [
 ];
 
 export const SOCIAL_LINKS = [
-  { label: 'Facebook', href: 'https://facebook.com/denimisia', icon: 'facebook' as const },
-  { label: 'Instagram', href: 'https://instagram.com/denimisia', icon: 'instagram' as const },
+  { label: 'Facebook', href: 'https://www.facebook.com/denimisia', icon: 'facebook' as const },
+  { label: 'Instagram', href: 'https://www.instagram.com/denimisia.bd/', icon: 'instagram' as const },
   { label: 'TikTok', href: 'https://tiktok.com/@denimisia', icon: 'music' as const },
 ];
 

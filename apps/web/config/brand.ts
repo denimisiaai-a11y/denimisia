@@ -33,7 +33,7 @@ export const brand = {
 
   socialProfiles: [
     'https://www.facebook.com/denimisia',
-    'https://www.instagram.com/denimisia',
+    'https://www.instagram.com/denimisia.bd/',
     // 'https://www.youtube.com/@denimisia',
     // 'https://x.com/denimisia',
     // 'https://www.tiktok.com/@denimisia',
