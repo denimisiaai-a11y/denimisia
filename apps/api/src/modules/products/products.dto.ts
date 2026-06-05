@@ -355,6 +355,10 @@ export class ProductQueryDto {
   @IsOptional()
   @IsString()
   @MaxLength(500)
+  @Matches(/^[a-z0-9-]+(?:,[a-z0-9-]+){0,19}$/, {
+    message:
+      'categories must be 1-20 comma-separated lowercase slugs ([a-z0-9-])',
+  })
   categories?: string;
 
   @IsOptional()

@@ -239,10 +239,13 @@ export class ProductsService {
       where.category = { slug: query.category };
     } else if (query.categories) {
       // Multi-select Product Type filter (/series/[type]): OR across slugs.
+      // Cap the IN-list as defense in depth against a direct caller bypassing
+      // the DTO regex (no storefront view needs more than a handful).
       const slugs = query.categories
         .split(',')
         .map((s) => s.trim())
-        .filter(Boolean);
+        .filter(Boolean)
+        .slice(0, 20);
       if (slugs.length > 0) where.category = { slug: { in: slugs } };
     }
     if (query.featured !== undefined) where.isFeatured = query.featured;

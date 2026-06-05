@@ -29,8 +29,14 @@ export async function generateMetadata({
   // Multi-select filter combinations (?types=) are noindexed to avoid thin /
   // duplicate filter pages — the canonical /series/[type]/[subtype] pages hold
   // the SEO weight. The clean base URL stays indexable and self-canonical.
+  // Only count *valid* subtype slugs so a junk ?types=garbage URL (which renders
+  // the indexable base view) isn't accidentally noindexed.
+  const validSlugs = new Set(
+    (SERIES_TYPE_SUBTYPES[type] ?? []).map((s) => s.slug),
+  );
   const hasTypeFilter =
-    typeof sp.types === 'string' && sp.types.trim().length > 0;
+    typeof sp.types === 'string' &&
+    sp.types.split(',').some((t) => validSlugs.has(t.trim()));
   return {
     title: `${copy.title} — Series`,
     description: copy.subtitle,
@@ -46,16 +52,19 @@ export default async function SeriesTypePage({ params, searchParams }: Props) {
   if (!copy) notFound();
 
   const subtypes = SERIES_TYPE_SUBTYPES[type] ?? [];
-  const validSlugs = new Set(subtypes.map((s) => s.slug));
-  // ?types=denims,trousers → keep only slugs that exist for this type, so a
-  // hand-edited URL can't inject arbitrary category lookups.
-  const selectedTypes =
+  // ?types=denims,trousers → keep only slugs that exist for this type (so a
+  // hand-edited URL can't inject arbitrary category lookups), and select them
+  // in canonical subtype order so the resulting category list — and therefore
+  // the API/Redis/edge cache keys — are order-stable regardless of how the URL
+  // params were arranged (?a,b and ?b,a hit the same cache entry).
+  const requestedTypes = new Set(
     typeof sp.types === 'string'
-      ? sp.types
-          .split(',')
-          .map((t) => t.trim())
-          .filter((t) => validSlugs.has(t))
-      : [];
+      ? sp.types.split(',').map((t) => t.trim()).filter(Boolean)
+      : [],
+  );
+  const selectedTypes = subtypes
+    .map((s) => s.slug)
+    .filter((slug) => requestedTypes.has(slug));
   const hasTypeFilter = selectedTypes.length > 0;
 
   // Admin can swap the series-type hero via the Media Manager
