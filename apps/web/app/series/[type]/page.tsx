@@ -9,24 +9,54 @@ import { resolveProductImage, resolveHoverImage } from '@/lib/placeholder-images
 import { fallbackProducts } from '@/lib/placeholder-products';
 import { seriesTypeCopy, SERIES_TYPE_SUBTYPES } from '@/lib/category-copy';
 import { fetchPageSlots, pickSlot, resolveSlotUrl } from '@/lib/page-slots';
+import { SITE_URL } from '@/config/brand';
 
 interface Props {
   params: Promise<{ type: string }>;
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
 export const revalidate = 60;
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+  searchParams,
+}: Props): Promise<Metadata> {
   const { type } = await params;
+  const sp = await searchParams;
   const copy = seriesTypeCopy(type);
   if (!copy) return { title: 'Series' };
-  return { title: `${copy.title} — Series`, description: copy.subtitle };
+  // Multi-select filter combinations (?types=) are noindexed to avoid thin /
+  // duplicate filter pages — the canonical /series/[type]/[subtype] pages hold
+  // the SEO weight. The clean base URL stays indexable and self-canonical.
+  const hasTypeFilter =
+    typeof sp.types === 'string' && sp.types.trim().length > 0;
+  return {
+    title: `${copy.title} — Series`,
+    description: copy.subtitle,
+    alternates: { canonical: `${SITE_URL}/series/${type}` },
+    robots: hasTypeFilter ? { index: false, follow: true } : undefined,
+  };
 }
 
-export default async function SeriesTypePage({ params }: Props) {
+export default async function SeriesTypePage({ params, searchParams }: Props) {
   const { type } = await params;
+  const sp = await searchParams;
   const copy = seriesTypeCopy(type);
   if (!copy) notFound();
+
+  const subtypes = SERIES_TYPE_SUBTYPES[type] ?? [];
+  const validSlugs = new Set(subtypes.map((s) => s.slug));
+  // ?types=denims,trousers → keep only slugs that exist for this type, so a
+  // hand-edited URL can't inject arbitrary category lookups.
+  const selectedTypes =
+    typeof sp.types === 'string'
+      ? sp.types
+          .split(',')
+          .map((t) => t.trim())
+          .filter((t) => validSlugs.has(t))
+      : [];
+  const hasTypeFilter = selectedTypes.length > 0;
 
   // Admin can swap the series-type hero via the Media Manager
   // (series.hero_tops / series.hero_pants). Falls back to the hardcoded
@@ -38,12 +68,19 @@ export default async function SeriesTypePage({ params }: Props) {
 
   let data;
   try {
-    data = await getProducts({ category: type, limit: 60 });
+    data = hasTypeFilter
+      ? await getProducts({
+          categories: selectedTypes.map((s) => `${type}-${s}`),
+          limit: 60,
+        })
+      : await getProducts({ category: type, limit: 60 });
   } catch {
     data = { products: [], total: 0, page: 1, limit: 40, totalPages: 0 };
   }
 
-  const usingPlaceholders = data.products.length === 0;
+  // Placeholders only fill the unfiltered landing view. A filtered query that
+  // returns nothing shows the real empty state, not fake products.
+  const usingPlaceholders = !hasTypeFilter && data.products.length === 0;
   const cards: CategoryCard[] = usingPlaceholders
     ? fallbackProducts({
         key: `series-${type}`,
@@ -74,11 +111,12 @@ export default async function SeriesTypePage({ params }: Props) {
       }));
 
   const sizePool = Array.from(new Set(cards.flatMap((c) => c.sizes ?? [])));
-  const subtypes = SERIES_TYPE_SUBTYPES[type] ?? [];
+  // Multi-select Product Type filter: each subtype is a toggle on the ?types=
+  // URL param (handled by category-filters), not an href navigation.
   const productTypes = subtypes.map((s) => ({
     slug: s.slug,
     label: s.label,
-    href: `/series/${type}/${s.slug}`,
+    active: selectedTypes.includes(s.slug),
   }));
 
   return (
@@ -126,6 +164,7 @@ export default async function SeriesTypePage({ params }: Props) {
           products={cards}
           productTypes={productTypes}
           productTypesHeading="Product type"
+          productTypeParam="types"
           sizes={sizePool}
           sizesHeading={type === 'pants' ? 'Waist' : 'Size'}
           showFootnote={usingPlaceholders}

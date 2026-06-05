@@ -21,6 +21,10 @@ export interface WashOption {
 export interface CategoryFiltersProps {
   productTypes?: ProductTypeOption[];
   productTypesHeading?: string;
+  // When set (e.g. "types"), Product Type options render as multi-select
+  // checkboxes that toggle this comma-separated URL param, instead of the
+  // default single-select href navigation used on the [subtype] pages.
+  productTypeParam?: string;
   sizes?: string[];
   sizesHeading?: string;
   washes?: WashOption[];
@@ -40,6 +44,7 @@ const DEFAULT_WASHES: WashOption[] = [
 export function CategoryFilters({
   productTypes,
   productTypesHeading = 'Product type',
+  productTypeParam,
   sizes = [],
   sizesHeading = 'Size',
   washes = DEFAULT_WASHES,
@@ -54,6 +59,9 @@ export function CategoryFilters({
 
   const activeSizes = searchParams.get('size')?.split(',').filter(Boolean) ?? [];
   const activeColors = searchParams.get('color')?.split(',').filter(Boolean) ?? [];
+  const activeTypes = productTypeParam
+    ? searchParams.get(productTypeParam)?.split(',').filter(Boolean) ?? []
+    : [];
   const activeMaxPrice = searchParams.get('maxPrice') ?? '';
 
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
@@ -101,8 +109,9 @@ export function CategoryFilters({
     () =>
       activeSizes.length > 0 ||
       activeColors.length > 0 ||
+      activeTypes.length > 0 ||
       activeMaxPrice !== '',
-    [activeSizes, activeColors, activeMaxPrice],
+    [activeSizes, activeColors, activeTypes, activeMaxPrice],
   );
 
   const SectionHead = ({ label, sectionKey }: { label: string; sectionKey: string }) => (
@@ -297,9 +306,15 @@ export function CategoryFilters({
                         key={opt.slug}
                         label={opt.label}
                         count={opt.count}
-                        checked={opt.active ?? false}
+                        checked={
+                          productTypeParam
+                            ? activeTypes.includes(opt.slug)
+                            : opt.active ?? false
+                        }
                         onChange={() => {
-                          /* link-based; noop */
+                          if (productTypeParam) {
+                            toggleArrayParam(productTypeParam, opt.slug, activeTypes);
+                          }
                         }}
                       />
                     );

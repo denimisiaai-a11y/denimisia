@@ -346,6 +346,17 @@ export class ProductQueryDto {
   @IsString()
   category?: string;
 
+  /**
+   * Comma-separated category slugs, OR-combined (e.g.
+   * "pants-denims,pants-trousers"). Drives the multi-select Product Type
+   * filter on /series/[type]. If both `category` and `categories` are sent,
+   * the single `category` takes precedence.
+   */
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  categories?: string;
+
   @IsOptional()
   @IsString()
   collection?: string;

@@ -75,6 +75,7 @@ export interface ProductListResponse {
 
 export function getProducts(params: {
   category?: string;
+  categories?: string[];
   collection?: string;
   featured?: boolean;
   trending?: boolean;
@@ -89,6 +90,7 @@ export function getProducts(params: {
 } = {}): Promise<ProductListResponse> {
   const q = new URLSearchParams();
   if (params.category)   q.set('category', params.category);
+  if (params.categories?.length) q.set('categories', params.categories.join(','));
   if (params.collection) q.set('collection', params.collection);
   if (params.featured)   q.set('featured', 'true');
   if (params.trending)   q.set('trending', 'true');

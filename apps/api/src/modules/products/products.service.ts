@@ -204,6 +204,7 @@ export class ProductsService {
   private buildListCacheKey(q: ProductQueryDto): string {
     return JSON.stringify({
       category: q.category ?? '',
+      categories: q.categories ?? '',
       collection: q.collection ?? '',
       sort: q.sort ?? '',
       page: q.page ?? '1',
@@ -234,7 +235,16 @@ export class ProductsService {
     const where: Prisma.ProductWhereInput = options.includeInactive
       ? {}
       : { isActive: true };
-    if (query.category) where.category = { slug: query.category };
+    if (query.category) {
+      where.category = { slug: query.category };
+    } else if (query.categories) {
+      // Multi-select Product Type filter (/series/[type]): OR across slugs.
+      const slugs = query.categories
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
+      if (slugs.length > 0) where.category = { slug: { in: slugs } };
+    }
     if (query.featured !== undefined) where.isFeatured = query.featured;
     if (query.trending !== undefined) where.isTrending = query.trending;
     if (query.newArrival !== undefined) where.isNewArrival = query.newArrival;

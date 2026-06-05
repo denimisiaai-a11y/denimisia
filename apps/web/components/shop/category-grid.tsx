@@ -32,6 +32,7 @@ interface CategoryGridProps {
   products: CategoryCard[];
   productTypes?: ProductTypeOption[];
   productTypesHeading?: string;
+  productTypeParam?: string;
   sizes?: string[];
   sizesHeading?: string;
   washes?: WashOption[];
@@ -55,6 +56,7 @@ export function CategoryGrid({
   products,
   productTypes,
   productTypesHeading,
+  productTypeParam,
   sizes,
   sizesHeading,
   washes,
@@ -163,6 +165,7 @@ export function CategoryGrid({
   const filterProps: CategoryFiltersProps = {
     productTypes,
     productTypesHeading,
+    productTypeParam,
     sizes,
     sizesHeading,
     washes,
