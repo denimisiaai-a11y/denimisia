@@ -193,6 +193,19 @@ export const SERIES_TYPE_SUBTYPES: Record<string, { slug: string; label: string 
   ],
 };
 
+// Storefront routes use the singular gender slug (`women`/`men`), but the
+// real DB category slugs are pluralized (`womens`/`mens`, and fits like
+// `womens-cargo`). Map the route param → the real category slug prefix so
+// product queries actually resolve. Unknown values pass through unchanged.
+const GENDER_CATEGORY_SLUG: Record<string, string> = {
+  women: 'womens',
+  men: 'mens',
+};
+
+export function genderCategorySlug(gender: string): string {
+  return GENDER_CATEGORY_SLUG[gender] ?? gender;
+}
+
 // Shop gender "Category" filter — links into /shop/[gender]/[fit].
 export const SHOP_GENDER_FITS: Record<string, { slug: string; label: string }[]> = {
   women: [

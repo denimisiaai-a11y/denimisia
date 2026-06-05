@@ -10,6 +10,7 @@ import { fallbackProducts } from '@/lib/placeholder-products';
 import { seriesTypeCopy, SERIES_TYPE_SUBTYPES } from '@/lib/category-copy';
 import { fetchPageSlots, pickSlot, resolveSlotUrl } from '@/lib/page-slots';
 import { SITE_URL } from '@/config/brand';
+import { ComingSoon } from '@/components/shop/coming-soon';
 
 interface Props {
   params: Promise<{ type: string }>;
@@ -87,10 +88,14 @@ export default async function SeriesTypePage({ params, searchParams }: Props) {
     data = { products: [], total: 0, page: 1, limit: 40, totalPages: 0 };
   }
 
-  // Placeholders only fill the unfiltered landing view. A filtered query that
-  // returns nothing shows the real empty state, not fake products.
-  const usingPlaceholders = !hasTypeFilter && data.products.length === 0;
-  const cards: CategoryCard[] = usingPlaceholders
+  // Placeholders are a local design-preview aid and only fill the unfiltered
+  // landing view. In production an empty series shows a branded "coming soon"
+  // state; a filtered query returning nothing shows it too (no fake products).
+  const isEmpty = data.products.length === 0;
+  const showPlaceholders =
+    !hasTypeFilter && isEmpty && process.env.NODE_ENV !== 'production';
+  const comingSoon = isEmpty && !showPlaceholders;
+  const cards: CategoryCard[] = showPlaceholders
     ? fallbackProducts({
         key: `series-${type}`,
         title: copy.title,
@@ -164,21 +169,27 @@ export default async function SeriesTypePage({ params, searchParams }: Props) {
 
         <div className="mb-8 flex items-end justify-between border-b border-ink/10 pb-6">
           <p className="text-xs uppercase tracking-[0.2em] text-muted">All {copy.title}</p>
-          <p className="text-xs uppercase tracking-[0.15em] text-muted">
-            {cards.length} piece{cards.length === 1 ? '' : 's'}
-          </p>
+          {!comingSoon && (
+            <p className="text-xs uppercase tracking-[0.15em] text-muted">
+              {cards.length} piece{cards.length === 1 ? '' : 's'}
+            </p>
+          )}
         </div>
 
-        <CategoryGrid
-          products={cards}
-          productTypes={productTypes}
-          productTypesHeading="Product type"
-          productTypeParam="types"
-          sizes={sizePool}
-          sizesHeading={type === 'pants' ? 'Waist' : 'Size'}
-          showFootnote={usingPlaceholders}
-          footnote="Showing curated preview — full assortment syncing soon."
-        />
+        {comingSoon ? (
+          <ComingSoon title={`${copy.title} — arriving soon`} />
+        ) : (
+          <CategoryGrid
+            products={cards}
+            productTypes={productTypes}
+            productTypesHeading="Product type"
+            productTypeParam="types"
+            sizes={sizePool}
+            sizesHeading={type === 'pants' ? 'Waist' : 'Size'}
+            showFootnote={showPlaceholders}
+            footnote="Showing curated preview — full assortment syncing soon."
+          />
+        )}
       </div>
     </div>
   );

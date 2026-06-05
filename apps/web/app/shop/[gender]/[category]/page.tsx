@@ -1,11 +1,13 @@
 import { Metadata } from 'next';
 import Link from 'next/link';
+import { notFound } from 'next/navigation';
 import { ChevronRight } from 'lucide-react';
 import { getProducts } from '@/lib/api';
 import { CategoryGrid, type CategoryCard } from '@/components/shop/category-grid';
 import { resolveProductImage, resolveHoverImage } from '@/lib/placeholder-images';
 import { fallbackProductsForCategory } from '@/lib/placeholder-products';
-import { SHOP_GENDER_FITS } from '@/lib/category-copy';
+import { SHOP_GENDER_FITS, genderCategorySlug } from '@/lib/category-copy';
+import { ComingSoon } from '@/components/shop/coming-soon';
 
 interface Props {
   params: Promise<{ gender: string; category: string }>;
@@ -34,7 +36,9 @@ const SUBTITLES: Record<string, string> = {
   'relaxed-fit': 'Roomy, unconstrained.',
 };
 
-export const revalidate = 60;
+// Dynamic so the invalid gender/fit guard below returns a real HTTP 404
+// (under ISR notFound() leaks as a soft 200). Catalog is small; API is cached.
+export const dynamic = 'force-dynamic';
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { gender, category } = await params;
@@ -47,15 +51,29 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function ShopCategoryPage({ params }: Props) {
   const { gender, category } = await params;
 
+  // A garbage gender/fit URL (/shop/foo/bar) must 404, not render a thin
+  // coming-soon page. Valid-but-empty fits fall through to "coming soon".
+  const fits = SHOP_GENDER_FITS[gender];
+  if (!fits || !fits.some((f) => f.slug === category)) {
+    notFound();
+  }
+
   let data;
   try {
-    data = await getProducts({ category: `${gender}-${category}`, limit: 60 });
+    data = await getProducts({
+      category: `${genderCategorySlug(gender)}-${category}`,
+      limit: 60,
+    });
   } catch {
     data = { products: [], total: 0, page: 1, limit: 40, totalPages: 0 };
   }
 
-  const usingPlaceholders = data.products.length === 0;
-  const cards: CategoryCard[] = usingPlaceholders
+  const isEmpty = data.products.length === 0;
+  // Placeholders are a local design-preview aid only; production shows a
+  // branded "coming soon" state instead of fabricated, unclickable cards.
+  const showPlaceholders = isEmpty && process.env.NODE_ENV !== 'production';
+  const comingSoon = isEmpty && !showPlaceholders;
+  const cards: CategoryCard[] = showPlaceholders
     ? fallbackProductsForCategory(gender, category, 28).map((p) => ({
         name: p.name,
         slug: p.slug,
@@ -82,7 +100,6 @@ export default async function ShopCategoryPage({ params }: Props) {
   const subtitle = SUBTITLES[category] ?? `Curated ${categoryLabel.toLowerCase()} for every day.`;
 
   const sizePool = Array.from(new Set(cards.flatMap((c) => c.sizes ?? [])));
-  const fits = SHOP_GENDER_FITS[gender] ?? [];
   const productTypes = fits.map((f) => ({
     slug: f.slug,
     label: f.label,
@@ -116,20 +133,26 @@ export default async function ShopCategoryPage({ params }: Props) {
           </h1>
           <p className="mt-3 max-w-md text-sm text-muted">{subtitle}</p>
         </div>
-        <p className="text-xs uppercase tracking-[0.15em] text-muted">
-          {cards.length} piece{cards.length === 1 ? '' : 's'}
-        </p>
+        {!comingSoon && (
+          <p className="text-xs uppercase tracking-[0.15em] text-muted">
+            {cards.length} piece{cards.length === 1 ? '' : 's'}
+          </p>
+        )}
       </header>
 
-      <CategoryGrid
-        products={cards}
-        productTypes={productTypes}
-        productTypesHeading="Category"
-        sizes={sizePool}
-        sizesHeading={isPantsLike ? 'Waist' : 'Size'}
-        showFootnote={usingPlaceholders}
-        footnote="Showing curated preview — full assortment syncing soon."
-      />
+      {comingSoon ? (
+        <ComingSoon title={`${categoryLabel} — arriving soon`} />
+      ) : (
+        <CategoryGrid
+          products={cards}
+          productTypes={productTypes}
+          productTypesHeading="Category"
+          sizes={sizePool}
+          sizesHeading={isPantsLike ? 'Waist' : 'Size'}
+          showFootnote={showPlaceholders}
+          footnote="Showing curated preview — full assortment syncing soon."
+        />
+      )}
     </div>
   );
 }

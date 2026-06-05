@@ -7,14 +7,17 @@ import { getProducts } from '@/lib/api';
 import { CategoryGrid, type CategoryCard } from '@/components/shop/category-grid';
 import { resolveProductImage, resolveHoverImage } from '@/lib/placeholder-images';
 import { fallbackProducts } from '@/lib/placeholder-products';
-import { SHOP_GENDER_COPY, SHOP_GENDER_FITS } from '@/lib/category-copy';
+import { SHOP_GENDER_COPY, SHOP_GENDER_FITS, genderCategorySlug } from '@/lib/category-copy';
 import { fetchPageSlots, pickSlot, resolveSlotUrl } from '@/lib/page-slots';
+import { ComingSoon } from '@/components/shop/coming-soon';
 
 interface Props {
   params: Promise<{ gender: string }>;
 }
 
-export const revalidate = 60;
+// Dynamic so notFound() on an unknown gender returns a real HTTP 404 (under
+// ISR it leaks as a soft 200). Catalog is small; the API call is edge-cached.
+export const dynamic = 'force-dynamic';
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { gender } = await params;
@@ -38,13 +41,18 @@ export default async function ShopGenderPage({ params }: Props) {
 
   let data;
   try {
-    data = await getProducts({ category: gender, limit: 60 });
+    data = await getProducts({ category: genderCategorySlug(gender), limit: 60 });
   } catch {
     data = { products: [], total: 0, page: 1, limit: 40, totalPages: 0 };
   }
 
-  const usingPlaceholders = data.products.length === 0;
-  const cards: CategoryCard[] = usingPlaceholders
+  const isEmpty = data.products.length === 0;
+  // Placeholders are a local design-preview aid only. In production an empty
+  // category shows a branded "coming soon" state instead of fabricated,
+  // unclickable product cards that dead-ended on soft-404 pages.
+  const showPlaceholders = isEmpty && process.env.NODE_ENV !== 'production';
+  const comingSoon = isEmpty && !showPlaceholders;
+  const cards: CategoryCard[] = showPlaceholders
     ? fallbackProducts({
         key: `shop-${gender}-all`,
         title: copy.eyebrow,
@@ -117,20 +125,26 @@ export default async function ShopGenderPage({ params }: Props) {
 
         <div className="mb-8 flex items-end justify-between border-b border-ink/10 pb-6">
           <p className="text-xs uppercase tracking-[0.2em] text-muted">All {copy.eyebrow}</p>
-          <p className="text-xs uppercase tracking-[0.15em] text-muted">
-            {cards.length} piece{cards.length === 1 ? '' : 's'}
-          </p>
+          {!comingSoon && (
+            <p className="text-xs uppercase tracking-[0.15em] text-muted">
+              {cards.length} piece{cards.length === 1 ? '' : 's'}
+            </p>
+          )}
         </div>
 
-        <CategoryGrid
-          products={cards}
-          productTypes={productTypes}
-          productTypesHeading="Category"
-          sizes={sizePool}
-          sizesHeading="Size"
-          showFootnote={usingPlaceholders}
-          footnote="Showing curated preview — full assortment syncing soon."
-        />
+        {comingSoon ? (
+          <ComingSoon title={`${copy.eyebrow} — arriving soon`} />
+        ) : (
+          <CategoryGrid
+            products={cards}
+            productTypes={productTypes}
+            productTypesHeading="Category"
+            sizes={sizePool}
+            sizesHeading="Size"
+            showFootnote={showPlaceholders}
+            footnote="Showing curated preview — full assortment syncing soon."
+          />
+        )}
       </div>
     </div>
   );

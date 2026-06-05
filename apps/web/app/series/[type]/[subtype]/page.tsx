@@ -1,5 +1,6 @@
 import { Metadata } from 'next';
 import Link from 'next/link';
+import { notFound } from 'next/navigation';
 import { ChevronRight } from 'lucide-react';
 import { getProducts } from '@/lib/api';
 import { CategoryGrid, type CategoryCard } from '@/components/shop/category-grid';
@@ -10,6 +11,7 @@ import {
   seriesSubtypeCopy,
   SERIES_TYPE_SUBTYPES,
 } from '@/lib/category-copy';
+import { ComingSoon } from '@/components/shop/coming-soon';
 
 interface Props {
   params: Promise<{ type: string; subtype: string }>;
@@ -19,7 +21,9 @@ function formatLabel(slug: string): string {
   return slug.split('-').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 }
 
-export const revalidate = 60;
+// Dynamic so the invalid type/subtype guard returns a real HTTP 404 (under
+// ISR notFound() leaks as a soft 200). Catalog is small; API is cached.
+export const dynamic = 'force-dynamic';
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { type, subtype } = await params;
@@ -31,6 +35,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function SeriesSubtypePage({ params }: Props) {
   const { type, subtype } = await params;
+
+  // A garbage type/subtype URL (/series/foo/bar) must 404, not render a thin
+  // coming-soon page. Valid-but-empty subtypes fall through to "coming soon".
+  const siblings = SERIES_TYPE_SUBTYPES[type];
+  if (!siblings || !siblings.some((s) => s.slug === subtype)) {
+    notFound();
+  }
+
   const typeCopy = seriesTypeCopy(type);
   const subtitle = seriesSubtypeCopy(subtype).subtitle;
 
@@ -41,8 +53,12 @@ export default async function SeriesSubtypePage({ params }: Props) {
     data = { products: [], total: 0, page: 1, limit: 40, totalPages: 0 };
   }
 
-  const usingPlaceholders = data.products.length === 0;
-  const cards: CategoryCard[] = usingPlaceholders
+  const isEmpty = data.products.length === 0;
+  // Placeholders are a local design-preview aid only; production shows a
+  // branded "coming soon" state instead of fabricated, unclickable cards.
+  const showPlaceholders = isEmpty && process.env.NODE_ENV !== 'production';
+  const comingSoon = isEmpty && !showPlaceholders;
+  const cards: CategoryCard[] = showPlaceholders
     ? fallbackProducts({
         key: `series-${type}-${subtype}`,
         title: formatLabel(subtype),
@@ -72,7 +88,6 @@ export default async function SeriesSubtypePage({ params }: Props) {
       }));
 
   const sizePool = Array.from(new Set(cards.flatMap((c) => c.sizes ?? [])));
-  const siblings = SERIES_TYPE_SUBTYPES[type] ?? [];
   const productTypes = siblings.map((s) => ({
     slug: s.slug,
     label: s.label,
@@ -104,20 +119,26 @@ export default async function SeriesSubtypePage({ params }: Props) {
           </h1>
           <p className="mt-3 max-w-md text-sm text-muted">{subtitle}</p>
         </div>
-        <p className="text-xs uppercase tracking-[0.15em] text-muted">
-          {cards.length} piece{cards.length === 1 ? '' : 's'}
-        </p>
+        {!comingSoon && (
+          <p className="text-xs uppercase tracking-[0.15em] text-muted">
+            {cards.length} piece{cards.length === 1 ? '' : 's'}
+          </p>
+        )}
       </header>
 
-      <CategoryGrid
-        products={cards}
-        productTypes={productTypes}
-        productTypesHeading="Product type"
-        sizes={sizePool}
-        sizesHeading={type === 'pants' ? 'Waist' : 'Size'}
-        showFootnote={usingPlaceholders}
-        footnote="Showing curated preview — full assortment syncing soon."
-      />
+      {comingSoon ? (
+        <ComingSoon title={`${formatLabel(subtype)} — arriving soon`} />
+      ) : (
+        <CategoryGrid
+          products={cards}
+          productTypes={productTypes}
+          productTypesHeading="Product type"
+          sizes={sizePool}
+          sizesHeading={type === 'pants' ? 'Waist' : 'Size'}
+          showFootnote={showPlaceholders}
+          footnote="Showing curated preview — full assortment syncing soon."
+        />
+      )}
     </div>
   );
 }
