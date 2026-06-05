@@ -195,11 +195,25 @@ export function getBundleBySlug(slug: string): Promise<Bundle> {
 
 // ─── Authenticated API Helper ────────────────────────────────────────────────
 
+/**
+ * Thrown by authenticated fetch helpers when the API rejects a request with
+ * 401: the NextAuth session cookie is still cryptographically valid (so
+ * middleware lets the user through) but the API JWT stored inside it has
+ * expired. Callers should bounce the user to /api/auth/expire to clear the
+ * stale session rather than rendering a misleading empty/error state.
+ */
+export class SessionExpiredError extends Error {
+  constructor() {
+    super('Session expired');
+    this.name = 'SessionExpiredError';
+  }
+}
+
 async function authFetch<T>(
   path: string,
   accessToken: string,
   options?: RequestInit,
-): Promise<{ success: boolean; data?: T; error?: string }> {
+): Promise<{ success: boolean; data?: T; error?: string; status?: number }> {
   const res = await fetch(`${API}${path}`, {
     ...options,
     headers: {
@@ -211,7 +225,11 @@ async function authFetch<T>(
   });
   const json = await res.json();
   if (!res.ok) {
-    return { success: false, error: json.message ?? `API error ${res.status}` };
+    return {
+      success: false,
+      error: json.message ?? `API error ${res.status}`,
+      status: res.status,
+    };
   }
   return { success: true, data: json.data as T };
 }
@@ -322,8 +340,12 @@ export interface Wishlist {
 export async function getWishlist(accessToken: string): Promise<Wishlist | null> {
   try {
     const res = await authFetch<Wishlist>('/wishlist', accessToken);
+    // 401 = stale API JWT. Propagate so the store can force a re-login
+    // instead of silently showing an empty wishlist.
+    if (!res.success && res.status === 401) throw new SessionExpiredError();
     return res.success ? res.data ?? null : null;
-  } catch {
+  } catch (e) {
+    if (e instanceof SessionExpiredError) throw e;
     return null;
   }
 }
@@ -490,6 +512,10 @@ async function returnsFetch<T>(
   });
   const json = await res.json().catch(() => ({}));
   if (!res.ok) {
+    // 401 on an authenticated returns call = stale API JWT. Surface a typed
+    // error so the account page can force re-login; guest lookups catch it as
+    // a plain Error (it extends Error) and just show the message.
+    if (res.status === 401) throw new SessionExpiredError();
     const message =
       (json && typeof json.message === 'string' && json.message) ||
       (json && typeof json.error === 'string' && json.error) ||

@@ -71,6 +71,11 @@ export default function AddressesPage() {
       const res = await fetch(`${API}/users/me/addresses`, {
         headers: { Authorization: `Bearer ${accessToken}` },
       });
+      // Stale API JWT — force re-login instead of silently showing no addresses.
+      if (res.status === 401) {
+        window.location.href = '/api/auth/expire';
+        return;
+      }
       const json = await res.json();
       if (json.success) {
         setAddresses(json.data ?? []);

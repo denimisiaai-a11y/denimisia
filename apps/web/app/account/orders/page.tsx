@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 import { auth } from '@/lib/auth';
 import { formatPrice } from '@/lib/utils';
 
@@ -22,23 +23,31 @@ function displayOrderRef(order: Order): string {
   return order.orderNumber ?? order.id.slice(-8).toUpperCase();
 }
 
-async function getOrders(accessToken: string): Promise<Order[]> {
+type OrdersResult =
+  | { ok: true; orders: Order[] }
+  | { ok: false; status: number | 'network' };
+
+async function getOrders(accessToken: string): Promise<OrdersResult> {
   try {
     const res = await fetch(`${API}/orders`, {
       headers: { Authorization: `Bearer ${accessToken}` },
       cache: 'no-store',
     });
-    if (!res.ok) return [];
+    if (!res.ok) return { ok: false, status: res.status };
     const json = await res.json();
     // API returns { success, data: { orders, total, page, limit } } via
     // OrdersService.getMyOrders. Earlier code assumed data was already
     // the array and rendered "No orders yet." on every successful call.
-    if (!json.success) return [];
+    if (!json.success) return { ok: false, status: res.status };
     const payload = json.data;
-    if (Array.isArray(payload)) return payload;
-    return Array.isArray(payload?.orders) ? payload.orders : [];
+    const orders: Order[] = Array.isArray(payload)
+      ? payload
+      : Array.isArray(payload?.orders)
+        ? payload.orders
+        : [];
+    return { ok: true, orders };
   } catch {
-    return [];
+    return { ok: false, status: 'network' };
   }
 }
 
@@ -54,13 +63,27 @@ const STATUS_COLORS: Record<string, string> = {
 
 export default async function OrdersPage() {
   const session = await auth();
-  const orders = session?.accessToken ? await getOrders(session.accessToken) : [];
+  const accessToken = session?.accessToken;
+  if (!accessToken) redirect('/api/auth/expire');
+
+  const result = await getOrders(accessToken);
+  // 401 = the API JWT inside the still-valid session cookie has expired.
+  // Force-expire the session instead of showing a misleading "No orders yet."
+  // (mirrors account/page.tsx).
+  if (!result.ok && result.status === 401) redirect('/api/auth/expire');
+
+  const orders = result.ok ? result.orders : [];
+  const loadFailed = !result.ok;
 
   return (
     <div>
       <h2 className="mb-6 text-lg font-medium uppercase tracking-[0.1em] text-ink">Orders</h2>
 
-      {orders.length === 0 ? (
+      {loadFailed ? (
+        <p className="text-sm text-muted">
+          We couldn&apos;t load your orders right now. Please refresh or try again shortly.
+        </p>
+      ) : orders.length === 0 ? (
         <p className="text-sm text-muted">No orders yet.</p>
       ) : (
         <div className="space-y-4">

@@ -7,6 +7,7 @@ import {
   addWishlistItem,
   removeWishlistItem,
   bulkAddWishlistItems,
+  SessionExpiredError,
   type WishlistItem,
 } from '@/lib/api';
 
@@ -54,7 +55,17 @@ export const useWishlist = create<WishlistState>()(
           set({ items: [], productIds: emptySet(), hydrated: true });
           return;
         }
-        const wishlist = await getWishlist(accessToken);
+        let wishlist;
+        try {
+          wishlist = await getWishlist(accessToken);
+        } catch (e) {
+          // Stale API JWT — force re-login instead of showing an empty wishlist.
+          if (e instanceof SessionExpiredError && typeof window !== 'undefined') {
+            window.location.href = '/api/auth/expire';
+            return;
+          }
+          wishlist = null;
+        }
         const items = wishlist?.items ?? [];
         set({
           items,
@@ -73,7 +84,14 @@ export const useWishlist = create<WishlistState>()(
           return;
         }
         set({ guestProductIds: [] });
-        const wishlist = await getWishlist(accessToken);
+        let wishlist;
+        try {
+          wishlist = await getWishlist(accessToken);
+        } catch {
+          // Token went stale mid-merge; leave the page-load hydrate() to
+          // handle the re-login redirect rather than bouncing right after login.
+          return;
+        }
         const items = wishlist?.items ?? [];
         set({
           items,

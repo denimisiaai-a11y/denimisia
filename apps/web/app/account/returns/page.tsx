@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { Loader2 } from 'lucide-react';
 import {
   getMyReturns,
+  SessionExpiredError,
   type ReturnRecord,
   type ReturnReason,
   type ReturnStatus,
@@ -71,13 +72,18 @@ export default function AccountReturnsPage() {
         const list = await getMyReturns(accessToken);
         if (!cancelled) setReturns(list);
       } catch (err: unknown) {
-        if (!cancelled) {
-          setError(
-            err instanceof Error
-              ? err.message
-              : "We couldn't load your returns right now. Please refresh or try again shortly.",
-          );
+        if (cancelled) return;
+        // Stale API JWT — clear the session and re-login instead of showing
+        // a raw "Unauthorized" error with no recovery path.
+        if (err instanceof SessionExpiredError) {
+          window.location.href = '/api/auth/expire';
+          return;
         }
+        setError(
+          err instanceof Error
+            ? err.message
+            : "We couldn't load your returns right now. Please refresh or try again shortly.",
+        );
       }
     })();
     return () => {
