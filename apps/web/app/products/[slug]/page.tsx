@@ -86,10 +86,7 @@ function excludeSlug(list: Product[], slug: string, limit: number): Product[] {
   return list.filter((p) => p.slug !== slug).slice(0, limit);
 }
 
-// Dynamic so notFound() on an unknown slug returns a real HTTP 404 — under
-// ISR it leaked as a soft 200, letting dead product URLs get indexed. Catalog
-// is tiny and the API response is edge-cached, so the cost is negligible.
-export const dynamic = 'force-dynamic';
+export const revalidate = 60;
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;

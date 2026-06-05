@@ -15,9 +15,7 @@ interface Props {
   params: Promise<{ gender: string }>;
 }
 
-// Dynamic so notFound() on an unknown gender returns a real HTTP 404 (under
-// ISR it leaks as a soft 200). Catalog is small; the API call is edge-cached.
-export const dynamic = 'force-dynamic';
+export const revalidate = 60;
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { gender } = await params;

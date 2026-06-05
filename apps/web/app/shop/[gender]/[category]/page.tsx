@@ -36,9 +36,7 @@ const SUBTITLES: Record<string, string> = {
   'relaxed-fit': 'Roomy, unconstrained.',
 };
 
-// Dynamic so the invalid gender/fit guard below returns a real HTTP 404
-// (under ISR notFound() leaks as a soft 200). Catalog is small; API is cached.
-export const dynamic = 'force-dynamic';
+export const revalidate = 60;
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { gender, category } = await params;

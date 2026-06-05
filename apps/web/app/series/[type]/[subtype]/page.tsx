@@ -21,9 +21,7 @@ function formatLabel(slug: string): string {
   return slug.split('-').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 }
 
-// Dynamic so the invalid type/subtype guard returns a real HTTP 404 (under
-// ISR notFound() leaks as a soft 200). Catalog is small; API is cached.
-export const dynamic = 'force-dynamic';
+export const revalidate = 60;
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { type, subtype } = await params;

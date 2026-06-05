@@ -3,9 +3,7 @@ import type { Metadata } from 'next';
 import { ProductCard } from '@/components/ui/product-card';
 import { resolveProductImage, resolveHoverImage } from '@/lib/placeholder-images';
 
-// Dynamic so notFound() on an unknown campaign returns a real HTTP 404 —
-// under ISR it leaked as a soft 200. Catalog is tiny; API is cached.
-export const dynamic = 'force-dynamic';
+export const revalidate = 60;
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api/v1';
 

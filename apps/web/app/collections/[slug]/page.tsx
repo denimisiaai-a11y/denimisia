@@ -22,9 +22,7 @@ import { LookbookBreak } from './_components/lookbook-break';
 import { PromoBanner } from './_components/promo-banner';
 import { RelatedCollections } from './_components/related-collections';
 
-// Dynamic so notFound() on an unknown/hidden collection returns a real HTTP
-// 404 — under ISR it leaked as a soft 200. Catalog is tiny; API is cached.
-export const dynamic = 'force-dynamic';
+export const revalidate = 60;
 
 export async function generateMetadata({
   params,
