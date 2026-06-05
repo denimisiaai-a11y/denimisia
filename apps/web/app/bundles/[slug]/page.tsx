@@ -9,7 +9,6 @@ import { BundleItemsAccordion } from '@/components/bundles/bundle-items-accordio
 import { getBundleBySlug, getBundles, type Bundle } from '@/lib/api';
 import { bundleToView } from '@/lib/bundle-view';
 import {
-  PLACEHOLDER_BUNDLES,
   getPlaceholderBundle,
   getRelatedBundles,
   type PlaceholderBundle,
@@ -17,10 +16,6 @@ import {
 
 interface PageProps {
   params: Promise<{ slug: string }>;
-}
-
-export async function generateStaticParams() {
-  return PLACEHOLDER_BUNDLES.map((b) => ({ slug: b.slug }));
 }
 
 async function loadBundle(slug: string): Promise<PlaceholderBundle | null> {
@@ -46,7 +41,10 @@ async function loadRelated(
   }
 }
 
-export const revalidate = 60;
+// Dynamic so notFound() on an unknown bundle returns a real HTTP 404 — under
+// ISR it leaked as a soft 200. (Was prerendering placeholder slugs via
+// generateStaticParams, which is incompatible with force-dynamic.)
+export const dynamic = 'force-dynamic';
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params;
