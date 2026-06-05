@@ -512,10 +512,14 @@ async function returnsFetch<T>(
   });
   const json = await res.json().catch(() => ({}));
   if (!res.ok) {
-    // 401 on an authenticated returns call = stale API JWT. Surface a typed
-    // error so the account page can force re-login; guest lookups catch it as
-    // a plain Error (it extends Error) and just show the message.
-    if (res.status === 401) throw new SessionExpiredError();
+    // 401 on an *authenticated* returns call = stale API JWT → surface a typed
+    // error so the account page can force re-login. Guest calls (no Authorization
+    // header) keep the plain Error so a guest with no session never sees a
+    // misleading "Session expired".
+    const isAuthed = Boolean(
+      (options?.headers as Record<string, string> | undefined)?.Authorization,
+    );
+    if (res.status === 401 && isAuthed) throw new SessionExpiredError();
     const message =
       (json && typeof json.message === 'string' && json.message) ||
       (json && typeof json.error === 'string' && json.error) ||

@@ -94,7 +94,10 @@ export default async function SeriesTypePage({ params, searchParams }: Props) {
   const isEmpty = data.products.length === 0;
   const showPlaceholders =
     !hasTypeFilter && isEmpty && process.env.NODE_ENV !== 'production';
-  const comingSoon = isEmpty && !showPlaceholders;
+  // Only the unfiltered landing shows "coming soon". A filtered query that
+  // returns nothing falls through to CategoryGrid's own empty state so the
+  // filter chips stay mounted and the user can clear the selection.
+  const comingSoon = isEmpty && !hasTypeFilter && !showPlaceholders;
   const cards: CategoryCard[] = showPlaceholders
     ? fallbackProducts({
         key: `series-${type}`,
