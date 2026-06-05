@@ -4,6 +4,17 @@ const nextConfig = {
   // Catch errors at build time, not runtime
   typescript: { ignoreBuildErrors: false },
 
+  // /500 is a path Vercel and the Pages-Router-era Next.js reserve internally
+  // for the built-in error page. Defining an App Router page at
+  // app/500/page.tsx silently fails — Vercel serves a 500-status fallback that
+  // ignores our notFound() call. A routing-layer redirect sidesteps the
+  // reservation entirely so users hitting /500 land cleanly on the homepage.
+  async redirects() {
+    return [
+      { source: '/500', destination: '/', permanent: true },
+    ];
+  },
+
   images: {
     // Limit image sizes for faster loads
     deviceSizes: [640, 750, 828, 1080, 1200, 1920],
