@@ -51,6 +51,10 @@ export const metadata: Metadata = {
       ? { 'facebook-domain-verification': seoEnv.metaDomainVerification }
       : undefined,
   },
+  other: {
+    'msapplication-TileColor': '#030302',
+    'msapplication-config': '/browserconfig.xml',
+  },
 };
 
 export const viewport: Viewport = {
