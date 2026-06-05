@@ -10,6 +10,7 @@ import { fallbackProducts } from '@/lib/placeholder-products';
 import { SHOP_GENDER_COPY, SHOP_GENDER_FITS, genderCategorySlug } from '@/lib/category-copy';
 import { fetchPageSlots, pickSlot, resolveSlotUrl } from '@/lib/page-slots';
 import { ComingSoon } from '@/components/shop/coming-soon';
+import { noindexRobots } from '@/lib/seo/metadata';
 
 interface Props {
   params: Promise<{ gender: string }>;
@@ -20,7 +21,9 @@ export const revalidate = 60;
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { gender } = await params;
   const copy = SHOP_GENDER_COPY[gender];
-  if (!copy) return { title: 'Shop' };
+  // Invalid gender → the page notFound()s. The status stays 200 (root-layout
+  // streaming locks it) but noindex keeps the soft-404 out of the index.
+  if (!copy) return { title: 'Shop', robots: noindexRobots };
   return { title: copy.title, description: copy.subtitle };
 }
 

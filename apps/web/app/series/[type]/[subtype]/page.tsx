@@ -12,6 +12,7 @@ import {
   SERIES_TYPE_SUBTYPES,
 } from '@/lib/category-copy';
 import { ComingSoon } from '@/components/shop/coming-soon';
+import { noindexRobots } from '@/lib/seo/metadata';
 
 interface Props {
   params: Promise<{ type: string; subtype: string }>;
@@ -25,9 +26,13 @@ export const revalidate = 60;
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { type, subtype } = await params;
+  // Invalid type/subtype → the page notFound()s; noindex keeps the soft-404
+  // (200, locked by root-layout streaming) out of the index.
+  const isValid = SERIES_TYPE_SUBTYPES[type]?.some((s) => s.slug === subtype) ?? false;
   return {
     title: `${formatLabel(subtype)} — ${formatLabel(type)}`,
     description: seriesSubtypeCopy(subtype).subtitle,
+    ...(isValid ? {} : { robots: noindexRobots }),
   };
 }
 

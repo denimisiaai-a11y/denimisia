@@ -8,6 +8,7 @@ import { resolveProductImage, resolveHoverImage } from '@/lib/placeholder-images
 import { fallbackProductsForCategory } from '@/lib/placeholder-products';
 import { SHOP_GENDER_FITS, genderCategorySlug } from '@/lib/category-copy';
 import { ComingSoon } from '@/components/shop/coming-soon';
+import { noindexRobots } from '@/lib/seo/metadata';
 
 interface Props {
   params: Promise<{ gender: string; category: string }>;
@@ -40,9 +41,13 @@ export const revalidate = 60;
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { gender, category } = await params;
+  // Invalid gender/fit → the page notFound()s; noindex keeps that soft-404
+  // (200 status, locked by root-layout streaming) out of the search index.
+  const isValid = SHOP_GENDER_FITS[gender]?.some((f) => f.slug === category) ?? false;
   return {
     title: `${formatLabel(category)} — ${formatLabel(gender)}`,
     description: `Shop ${formatLabel(gender)}'s ${formatLabel(category)} at Denimisia.`,
+    ...(isValid ? {} : { robots: noindexRobots }),
   };
 }
 

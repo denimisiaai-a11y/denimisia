@@ -11,6 +11,7 @@ import { seriesTypeCopy, SERIES_TYPE_SUBTYPES } from '@/lib/category-copy';
 import { fetchPageSlots, pickSlot, resolveSlotUrl } from '@/lib/page-slots';
 import { SITE_URL } from '@/config/brand';
 import { ComingSoon } from '@/components/shop/coming-soon';
+import { noindexRobots } from '@/lib/seo/metadata';
 
 interface Props {
   params: Promise<{ type: string }>;
@@ -26,7 +27,9 @@ export async function generateMetadata({
   const { type } = await params;
   const sp = await searchParams;
   const copy = seriesTypeCopy(type);
-  if (!copy) return { title: 'Series' };
+  // Invalid type → the page notFound()s; noindex keeps the soft-404 (200,
+  // locked by root-layout streaming) out of the index.
+  if (!copy) return { title: 'Series', robots: noindexRobots };
   // Multi-select filter combinations (?types=) are noindexed to avoid thin /
   // duplicate filter pages — the canonical /series/[type]/[subtype] pages hold
   // the SEO weight. The clean base URL stays indexable and self-canonical.
