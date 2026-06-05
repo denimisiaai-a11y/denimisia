@@ -105,6 +105,9 @@ export const useChatStore = create<ChatState>()(
       name: 'denimisia-chat',
       onRehydrateStorage: () => (state) => {
         if (!state) return;
+
+        // TTL expired — wipe everything (active handoff is also abandoned
+        // since 24h has passed with no activity).
         if (Date.now() - state.lastUpdatedAt > TTL_MS) {
           state.messages = [];
           state.context = { sessionId: newSessionId() };
@@ -115,16 +118,23 @@ export const useChatStore = create<ChatState>()(
           state.lastUpdatedAt = Date.now();
           return;
         }
-        // Identity / phone collection are mid-flow UI states. If the user
-        // reloaded or returned in a new tab without finishing the form, they
-        // shouldn't be dropped back into it — reset to idle so the bot greets
-        // them normally. Active threads (real ongoing conversations) survive.
-        if (
-          (state.threadStatus === 'collecting_identity' ||
-            state.threadStatus === 'collecting_phone') &&
-          !state.threadId
-        ) {
+
+        // Reset the bot conversation on every fresh page load / new tab
+        // UNLESS there's an active human handoff. Customers expect each
+        // visit to start fresh — seeing yesterday's bot Q&A on a returning
+        // visit looks broken. Active handoffs (threadId set + status active)
+        // MUST persist so the customer doesn't lose context with the support
+        // agent on reload.
+        const hasActiveHandoff =
+          state.threadId !== null && state.threadStatus === 'active';
+
+        if (!hasActiveHandoff) {
+          state.messages = [];
+          state.context = { sessionId: newSessionId() };
           state.threadStatus = 'idle';
+          state.threadMessages = [];
+          state.threadId = null;
+          state.threadToken = null;
         }
       },
     },

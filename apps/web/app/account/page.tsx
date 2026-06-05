@@ -47,7 +47,11 @@ export default async function ProfilePage() {
   }
 
   if (!result.ok) {
-    return <p className="text-sm text-muted">Unable to load profile.</p>;
+    return (
+      <p className="text-sm text-muted">
+        We couldn&apos;t load your profile right now. Please refresh the page or try again shortly.
+      </p>
+    );
   }
 
   const { data: profile } = result;

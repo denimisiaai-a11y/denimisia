@@ -75,7 +75,7 @@ export default function AccountReturnsPage() {
           setError(
             err instanceof Error
               ? err.message
-              : 'Could not load your returns.',
+              : "We couldn't load your returns right now. Please refresh or try again shortly.",
           );
         }
       }

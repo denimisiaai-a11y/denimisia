@@ -9,9 +9,20 @@ const nextConfig = {
   // app/500/page.tsx silently fails — Vercel serves a 500-status fallback that
   // ignores our notFound() call. A routing-layer redirect sidesteps the
   // reservation entirely so users hitting /500 land cleanly on the homepage.
+  //
+  // The remaining redirects map common conventional URLs that previously
+  // 404'd to their actual destinations:
+  //   /signup       -> /register             (we use 'register', not 'signup')
+  //   /wishlist     -> /account/wishlist     (auth-gated; middleware bounces guests to /login)
+  //   /cart         -> /checkout             (cart UI is part of the checkout flow)
+  //   /sitemap.xml  -> /sitemap-index.xml    (search engines look for /sitemap.xml by convention)
   async redirects() {
     return [
       { source: '/500', destination: '/', permanent: true },
+      { source: '/signup', destination: '/register', permanent: true },
+      { source: '/wishlist', destination: '/account/wishlist', permanent: false },
+      { source: '/cart', destination: '/checkout', permanent: false },
+      { source: '/sitemap.xml', destination: '/sitemap-index.xml', permanent: true },
     ];
   },
 
