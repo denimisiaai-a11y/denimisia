@@ -63,3 +63,13 @@ export const sitemapHeaders = {
   'Cache-Control':
     'public, max-age=3600, s-maxage=3600, stale-while-revalidate=86400',
 } as const;
+
+/**
+ * Leftover QA/test entities (e.g. the `test` product, `test1001` collection)
+ * are still live in the DB but must never be advertised to crawlers. Matches
+ * "test", "test103", "test1001" — but NOT real slugs like "tested-denim".
+ * Remove once the test data is deactivated.
+ */
+export function isJunkSlug(slug: string): boolean {
+  return /^test\d*$/i.test(slug);
+}

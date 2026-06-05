@@ -1,5 +1,5 @@
 import { SITE_URL } from '@/config/brand';
-import { buildUrlSet, sitemapHeaders, type SitemapUrl } from '@/lib/seo/sitemap-xml';
+import { buildUrlSet, sitemapHeaders, isJunkSlug, type SitemapUrl } from '@/lib/seo/sitemap-xml';
 import { getCollections } from '@/lib/api';
 
 export const revalidate = 3600;
@@ -13,7 +13,9 @@ export async function GET() {
   }
 
   const now = new Date().toISOString().split('T')[0];
-  const urls: SitemapUrl[] = collections.map((c) => ({
+  const urls: SitemapUrl[] = collections
+    .filter((c) => !isJunkSlug(c.slug))
+    .map((c) => ({
     loc: `${SITE_URL}/collections/${c.slug}`,
     lastmod: now,
     changefreq: 'weekly',

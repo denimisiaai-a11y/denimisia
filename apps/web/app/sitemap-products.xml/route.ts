@@ -1,5 +1,5 @@
 import { SITE_URL } from '@/config/brand';
-import { buildUrlSet, sitemapHeaders, type SitemapUrl } from '@/lib/seo/sitemap-xml';
+import { buildUrlSet, sitemapHeaders, isJunkSlug, type SitemapUrl } from '@/lib/seo/sitemap-xml';
 
 export const revalidate = 3600;
 
@@ -43,7 +43,9 @@ async function fetchAllSlugs(): Promise<SlugEntry[]> {
 
 export async function GET() {
   const slugs = await fetchAllSlugs();
-  const urls: SitemapUrl[] = slugs.map((entry) => ({
+  const urls: SitemapUrl[] = slugs
+    .filter((entry) => !isJunkSlug(entry.slug))
+    .map((entry) => ({
     loc: `${SITE_URL}/products/${entry.slug}`,
     lastmod: entry.updatedAt
       ? new Date(entry.updatedAt).toISOString().split('T')[0]

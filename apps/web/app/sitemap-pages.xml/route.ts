@@ -17,6 +17,8 @@ const STATIC_PAGES: SitemapUrl[] = [
   { loc: `${SITE_URL}/size-guide`, changefreq: 'monthly', priority: 0.4 },
   { loc: `${SITE_URL}/returns`, changefreq: 'yearly', priority: 0.3 },
   { loc: `${SITE_URL}/privacy`, changefreq: 'yearly', priority: 0.2 },
+  { loc: `${SITE_URL}/terms`, changefreq: 'yearly', priority: 0.2 },
+  { loc: `${SITE_URL}/sitemap`, changefreq: 'monthly', priority: 0.2 },
 ];
 
 // Fixed lastmod for static marketing pages. Using `new Date()` here stamped

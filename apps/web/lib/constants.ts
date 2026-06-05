@@ -164,6 +164,7 @@ export const FOOTER_COLUMNS = [
       { label: 'Contact Us', href: '/contact' },
       { label: 'Size Guide', href: '/size-guide' },
       { label: 'Outlets', href: '/outlets' },
+      { label: 'Sitemap', href: '/sitemap' },
     ],
   },
   {

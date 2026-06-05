@@ -6,6 +6,7 @@ const SITEMAPS = [
   'sitemap-pages.xml',
   'sitemap-products.xml',
   'sitemap-collections.xml',
+  'sitemap-categories.xml',
 ];
 
 export async function GET() {
