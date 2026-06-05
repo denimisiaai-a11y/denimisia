@@ -8,7 +8,7 @@
  */
 
 export const SITE_URL =
-  process.env.NEXT_PUBLIC_SITE_URL ?? 'https://denimisia.com';
+  process.env.NEXT_PUBLIC_SITE_URL ?? 'https://denimisiabd.com';
 
 export const brand = {
   legalName: 'Denimisia',

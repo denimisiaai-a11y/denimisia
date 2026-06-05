@@ -19,8 +19,12 @@ const STATIC_PAGES: SitemapUrl[] = [
   { loc: `${SITE_URL}/privacy`, changefreq: 'yearly', priority: 0.2 },
 ];
 
+// Fixed lastmod for static marketing pages. Using `new Date()` here stamped
+// every page with "today" on every request, which trains crawlers to distrust
+// lastmod. Bump this when the static page content materially changes.
+const STATIC_LASTMOD = '2026-06-06';
+
 export async function GET() {
-  const now = new Date().toISOString().split('T')[0];
-  const urls = STATIC_PAGES.map((u) => ({ ...u, lastmod: u.lastmod ?? now }));
+  const urls = STATIC_PAGES.map((u) => ({ ...u, lastmod: u.lastmod ?? STATIC_LASTMOD }));
   return new Response(buildUrlSet(urls), { headers: sitemapHeaders });
 }

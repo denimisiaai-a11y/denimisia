@@ -6,7 +6,7 @@
 
 export const seoEnv = {
   siteUrl:
-    process.env.NEXT_PUBLIC_SITE_URL ?? 'https://denimisia.com',
+    process.env.NEXT_PUBLIC_SITE_URL ?? 'https://denimisiabd.com',
   googleSiteVerification: process.env.GOOGLE_SITE_VERIFICATION,
   metaDomainVerification: process.env.META_DOMAIN_VERIFICATION,
   ga4MeasurementId: process.env.NEXT_PUBLIC_GA4_MEASUREMENT_ID,
