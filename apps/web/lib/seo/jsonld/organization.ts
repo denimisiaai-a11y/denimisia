@@ -5,6 +5,12 @@ import type { JsonLdNode } from './types';
 export function organizationJsonLd(): JsonLdNode {
   const socials = brand.socialProfiles.filter((url) => url.startsWith('http'));
 
+  // Don't emit the placeholder phone (+8801XXXXXXXXX) into structured data —
+  // a fake telephone trips Google's rich-results validator. It appears
+  // automatically once a real number (no 'X') is set in config/brand.ts.
+  const phone = brand.contact.phone;
+  const telephone = phone && !/x/i.test(phone) ? phone : undefined;
+
   return {
     '@context': 'https://schema.org',
     '@type': 'Organization',
@@ -24,7 +30,7 @@ export function organizationJsonLd(): JsonLdNode {
     contactPoint: {
       '@type': 'ContactPoint',
       email: brand.contact.email,
-      telephone: brand.contact.phone,
+      telephone,
       contactType: 'customer support',
       areaServed: 'BD',
       availableLanguage: ['English', 'Bengali'],
