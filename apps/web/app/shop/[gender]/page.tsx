@@ -11,26 +11,57 @@ import { SHOP_GENDER_COPY, SHOP_GENDER_FITS, genderCategorySlug } from '@/lib/ca
 import { fetchPageSlots, pickSlot, resolveSlotUrl } from '@/lib/page-slots';
 import { ComingSoon } from '@/components/shop/coming-soon';
 import { noindexRobots } from '@/lib/seo/metadata';
+import { SITE_URL } from '@/config/brand';
 
 interface Props {
   params: Promise<{ gender: string }>;
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
 export const revalidate = 60;
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+  searchParams,
+}: Props): Promise<Metadata> {
   const { gender } = await params;
+  const sp = await searchParams;
   const copy = SHOP_GENDER_COPY[gender];
   // Invalid gender → the page notFound()s. The status stays 200 (root-layout
   // streaming locks it) but noindex keeps the soft-404 out of the index.
   if (!copy) return { title: 'Shop', robots: noindexRobots };
-  return { title: copy.title, description: copy.subtitle };
+  // Multi-select fit combinations (?fits=) are noindexed to avoid thin/duplicate
+  // filter pages; the canonical /shop/[gender]/[fit] pages hold the SEO weight.
+  const validFits = new Set((SHOP_GENDER_FITS[gender] ?? []).map((f) => f.slug));
+  const hasFitFilter =
+    typeof sp.fits === 'string' &&
+    sp.fits.split(',').some((f) => validFits.has(f.trim()));
+  return {
+    title: copy.title,
+    description: copy.subtitle,
+    alternates: { canonical: `${SITE_URL}/shop/${gender}` },
+    robots: hasFitFilter ? { index: false, follow: true } : undefined,
+  };
 }
 
-export default async function ShopGenderPage({ params }: Props) {
+export default async function ShopGenderPage({ params, searchParams }: Props) {
   const { gender } = await params;
+  const sp = await searchParams;
   const copy = SHOP_GENDER_COPY[gender];
   if (!copy) notFound();
+
+  const fits = SHOP_GENDER_FITS[gender] ?? [];
+  // ?fits=cargo,flare → keep only valid fit slugs, in canonical order so the
+  // category list (and the API/cache key) is order-stable.
+  const requestedFits = new Set(
+    typeof sp.fits === 'string'
+      ? sp.fits.split(',').map((f) => f.trim()).filter(Boolean)
+      : [],
+  );
+  const selectedFits = fits
+    .map((f) => f.slug)
+    .filter((slug) => requestedFits.has(slug));
+  const hasFitFilter = selectedFits.length > 0;
 
   // Admin can swap the gender hero through the Media Manager
   // (shop.hero_women / shop.hero_men). Falls back to the hardcoded
@@ -42,17 +73,24 @@ export default async function ShopGenderPage({ params }: Props) {
 
   let data;
   try {
-    data = await getProducts({ category: genderCategorySlug(gender), limit: 60 });
+    data = hasFitFilter
+      ? await getProducts({
+          categories: selectedFits.map((f) => `${genderCategorySlug(gender)}-${f}`),
+          limit: 60,
+        })
+      : await getProducts({ category: genderCategorySlug(gender), limit: 60 });
   } catch {
     data = { products: [], total: 0, page: 1, limit: 40, totalPages: 0 };
   }
 
   const isEmpty = data.products.length === 0;
   // Placeholders are a local design-preview aid only. In production an empty
-  // category shows a branded "coming soon" state instead of fabricated,
-  // unclickable product cards that dead-ended on soft-404 pages.
-  const showPlaceholders = isEmpty && process.env.NODE_ENV !== 'production';
-  const comingSoon = isEmpty && !showPlaceholders;
+  // category shows a branded "coming soon" state instead of fabricated cards.
+  // Only the unfiltered landing shows coming-soon; a filtered-empty result
+  // falls through to CategoryGrid's own empty state so the filter chips stay.
+  const showPlaceholders =
+    !hasFitFilter && isEmpty && process.env.NODE_ENV !== 'production';
+  const comingSoon = isEmpty && !hasFitFilter && !showPlaceholders;
   const cards: CategoryCard[] = showPlaceholders
     ? fallbackProducts({
         key: `shop-${gender}-all`,
@@ -83,11 +121,12 @@ export default async function ShopGenderPage({ params }: Props) {
       }));
 
   const sizePool = Array.from(new Set(cards.flatMap((c) => c.sizes ?? [])));
-  const fits = SHOP_GENDER_FITS[gender] ?? [];
+  // Multi-select category filter: each fit is a checkbox toggling the ?fits=
+  // URL param (handled by category-filters), not an href navigation.
   const productTypes = fits.map((f) => ({
     slug: f.slug,
     label: f.label,
-    href: `/shop/${gender}/${f.slug}`,
+    active: selectedFits.includes(f.slug),
   }));
 
   return (
@@ -140,10 +179,11 @@ export default async function ShopGenderPage({ params }: Props) {
             products={cards}
             productTypes={productTypes}
             productTypesHeading="Category"
+            productTypeParam="fits"
             sizes={sizePool}
             sizesHeading="Size"
             showFootnote={showPlaceholders}
-            footnote="Showing curated preview — full assortment syncing soon."
+            footnote="Preview only. Real products load once the catalog syncs."
           />
         )}
       </div>

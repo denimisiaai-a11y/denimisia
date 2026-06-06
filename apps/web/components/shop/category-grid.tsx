@@ -33,6 +33,7 @@ interface CategoryGridProps {
   productTypes?: ProductTypeOption[];
   productTypesHeading?: string;
   productTypeParam?: string;
+  productTypeBasePath?: string;
   sizes?: string[];
   sizesHeading?: string;
   washes?: WashOption[];
@@ -57,6 +58,7 @@ export function CategoryGrid({
   productTypes,
   productTypesHeading,
   productTypeParam,
+  productTypeBasePath,
   sizes,
   sizesHeading,
   washes,
@@ -166,6 +168,7 @@ export function CategoryGrid({
     productTypes,
     productTypesHeading,
     productTypeParam,
+    productTypeBasePath,
     sizes,
     sizesHeading,
     washes,

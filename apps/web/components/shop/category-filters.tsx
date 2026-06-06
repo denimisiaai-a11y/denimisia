@@ -25,6 +25,12 @@ export interface CategoryFiltersProps {
   // checkboxes that toggle this comma-separated URL param, instead of the
   // default single-select href navigation used on the [subtype] pages.
   productTypeParam?: string;
+  // When set, toggling a Product Type checkbox navigates to this path with the
+  // param (e.g. "/shop/women?fits=cargo,flare") instead of toggling in place.
+  // Used on the single [category] pages so selecting a second category jumps to
+  // the multi-select listing. The active set is read from the option `active`
+  // flags rather than the URL (the canonical page has no param).
+  productTypeBasePath?: string;
   sizes?: string[];
   sizesHeading?: string;
   washes?: WashOption[];
@@ -45,6 +51,7 @@ export function CategoryFilters({
   productTypes,
   productTypesHeading = 'Product type',
   productTypeParam,
+  productTypeBasePath,
   sizes = [],
   sizesHeading = 'Size',
   washes = DEFAULT_WASHES,
@@ -59,8 +66,13 @@ export function CategoryFilters({
 
   const activeSizes = searchParams.get('size')?.split(',').filter(Boolean) ?? [];
   const activeColors = searchParams.get('color')?.split(',').filter(Boolean) ?? [];
+  // In basePath mode (single [category] page) the active set comes from the
+  // option `active` flags, since the canonical URL carries no param. Otherwise
+  // (listing page) it comes from the URL param.
   const activeTypes = productTypeParam
-    ? searchParams.get(productTypeParam)?.split(',').filter(Boolean) ?? []
+    ? productTypeBasePath
+      ? (productTypes ?? []).filter((o) => o.active).map((o) => o.slug)
+      : searchParams.get(productTypeParam)?.split(',').filter(Boolean) ?? []
     : [];
   const activeMaxPrice = searchParams.get('maxPrice') ?? '';
 
@@ -312,8 +324,19 @@ export function CategoryFilters({
                             : opt.active ?? false
                         }
                         onChange={() => {
-                          if (productTypeParam) {
-                            toggleArrayParam(productTypeParam, opt.slug, activeTypes);
+                          if (!productTypeParam) return;
+                          const next = activeTypes.includes(opt.slug)
+                            ? activeTypes.filter((v) => v !== opt.slug)
+                            : [...activeTypes, opt.slug];
+                          if (productTypeBasePath) {
+                            const query = next.length
+                              ? `?${productTypeParam}=${next.join(',')}`
+                              : '';
+                            router.push(`${productTypeBasePath}${query}`, {
+                              scroll: false,
+                            });
+                          } else {
+                            updateParams(productTypeParam, next.join(','));
                           }
                         }}
                       />

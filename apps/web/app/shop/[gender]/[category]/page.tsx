@@ -103,11 +103,14 @@ export default async function ShopCategoryPage({ params }: Props) {
   const subtitle = SUBTITLES[category] ?? `Curated ${categoryLabel.toLowerCase()} for every day.`;
 
   const sizePool = Array.from(new Set(cards.flatMap((c) => c.sizes ?? [])));
+  // Category filter is multi-select: checking another fit jumps to the
+  // /shop/[gender] listing with both selected (?fits=). The current fit is
+  // pre-checked via `active` (category-filters reads the active set from these
+  // flags when productTypeBasePath is set).
   const productTypes = fits.map((f) => ({
     slug: f.slug,
     label: f.label,
     active: f.slug === category,
-    href: `/shop/${gender}/${f.slug}`,
   }));
   const topsLike = ['sweatshirt', 'jacket', 'jackets', 'shorts'];
   const isPantsLike = !topsLike.some((t) => category.includes(t));
@@ -150,10 +153,12 @@ export default async function ShopCategoryPage({ params }: Props) {
           products={cards}
           productTypes={productTypes}
           productTypesHeading="Category"
+          productTypeParam="fits"
+          productTypeBasePath={`/shop/${gender}`}
           sizes={sizePool}
           sizesHeading={isPantsLike ? 'Waist' : 'Size'}
           showFootnote={showPlaceholders}
-          footnote="Showing curated preview — full assortment syncing soon."
+          footnote="Preview only. Real products load once the catalog syncs."
         />
       )}
     </div>
