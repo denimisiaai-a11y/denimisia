@@ -13,7 +13,8 @@ import {
   X,
 } from 'lucide-react';
 import { useCart } from '@/stores/cart';
-import { formatPrice } from '@/lib/utils';
+// Buying flow uses the ৳ glyph (see lib/utils); aliased so call sites stay tidy.
+import { formatTaka as formatPrice } from '@/lib/utils';
 
 export const FREE_SHIPPING_THRESHOLD = 5000;
 

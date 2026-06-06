@@ -4,6 +4,7 @@ import { useState, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ChevronUp, ChevronDown, X } from 'lucide-react';
 import type { FacetsResponse } from '@/lib/api';
+import { formatPrice } from '@/lib/utils';
 
 /* ── Placeholder wash swatches ─────────────────────────────────────────────── */
 const WASH_SWATCHES: { label: string; hex: string }[] = [
@@ -182,8 +183,8 @@ export function CollectionFilters({ facets, isMobile, onClose }: CollectionFilte
           {openSections.price && (
             <div className="space-y-4">
               <div className="flex justify-between text-[11px] font-medium tracking-wide text-ink">
-                <span>৳ {priceMin.toLocaleString()}</span>
-                <span>৳ {localMax.toLocaleString()}</span>
+                <span>{formatPrice(priceMin)}</span>
+                <span>{formatPrice(localMax)}</span>
               </div>
               <div className="relative">
                 <input

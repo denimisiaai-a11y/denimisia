@@ -183,7 +183,7 @@ export default function OutletsPage() {
           Ship anywhere. Free returns.
         </h2>
         <p className="mb-10 text-sm leading-relaxed text-[var(--color-secondary)] md:text-base">
-          Orders over ৳2,000 ship free within Bangladesh. Every piece comes with a 30-day
+          Orders over BDT 2,000 ship free within Bangladesh. Every piece comes with a 30-day
           free-return window — so the online experience can stand in for retail.
         </p>
         <div className="flex flex-col items-stretch justify-center gap-3 sm:flex-row">

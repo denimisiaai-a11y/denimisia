@@ -149,7 +149,7 @@ export const PLACEHOLDER_BUNDLES: PlaceholderBundle[] = [
     slug: 'core-basics',
     name: 'Core Basics',
     eyebrow: 'ESSENTIALS',
-    badgeText: '3-TEE ESSENTIALS • ৳1000 SAVINGS',
+    badgeText: '3-TEE ESSENTIALS • BDT 1,000 SAVINGS',
     tagline: 'Three-pack tee foundation',
     description:
       'Three of our signature-weight cotton tees in editorial neutrals. Spun from 200gsm combed cotton, pre-shrunk, and cut for a modern relaxed silhouette.',

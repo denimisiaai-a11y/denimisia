@@ -83,10 +83,10 @@ export function BundleCard({
           {bundlePrice != null && originalPrice != null ? (
             <div className="flex items-baseline gap-2">
               <span className="text-base font-black tracking-tight text-ink">
-                ৳{formatTaka(bundlePrice)}
+                BDT {formatTaka(bundlePrice)}
               </span>
               <span className="text-xs font-medium text-ink/40 line-through">
-                ৳{formatTaka(originalPrice)}
+                BDT {formatTaka(originalPrice)}
               </span>
             </div>
           ) : (

@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 import { auth } from '@/lib/auth';
-import { formatPrice } from '@/lib/utils';
+// Order-detail invoice uses the ৳ glyph (see lib/utils); aliased for tidy calls.
+import { formatTaka as formatPrice } from '@/lib/utils';
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api/v1';
 

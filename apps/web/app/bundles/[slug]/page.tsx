@@ -59,7 +59,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 function formatPrice(value: number): string {
-  return `৳${value.toLocaleString('en-IN')}`;
+  return `BDT ${value.toLocaleString('en-BD', { maximumFractionDigits: 0 })}`;
 }
 
 export default async function BundleDetailPage({ params }: PageProps) {

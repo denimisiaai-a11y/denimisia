@@ -402,7 +402,7 @@ export function ProductDetail({ product }: ProductDetailProps) {
                 <Plus size={16} className="text-muted transition-transform duration-200 group-open:rotate-45" />
               </summary>
               <div className="space-y-2 pb-5 pl-7 pr-2 text-sm leading-relaxed text-muted">
-                <p>Free shipping on orders over ₹2,000.</p>
+                <p>Free shipping on orders over BDT 2,000.</p>
                 <p>Standard delivery: 3–5 business days across Bangladesh.</p>
                 <p>Express delivery: 1–2 business days (additional charge applies).</p>
                 <p>30-day returns. Items must be unused with original tags attached.</p>

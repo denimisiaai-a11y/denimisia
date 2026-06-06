@@ -4,6 +4,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { ChevronUp, ChevronDown, X } from 'lucide-react';
+import { formatPrice } from '@/lib/utils';
 
 export interface ProductTypeOption {
   slug: string;
@@ -219,8 +220,8 @@ export function CategoryFilters({
           {openSections.price && (
             <div className="space-y-4">
               <div className="flex justify-between text-[11px] font-medium tracking-wide text-ink">
-                <span>৳ {priceMin.toLocaleString()}</span>
-                <span>৳ {localMax.toLocaleString()}</span>
+                <span>{formatPrice(priceMin)}</span>
+                <span>{formatPrice(localMax)}</span>
               </div>
               <div className="relative">
                 <input

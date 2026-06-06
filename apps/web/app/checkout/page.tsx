@@ -5,7 +5,8 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import { useCart } from '@/stores/cart';
-import { formatPrice } from '@/lib/utils';
+// Checkout uses the ৳ glyph (see lib/utils); aliased so call sites stay tidy.
+import { formatTaka as formatPrice } from '@/lib/utils';
 
 interface CheckoutProfile {
   id: string;

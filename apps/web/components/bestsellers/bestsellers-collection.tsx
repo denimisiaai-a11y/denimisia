@@ -201,7 +201,7 @@ export function BestsellersCollection({ products, isPlaceholder }: BestsellersCo
           />
           <ValueTile
             icon={<Truck size={18} strokeWidth={1.5} />}
-            title="Free shipping over ৳2,000"
+            title="Free shipping over BDT 2,000"
             copy="Made in Bangladesh, delivered nationwide."
           />
         </div>

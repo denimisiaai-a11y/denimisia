@@ -14,7 +14,7 @@ interface BundleItemsAccordionProps {
 const EASE = [0.22, 1, 0.36, 1] as const;
 
 function formatPrice(value: number): string {
-  return `৳${value.toLocaleString('en-IN')}`;
+  return `BDT ${value.toLocaleString('en-BD', { maximumFractionDigits: 0 })}`;
 }
 
 export function BundleItemsAccordion({ items }: BundleItemsAccordionProps) {

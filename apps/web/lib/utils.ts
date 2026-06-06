@@ -5,11 +5,23 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export function formatPrice(amount: number): string {
-  return '৳' + new Intl.NumberFormat('en-BD', {
+function formatBdtNumber(amount: number): string {
+  return new Intl.NumberFormat('en-BD', {
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   }).format(amount);
+}
+
+// Default money format across the storefront: "BDT 1,099". Used on all
+// listing / browse / marketing surfaces.
+export function formatPrice(amount: number): string {
+  return 'BDT ' + formatBdtNumber(amount);
+}
+
+// Taka-glyph form: "৳1,099". Used only in the on-site buying flow (cart,
+// checkout) and the order-detail invoice, where the font renders ৳ reliably.
+export function formatTaka(amount: number): string {
+  return '৳' + formatBdtNumber(amount);
 }
 
 /**
