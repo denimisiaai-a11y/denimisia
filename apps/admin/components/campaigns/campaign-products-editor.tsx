@@ -36,7 +36,7 @@ interface CampaignProductsEditorProps {
 function formatBdt(value: number | string): string {
   const n = typeof value === 'string' ? Number(value) : value;
   if (!Number.isFinite(n)) return '—';
-  return `৳ ${n.toLocaleString()}`;
+  return `BDT ${n.toLocaleString()}`;
 }
 
 function computeFinal(
@@ -225,7 +225,7 @@ function ProductRow({
         className="bg-surface-container px-2 py-1.5 text-xs"
       >
         <option value="PERCENTAGE">% off</option>
-        <option value="FIXED_AMOUNT">৳ off</option>
+        <option value="FIXED_AMOUNT">BDT off</option>
       </select>
 
       <input
@@ -343,7 +343,7 @@ function ProductSearch({
           className="bg-surface-container-low px-2 py-2 text-xs"
         >
           <option value="PERCENTAGE">% off</option>
-          <option value="FIXED_AMOUNT">৳ off</option>
+          <option value="FIXED_AMOUNT">BDT off</option>
         </select>
         <input
           type="number"

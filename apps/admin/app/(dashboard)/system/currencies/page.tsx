@@ -9,7 +9,7 @@ export default function CurrenciesPage() {
       icon="currency_exchange"
       status="Backend Required"
       featureList={[
-        'Set primary currency (default: BDT ৳)',
+        'Set primary currency (default: BDT)',
         'Enable additional display currencies — USD, EUR, INR',
         'Auto-refresh FX rates every 24 hours',
         'Per-product currency overrides for markets where floor price matters',

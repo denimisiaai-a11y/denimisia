@@ -54,11 +54,11 @@ const DEFAULT_STORE_INFO: StoreInfo = {
   address: 'Plot 42, Block C, Banani, Dhaka 1213, Bangladesh',
   city: 'Dhaka',
   country: 'Bangladesh',
-  currency: 'BDT (৳)',
+  currency: 'BDT',
 };
 
 const CURRENCY_OPTIONS: ReadonlyArray<string> = [
-  'BDT (৳)',
+  'BDT',
   'USD ($)',
   'EUR (€)',
 ];
@@ -74,19 +74,19 @@ const DEFAULT_SHIPPING_ZONES: ReadonlyArray<ShippingZone> = [
     id: 'inside-dhaka',
     name: 'Inside Dhaka',
     description: 'Delivery within 24-48 hours',
-    rate: '৳ 60.00',
+    rate: 'BDT 60.00',
   },
   {
     id: 'outside-dhaka',
     name: 'Outside Dhaka',
     description: 'Standard delivery (3-5 business days)',
-    rate: '৳ 120.00',
+    rate: 'BDT 120.00',
   },
   {
     id: 'international',
     name: 'International Express',
     description: 'DHL/FedEx tracked shipping',
-    rate: '৳ 2,400.00',
+    rate: 'BDT 2,400.00',
   },
 ];
 
@@ -830,7 +830,7 @@ function AddZoneModal({ open, onClose, onAdd }: AddZoneModalProps) {
             type="text"
             value={rate}
             onChange={(e) => setRate(e.target.value)}
-            placeholder="৳ 150.00"
+            placeholder="BDT 150.00"
             className="w-full border-b border-outline-variant/30 bg-transparent py-2 text-sm font-medium text-on-surface focus:border-primary focus:outline-none"
           />
         </div>

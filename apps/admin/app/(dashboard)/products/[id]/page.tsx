@@ -579,7 +579,7 @@ export default function EditProductPage() {
                   Price (BDT) <span className="text-primary">*</span>
                 </span>
                 <div className="flex items-center gap-2 border-b border-outline-variant/25 focus-within:border-primary transition-colors duration-300 ease-editorial">
-                  <span className="text-sm text-secondary">&#2547;</span>
+                  <span className="text-sm text-secondary">BDT </span>
                   <input
                     type="number"
                     value={price}
@@ -597,7 +597,7 @@ export default function EditProductPage() {
                   Compare At Price
                 </span>
                 <div className="flex items-center gap-2 border-b border-outline-variant/25 focus-within:border-primary transition-colors duration-300 ease-editorial">
-                  <span className="text-sm text-secondary">&#2547;</span>
+                  <span className="text-sm text-secondary">BDT </span>
                   <input
                     type="number"
                     value={compareAtPrice}
@@ -874,7 +874,7 @@ export default function EditProductPage() {
                     <td className="px-5 py-4 text-sm text-on-surface">
                       {v.price != null ? (
                         <>
-                          <span className="text-secondary">&#2547;</span>
+                          <span className="text-secondary">BDT </span>
                           {formatBdt(v.price)}
                         </>
                       ) : (
@@ -983,7 +983,7 @@ export default function EditProductPage() {
                 Price
               </span>
               <div className="flex items-center gap-2 border-b border-outline-variant/25 focus-within:border-primary transition-colors duration-300 ease-editorial">
-                <span className="text-sm text-secondary">&#2547;</span>
+                <span className="text-sm text-secondary">BDT </span>
                 <input
                   type="number"
                   value={newVariant.price}

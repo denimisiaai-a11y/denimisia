@@ -31,6 +31,7 @@ import { Modal } from '@/components/modal';
 const BDT_FORMATTER = new Intl.NumberFormat('en-BD', {
   style: 'currency',
   currency: 'BDT',
+  currencyDisplay: 'code',
   minimumFractionDigits: 2,
   maximumFractionDigits: 2,
 });

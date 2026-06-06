@@ -77,7 +77,7 @@ function formatDate(dateStr: string): string {
 
 function formatCurrency(value: number | null | undefined): string {
   if (value === null || value === undefined || Number.isNaN(value)) return '—';
-  return `\u09F3 ${value.toLocaleString()}`;
+  return `\BDT ${value.toLocaleString()}`;
 }
 
 function classifySegment(customer: Customer): Exclude<SegmentFilter, 'ALL'> {

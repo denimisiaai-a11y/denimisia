@@ -295,7 +295,7 @@ function ManualProductsForm({
                     <div className="flex-1 min-w-0">
                       <p className="truncate text-sm">{p.name}</p>
                       <p className="font-mono text-[9px] uppercase tracking-[0.15em] text-tertiary">
-                        ৳{Number(p.price).toLocaleString()}
+                        BDT {Number(p.price).toLocaleString()}
                       </p>
                     </div>
                     {already ? (
@@ -370,7 +370,7 @@ function ManualProductsForm({
                 <div className="flex-1 min-w-0">
                   <p className="truncate text-sm">{p.name}</p>
                   <p className="font-mono text-[9px] uppercase tracking-[0.15em] text-tertiary">
-                    /{p.slug} · ৳{Number(p.price).toLocaleString()}
+                    /{p.slug} · BDT {Number(p.price).toLocaleString()}
                   </p>
                 </div>
                 <button

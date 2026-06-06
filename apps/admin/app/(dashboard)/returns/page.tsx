@@ -14,6 +14,7 @@ import {
 const BDT_FORMATTER = new Intl.NumberFormat('en-BD', {
   style: 'currency',
   currency: 'BDT',
+  currencyDisplay: 'code',
   minimumFractionDigits: 0,
   maximumFractionDigits: 2,
 });

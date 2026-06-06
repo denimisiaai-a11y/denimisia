@@ -35,8 +35,8 @@ const BDT_FORMATTER = new Intl.NumberFormat('en-BD', {
 });
 
 function formatBDT(value: number): string {
-  if (!Number.isFinite(value)) return '৳0';
-  return `৳${BDT_FORMATTER.format(value)}`;
+  if (!Number.isFinite(value)) return 'BDT 0';
+  return `BDT ${BDT_FORMATTER.format(value)}`;
 }
 
 // ---------------------------------------------------------------------------

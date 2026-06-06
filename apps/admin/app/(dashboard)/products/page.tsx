@@ -405,12 +405,12 @@ export default function ProductsPage() {
                       <td className="px-6 py-5">
                         <div className="flex items-baseline gap-2">
                           <span className="text-sm font-semibold text-on-surface">
-                            <span className="text-secondary">&#2547;</span>
+                            <span className="text-secondary">BDT </span>
                             {formatBdt(product.price)}
                           </span>
                           {product.compareAtPrice ? (
                             <span className="text-[10px] text-secondary line-through">
-                              &#2547;{formatBdt(product.compareAtPrice)}
+                              BDT {formatBdt(product.compareAtPrice)}
                             </span>
                           ) : null}
                         </div>

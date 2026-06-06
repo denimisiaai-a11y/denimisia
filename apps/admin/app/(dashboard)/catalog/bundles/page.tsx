@@ -145,7 +145,7 @@ export default function BundlesPage() {
                 <div className="flex items-center gap-4">
                   <div className="text-right">
                     <p className="font-body text-sm font-semibold text-on-surface">
-                      ৳{formatPrice(b.bundlePrice)}
+                      BDT {formatPrice(b.bundlePrice)}
                     </p>
                   </div>
                   <div className="flex items-center gap-1">
@@ -447,7 +447,7 @@ function CreateBundleModal({ open, onClose, onCreated }: CreateBundleModalProps)
             id="badgeText"
             value={badgeText}
             onChange={(e) => setBadgeText(e.target.value)}
-            placeholder="Save ৳500"
+            placeholder="Save BDT 500"
           />
         </Field>
         <Field label="Description" name="description">

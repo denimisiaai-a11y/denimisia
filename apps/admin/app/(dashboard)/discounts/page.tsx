@@ -89,7 +89,7 @@ function formatValue(discount: Discount): string {
   const numeric = toNumber(discount.value);
   if (discount.type === 'PERCENTAGE') return `${numeric}%`;
   if (discount.type === 'FREE_SHIPPING') return 'FREE SHIP';
-  return `৳ ${numeric.toLocaleString()}`;
+  return `BDT ${numeric.toLocaleString()}`;
 }
 
 function typeLabel(type: DiscountType): string {
@@ -371,7 +371,7 @@ export default function DiscountsPage() {
         <div className="p-8 bg-surface-container-lowest border border-outline-variant/15 col-span-1">
           <p className="text-[10px] uppercase tracking-widest text-secondary mb-2">Fixed Discount Impact</p>
           <p className="text-3xl font-headline font-semibold text-on-surface">
-            ৳ {stats.totalImpact >= 1000
+            BDT {stats.totalImpact >= 1000
               ? `${(stats.totalImpact / 1000).toFixed(1)}k`
               : stats.totalImpact.toLocaleString()}
           </p>
@@ -427,7 +427,7 @@ export default function DiscountsPage() {
               </div>
               <div>
                 <label className="mb-2 block text-[10px] uppercase tracking-widest text-secondary">
-                  Value * {form.type === 'PERCENTAGE' ? '(%)' : '(৳)'}
+                  Value * {form.type === 'PERCENTAGE' ? '(%)' : '(BDT )'}
                 </label>
                 <input
                   type="number"
@@ -442,7 +442,7 @@ export default function DiscountsPage() {
               </div>
               <div>
                 <label className="mb-2 block text-[10px] uppercase tracking-widest text-secondary">
-                  Min Order (৳)
+                  Min Order (BDT )
                 </label>
                 <input
                   type="number"

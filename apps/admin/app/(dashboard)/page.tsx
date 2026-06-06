@@ -198,13 +198,13 @@ export default function DashboardPage() {
         label: 'Total Sales',
         value: s ? formatCurrency(s.total) : '—',
         icon: 'payments',
-        valuePrefix: '৳ ',
+        valuePrefix: 'BDT ',
       },
       {
         label: 'Average Order Sales',
         value: s ? formatCurrency(s.average) : '—',
         icon: 'receipt_long',
-        valuePrefix: '৳ ',
+        valuePrefix: 'BDT ',
       },
       {
         label: 'Total Customers',

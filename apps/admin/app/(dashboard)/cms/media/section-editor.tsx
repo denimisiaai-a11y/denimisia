@@ -634,7 +634,7 @@ function ProductRow({
       <div className="min-w-0 flex-1">
         <p className="truncate font-body text-xs font-semibold text-on-surface">{row.product.name}</p>
         <p className="font-mono text-[9px] uppercase tracking-[0.15em] text-tertiary">
-          ৳{price} · {stock} in stock{row.isPinned ? ' · PINNED' : ''}
+          BDT {price} · {stock} in stock{row.isPinned ? ' · PINNED' : ''}
         </p>
       </div>
       <div className="flex items-center gap-1 opacity-0 transition group-hover:opacity-100">
@@ -849,7 +849,7 @@ function ProductSearchModal({ token, existingIds, onPickSingle, onPickMany, onCl
                       <div className="min-w-0 flex-1">
                         <p className="truncate font-body text-sm text-on-surface">{p.name}</p>
                         <p className="font-mono text-[9px] uppercase tracking-[0.15em] text-tertiary">
-                          {p.category?.slug ?? '—'}{sku ? ` · ${sku}` : ''} · ৳{Number(p.price).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                          {p.category?.slug ?? '—'}{sku ? ` · ${sku}` : ''} · BDT {Number(p.price).toLocaleString(undefined, { maximumFractionDigits: 0 })}
                         </p>
                       </div>
                       {already ? (

@@ -59,7 +59,7 @@ export function TopCustomersList({ rows }: TopCustomersProps) {
                   {u.name || u.email}
                 </p>
                 <p className="mt-0.5 text-[10px] uppercase tracking-[0.15em] text-secondary">
-                  {row.orderCount} Order{row.orderCount === 1 ? '' : 's'} · Revenue ৳{formatCurrency(row.totalRevenue)}
+                  {row.orderCount} Order{row.orderCount === 1 ? '' : 's'} · Revenue BDT {formatCurrency(row.totalRevenue)}
                 </p>
               </div>
               <span

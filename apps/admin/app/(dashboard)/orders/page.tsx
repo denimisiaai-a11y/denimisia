@@ -11,6 +11,7 @@ import { ImportOrdersModal } from '@/components/orders/import-orders-modal';
 const BDT_FORMATTER = new Intl.NumberFormat('en-BD', {
   style: 'currency',
   currency: 'BDT',
+  currencyDisplay: 'code',
   minimumFractionDigits: 0,
   maximumFractionDigits: 2,
 });
@@ -276,7 +277,7 @@ export default function OrdersPage() {
       const csv = [header, ...rows]
         .map((row) => row.map((cell) => escapeCsv(String(cell))).join(','))
         .join('\n');
-      // Excel needs a UTF-8 BOM to render non-ASCII (৳, é, accented names)
+      // Excel needs a UTF-8 BOM to render non-ASCII (BDT , é, accented names)
       // correctly. Without it the file opens as Windows-1252 and mangles
       // anything outside that codepage.
       const blob = new Blob(['﻿' + csv], {

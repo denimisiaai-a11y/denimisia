@@ -134,25 +134,25 @@ export default function AccountingPage() {
             <MetricCard
               label="Gross Revenue"
               value={formatCurrency(gross)}
-              valuePrefix="৳ "
+              valuePrefix="BDT "
               icon="payments"
             />
             <MetricCard
               label="Estimated VAT (15%)"
               value={formatCurrency(estimatedTax)}
-              valuePrefix="৳ "
+              valuePrefix="BDT "
               icon="receipt_long"
             />
             <MetricCard
               label="Net After Tax"
               value={formatCurrency(netAfterTax)}
-              valuePrefix="৳ "
+              valuePrefix="BDT "
               icon="account_balance"
             />
             <MetricCard
               label="Avg Order Value"
               value={formatCurrency(overview?.sales.average ?? 0)}
-              valuePrefix="৳ "
+              valuePrefix="BDT "
               icon="calculate"
             />
           </>
@@ -197,9 +197,9 @@ export default function AccountingPage() {
                 <tr className="border-b border-outline-variant/15 bg-surface-container-low/40">
                   <Th>Date</Th>
                   <Th className="text-right">Orders</Th>
-                  <Th className="text-right">Gross ৳</Th>
-                  <Th className="text-right">VAT Reserve ৳</Th>
-                  <Th className="text-right">Net ৳</Th>
+                  <Th className="text-right">Gross BDT </Th>
+                  <Th className="text-right">VAT Reserve BDT </Th>
+                  <Th className="text-right">Net BDT </Th>
                 </tr>
               </thead>
               <tbody>

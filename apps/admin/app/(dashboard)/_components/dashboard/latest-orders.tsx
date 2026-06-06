@@ -99,7 +99,7 @@ export function LatestOrdersTable({ rows }: LatestOrdersTableProps) {
               </Td>
               <Td className="text-right">
                 <span className="font-body text-sm font-semibold text-on-surface">
-                  ৳{formatCurrency(row.total)}
+                  BDT {formatCurrency(row.total)}
                 </span>
               </Td>
               <Td className="text-right">

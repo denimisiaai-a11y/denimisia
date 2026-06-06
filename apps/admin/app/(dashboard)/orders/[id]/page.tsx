@@ -20,6 +20,7 @@ const REFUND_REASON_OPTIONS: { value: RefundReason; label: string }[] = [
 const BDT_FORMATTER = new Intl.NumberFormat('en-BD', {
   style: 'currency',
   currency: 'BDT',
+  currencyDisplay: 'code',
   minimumFractionDigits: 2,
   maximumFractionDigits: 2,
 });

@@ -525,7 +525,7 @@ export default function NewProductPage() {
                   Price (BDT) <span className="text-primary">*</span>
                 </span>
                 <div className="flex items-center gap-2 border-b border-outline-variant/25 focus-within:border-primary transition-colors duration-300 ease-editorial">
-                  <span className="text-sm text-secondary">&#2547;</span>
+                  <span className="text-sm text-secondary">BDT </span>
                   <input
                     type="number"
                     value={price}
@@ -544,7 +544,7 @@ export default function NewProductPage() {
                   Compare At Price
                 </span>
                 <div className="flex items-center gap-2 border-b border-outline-variant/25 focus-within:border-primary transition-colors duration-300 ease-editorial">
-                  <span className="text-sm text-secondary">&#2547;</span>
+                  <span className="text-sm text-secondary">BDT </span>
                   <input
                     type="number"
                     value={compareAtPrice}

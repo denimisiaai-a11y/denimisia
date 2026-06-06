@@ -180,11 +180,11 @@ export default function AnalyticsPage() {
     URL.revokeObjectURL(url);
   };
 
-  const totalRevenue = data ? `\u09F3 ${formatBdt(data.revenue.total)}` : EM_DASH;
-  const monthRevenue = data ? `\u09F3 ${formatBdt(data.revenue.thisMonth)}` : EM_DASH;
+  const totalRevenue = data ? `\BDT ${formatBdt(data.revenue.total)}` : EM_DASH;
+  const monthRevenue = data ? `\BDT ${formatBdt(data.revenue.thisMonth)}` : EM_DASH;
   const avgOrderValue =
     data && data.orders.total > 0
-      ? `\u09F3 ${formatBdt(Math.round(data.revenue.total / data.orders.total))}`
+      ? `\BDT ${formatBdt(Math.round(data.revenue.total / data.orders.total))}`
       : EM_DASH;
   const totalOrders = data ? formatCompact(data.orders.total) : EM_DASH;
   const totalCustomers = data ? formatCompact(data.customers.total) : EM_DASH;

@@ -63,7 +63,7 @@ function formatBdt(value: number | string | null | undefined): string {
   if (value === null || value === undefined) return '—';
   const n = typeof value === 'string' ? Number(value) : value;
   if (!Number.isFinite(n)) return '—';
-  return `৳ ${n.toLocaleString()}`;
+  return `BDT ${n.toLocaleString()}`;
 }
 
 function orderStatusClasses(status: string): string {
