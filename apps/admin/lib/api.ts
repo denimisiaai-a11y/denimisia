@@ -15,6 +15,11 @@ export async function adminFetch<T>(
   }
 
   const res = await fetch(`${API}${path}`, {
+    // Admin data must always be fresh. Without this the browser caches GET
+    // responses (they carry an ETag and no `no-store`), so edits like a
+    // deleted variant kept showing the old copy across reloads even though
+    // the API returned the updated data.
+    cache: 'no-store',
     ...options,
     headers,
   });
