@@ -314,42 +314,72 @@ export default function EditProductPage() {
       }
       const price = newVariant.price ? Number(newVariant.price) : undefined;
       const baseSku = newVariant.sku.trim();
-      const created: Variant[] = [];
-      for (let i = 0; i < sizes.length; i += 1) {
-        const sizeValue = sizes[i] ?? '';
+      const images = newVariant.images.length ? newVariant.images : undefined;
+      const bodies = sizes.map((sizeValue) => {
         const sku = baseSku
           ? sizes.length > 1
             ? `${baseSku}-${sizeValue.replace(/[^A-Za-z0-9]/g, '')}`
             : baseSku
           : undefined;
-        const body = {
+        return {
           size: sizeValue || undefined,
           color: newVariant.color || undefined,
           colorHex: newVariant.colorHex.trim() || undefined,
           stock,
           price,
           sku,
-          images: newVariant.images.length ? newVariant.images : undefined,
+          images,
         };
-        const v = await adminFetch<Variant>(
-          `/products/${productId}/variants`,
-          token,
-          { method: 'POST', body: JSON.stringify(body) },
-        );
-        created.push(v);
-      }
-      setVariants((prev) => [...prev, ...created]);
-      setNewVariant({
-        size: '',
-        color: '',
-        colorHex: '',
-        stock: '',
-        price: '',
-        sku: '',
-        images: [],
       });
-    } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'Failed to add variant');
+      // Optimistic: show the rows immediately with temp ids so it feels
+      // instant on the slow API. Reconcile temps -> real rows after the POSTs;
+      // keep the form on failure so the input isn't lost.
+      const tempRows: Variant[] = bodies.map((b) => ({
+        id: `temp-${crypto.randomUUID()}`,
+        size: b.size,
+        color: b.color,
+        colorHex: b.colorHex ?? null,
+        stock: b.stock,
+        price: b.price,
+        sku: b.sku,
+        images: b.images ?? [],
+      }));
+      const tempIds = new Set(tempRows.map((t) => t.id));
+      setVariants((prev) => [...prev, ...tempRows]);
+
+      const created: Variant[] = [];
+      let errMsg = '';
+      for (const body of bodies) {
+        try {
+          const v = await adminFetch<Variant>(
+            `/products/${productId}/variants`,
+            token,
+            { method: 'POST', body: JSON.stringify(body) },
+          );
+          created.push(v);
+        } catch (err: unknown) {
+          errMsg = err instanceof Error ? err.message : 'Failed to add variant';
+          break;
+        }
+      }
+      // Swap the temp rows for whatever the server actually created.
+      setVariants((prev) => [
+        ...prev.filter((v) => !tempIds.has(v.id)),
+        ...created,
+      ]);
+      if (errMsg) {
+        alert(errMsg);
+      } else {
+        setNewVariant({
+          size: '',
+          color: '',
+          colorHex: '',
+          stock: '',
+          price: '',
+          sku: '',
+          images: [],
+        });
+      }
     } finally {
       setAddingVariant(false);
     }
