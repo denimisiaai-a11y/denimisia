@@ -7,6 +7,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Drawer } from 'vaul';
 import { X, ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
 import { formatPrice } from '@/lib/utils';
+import { ProductDescription } from '@/components/product/product-description';
 import { useIsMobile } from '@/lib/mobile/use-media-query';
 import { useCart } from '@/stores/cart';
 import { prefetchProduct } from '@/lib/product-prefetch';
@@ -335,9 +336,9 @@ function DesktopQuickView({ product, related, onClose }: ProductQuickViewProps) 
               </span>
             ) : null}
           </div>
-          <p className="text-[13px] leading-relaxed text-[var(--color-secondary)]">
-            {description}
-          </p>
+          <div className="text-[13px] leading-relaxed text-[var(--color-secondary)]">
+            <ProductDescription html={description} />
+          </div>
 
           {swatches.length > 0 && (
           <div className="flex flex-col gap-2.5 pt-1">
@@ -769,9 +770,9 @@ function MobileQuickView({ product, related, onClose }: ProductQuickViewProps) {
                 {description}
               </p>
             ) : (
-              <p className="mt-4 px-5 text-[13px] leading-relaxed text-[var(--color-secondary)]">
-                {description}
-              </p>
+              <div className="mt-4 px-5 text-[13px] leading-relaxed text-[var(--color-secondary)]">
+                <ProductDescription html={description} />
+              </div>
             )}
 
             {/* Complete the Look */}
