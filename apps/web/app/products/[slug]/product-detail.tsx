@@ -81,7 +81,14 @@ export function ProductDetail({ product }: ProductDetailProps) {
       image: images[0] ?? '',
       color: selectedVariant.color,
       size: selectedVariant.size,
-      price: Number(selectedVariant.price),
+      // variant.price is commonly null in this catalog; fall back to
+      // product.price and honour an active campaign so the cart stores the
+      // real unit price (same number the display shows and orders.service
+      // bills). Without this the cart/checkout showed ৳0 while the emailed
+      // invoice charged the full amount.
+      price: product.activeCampaign
+        ? product.activeCampaign.finalPrice
+        : Number(selectedVariant.price ?? product.price),
       qty: 1,
     });
     openCart();

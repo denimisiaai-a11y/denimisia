@@ -76,6 +76,21 @@ export const useCart = create<CartState>()(
     }),
     {
       name: 'denimisia-cart',
+      version: 1,
+      // v1: drop any persisted items with a 0 price. A pre-fix bug stored
+      // variant.price (commonly null → 0) instead of the resolved unit price,
+      // so old carts rendered ৳0 at checkout. Clearing them forces a clean
+      // re-add at the correct price.
+      migrate: (persisted, version) => {
+        const state = (persisted ?? {}) as Partial<CartState>;
+        if (version < 1 && Array.isArray(state.items)) {
+          return {
+            ...state,
+            items: state.items.filter((i) => i.price > 0),
+          } as CartState;
+        }
+        return state as CartState;
+      },
       onRehydrateStorage: () => (state) => {
         state?.setHasHydrated(true);
       },
