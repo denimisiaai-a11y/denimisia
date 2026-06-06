@@ -134,7 +134,7 @@ export default async function ShopGenderPage({ params }: Props) {
         </div>
 
         {comingSoon ? (
-          <ComingSoon title={`${copy.eyebrow} — arriving soon`} />
+          <ComingSoon title={copy.eyebrow} />
         ) : (
           <CategoryGrid
             products={cards}

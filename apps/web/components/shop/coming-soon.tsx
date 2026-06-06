@@ -13,8 +13,8 @@ interface ComingSoonProps {
  * moment inventory is assigned to that category.
  */
 export function ComingSoon({
-  title = 'Arriving soon',
-  message = "We're curating this edit. Check back shortly — the rest of the store is ready to explore.",
+  title = 'Coming soon',
+  message = "These pieces aren't available yet. Check back soon.",
 }: ComingSoonProps) {
   return (
     <div className="flex flex-col items-center gap-5 border border-ink/10 px-6 py-24 text-center">

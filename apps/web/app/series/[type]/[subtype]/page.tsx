@@ -130,7 +130,7 @@ export default async function SeriesSubtypePage({ params }: Props) {
       </header>
 
       {comingSoon ? (
-        <ComingSoon title={`${formatLabel(subtype)} — arriving soon`} />
+        <ComingSoon title={formatLabel(subtype)} />
       ) : (
         <CategoryGrid
           products={cards}

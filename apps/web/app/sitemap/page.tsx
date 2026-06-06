@@ -96,7 +96,7 @@ export default async function SitemapPage() {
         </p>
         <h1 className="font-serif text-4xl tracking-tight text-ink md:text-5xl">Sitemap</h1>
         <p className="mt-3 max-w-md text-sm text-muted">
-          Every corner of Denimisia in one place.
+          All pages on the Denimisia site.
         </p>
       </header>
 

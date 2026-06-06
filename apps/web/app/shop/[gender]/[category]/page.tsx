@@ -144,7 +144,7 @@ export default async function ShopCategoryPage({ params }: Props) {
       </header>
 
       {comingSoon ? (
-        <ComingSoon title={`${categoryLabel} — arriving soon`} />
+        <ComingSoon title={categoryLabel} />
       ) : (
         <CategoryGrid
           products={cards}

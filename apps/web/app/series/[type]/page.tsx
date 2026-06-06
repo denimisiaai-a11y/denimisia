@@ -183,7 +183,7 @@ export default async function SeriesTypePage({ params, searchParams }: Props) {
         </div>
 
         {comingSoon ? (
-          <ComingSoon title={`${copy.title} — arriving soon`} />
+          <ComingSoon title={copy.title} />
         ) : (
           <CategoryGrid
             products={cards}
