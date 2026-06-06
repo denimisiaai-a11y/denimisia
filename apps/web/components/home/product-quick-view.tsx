@@ -33,6 +33,42 @@ interface ProductQuickViewProps {
 const FALLBACK_DESCRIPTION =
   'Tap "View full details" for fit notes, materials, and care.';
 
+// Collapsible wrapper around ProductDescription: clamps long rich-text to a
+// few lines in the quick view and reveals the rest behind "See more". The
+// toggle only renders when the content actually overflows the clamp.
+function CollapsibleDescription({
+  html,
+  className,
+}: {
+  readonly html: string | null | undefined;
+  readonly className?: string;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const [overflows, setOverflows] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (ref.current) setOverflows(ref.current.scrollHeight > 132);
+  }, [html]);
+
+  return (
+    <div className={className}>
+      <div ref={ref} className={expanded ? '' : 'max-h-[120px] overflow-hidden'}>
+        <ProductDescription html={html} />
+      </div>
+      {overflows || expanded ? (
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          className="mt-1.5 text-[11px] font-bold uppercase tracking-[0.2em] text-ink underline underline-offset-2 hover:opacity-70"
+        >
+          {expanded ? 'See less' : 'See more'}
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
 interface FullVariant {
   id: string;
   color: string;
@@ -336,9 +372,10 @@ function DesktopQuickView({ product, related, onClose }: ProductQuickViewProps) 
               </span>
             ) : null}
           </div>
-          <div className="text-[13px] leading-relaxed text-[var(--color-secondary)]">
-            <ProductDescription html={description} />
-          </div>
+          <CollapsibleDescription
+            html={description}
+            className="text-[13px] leading-relaxed text-[var(--color-secondary)]"
+          />
 
           {swatches.length > 0 && (
           <div className="flex flex-col gap-2.5 pt-1">
@@ -770,9 +807,10 @@ function MobileQuickView({ product, related, onClose }: ProductQuickViewProps) {
                 {description}
               </p>
             ) : (
-              <div className="mt-4 px-5 text-[13px] leading-relaxed text-[var(--color-secondary)]">
-                <ProductDescription html={description} />
-              </div>
+              <CollapsibleDescription
+                html={description}
+                className="mt-4 px-5 text-[13px] leading-relaxed text-[var(--color-secondary)]"
+              />
             )}
 
             {/* Complete the Look */}
