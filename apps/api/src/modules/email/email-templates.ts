@@ -500,8 +500,11 @@ export interface ReturnRefundedEmailInput {
 }
 
 function formatRefundAmount(amount: number): string {
+  // "BDT" prefix to match the order-confirmation email (formatBdt) and because
+  // email clients render the ৳ glyph (U+09F3) unreliably. Keeps decimals for
+  // partial refunds.
   const isWhole = Number.isInteger(amount);
-  return `৳${amount.toLocaleString('en-BD', {
+  return `BDT ${amount.toLocaleString('en-BD', {
     minimumFractionDigits: isWhole ? 0 : 2,
     maximumFractionDigits: isWhole ? 0 : 2,
   })}`;
