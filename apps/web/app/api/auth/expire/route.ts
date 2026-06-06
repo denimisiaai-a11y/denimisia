@@ -29,17 +29,17 @@ import { auth } from '@/lib/auth';
 //      unauthenticated scanners and pre-warming bots get a plain redirect
 //      with no Set-Cookie noise.
 //
-// Cookie names cover NextAuth v5 default + `__Secure-` prefix for HTTPS
-// production and `__Host-` prefix where used. CSRF and callback cookies are
+// These MUST match the namespaced cookie names configured in lib/auth.ts
+// (`denimisia-web.*`, with secure:false so there is no `__Secure-`/`__Host-`
+// prefix). This previously listed the NextAuth defaults (`authjs.*`), which
+// don't exist here — so expire deleted nothing and the user stayed
+// half-logged-in (API JWT expired but the session cookie intact), looping back
+// through expire on every /account visit. CSRF and callback cookies are
 // cleared too so the next sign-in starts from a clean slate.
 const SESSION_COOKIES = [
-  'authjs.session-token',
-  '__Secure-authjs.session-token',
-  '__Host-authjs.session-token',
-  'authjs.csrf-token',
-  '__Host-authjs.csrf-token',
-  'authjs.callback-url',
-  '__Secure-authjs.callback-url',
+  'denimisia-web.session-token',
+  'denimisia-web.csrf-token',
+  'denimisia-web.callback-url',
 ];
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
