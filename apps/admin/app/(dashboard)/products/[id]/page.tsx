@@ -38,6 +38,7 @@ interface Variant {
   stock: number;
   price?: number;
   sku?: string;
+  images?: string[];
 }
 
 interface Product {
@@ -122,6 +123,11 @@ export default function EditProductPage() {
     images: [] as string[],
   });
   const [addingVariant, setAddingVariant] = useState(false);
+  // Per-colour image editing for existing variants. Saving applies the image
+  // set to every variant of the same colour (the API enforces they match).
+  const [imageEditVariant, setImageEditVariant] = useState<Variant | null>(null);
+  const [imageEditUrls, setImageEditUrls] = useState<string[]>([]);
+  const [savingImages, setSavingImages] = useState(false);
 
   const fetchProduct = useCallback(async () => {
     if (!token) return;
@@ -371,6 +377,35 @@ export default function EditProductPage() {
       setConfirmVariantDeleteId(null);
     } finally {
       setDeletingVariant(false);
+    }
+  };
+
+  const handleSaveVariantImages = async () => {
+    if (!token || !imageEditVariant) return;
+    setSavingImages(true);
+    try {
+      const color = imageEditVariant.color ?? '';
+      // Images are per-colour: update every variant sharing this colour so the
+      // API's match-check passes and the storefront colour gallery stays in sync.
+      const targets = variants.filter((v) => (v.color ?? '') === color);
+      const updated: Variant[] = [];
+      for (const v of targets) {
+        const r = await adminFetch<Variant>(
+          `/products/${productId}/variants/${v.id}`,
+          token,
+          { method: 'PATCH', body: JSON.stringify({ images: imageEditUrls }) },
+        );
+        updated.push(r);
+      }
+      setVariants((prev) =>
+        prev.map((v) => updated.find((u) => u.id === v.id) ?? v),
+      );
+      setImageEditVariant(null);
+      setImageEditUrls([]);
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : 'Failed to update images');
+    } finally {
+      setSavingImages(false);
     }
   };
 
@@ -890,6 +925,23 @@ export default function EditProductPage() {
                     <td className="px-5 py-4 text-right">
                       <button
                         type="button"
+                        onClick={() => {
+                          setImageEditVariant(v);
+                          setImageEditUrls(v.images ?? []);
+                        }}
+                        className="mr-4 inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-secondary hover:text-primary transition-colors duration-300 ease-editorial"
+                      >
+                        <span
+                          className="material-symbols-outlined text-sm"
+                          aria-hidden
+                        >
+                          image
+                        </span>
+                        Images
+                        {v.images && v.images.length ? ` (${v.images.length})` : ''}
+                      </button>
+                      <button
+                        type="button"
                         onClick={() => setConfirmVariantDeleteId(v.id)}
                         className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-secondary hover:text-primary transition-colors duration-300 ease-editorial"
                       >
@@ -1073,6 +1125,56 @@ export default function EditProductPage() {
         tone="danger"
         busy={deletingVariant}
       />
+
+      {imageEditVariant && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          onClick={() => {
+            if (!savingImages) setImageEditVariant(null);
+          }}
+        >
+          <div
+            className="w-full max-w-lg border border-outline-variant/20 bg-surface-container p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-sm font-bold uppercase tracking-[0.2em] text-on-surface">
+              Variant Images
+            </h3>
+            <p className="mb-4 mt-1 text-[10px] tracking-wide text-secondary">
+              Applies to all{' '}
+              {imageEditVariant.color
+                ? `"${imageEditVariant.color}"`
+                : 'same-colour'}{' '}
+              variants of this product.
+            </p>
+            <ImageUploader
+              value={imageEditUrls}
+              onChange={setImageEditUrls}
+              token={token}
+              folder="products"
+              maxFiles={8}
+            />
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setImageEditVariant(null)}
+                disabled={savingImages}
+                className="px-5 py-2 text-xs font-semibold uppercase tracking-widest text-secondary hover:text-on-surface disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveVariantImages}
+                disabled={savingImages}
+                className="bg-primary px-6 py-2 text-xs font-semibold uppercase tracking-widest text-on-primary transition-opacity hover:opacity-90 disabled:opacity-50"
+              >
+                {savingImages ? 'Saving...' : 'Save Images'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
