@@ -363,18 +363,31 @@ export default function EditProductPage() {
   const handleDeleteVariant = async () => {
     if (!token || !confirmVariantDeleteId) return;
     const variantId = confirmVariantDeleteId;
+    // Optimistic: remove the row and close the dialog immediately so it feels
+    // instant even when the API is slow. Previously we awaited the DELETE
+    // before removing the row, so on the slow free-plan API the row lingered
+    // for seconds and looked like the delete had failed. Restore on error.
+    const removed = variants.find((v) => v.id === variantId);
+    const removedIndex = variants.findIndex((v) => v.id === variantId);
+    setVariants((prev) => prev.filter((v) => v.id !== variantId));
+    setConfirmVariantDeleteId(null);
     setDeletingVariant(true);
     try {
       await adminFetch(`/products/${productId}/variants/${variantId}`, token, {
         method: 'DELETE',
       });
-      setVariants((prev) => prev.filter((v) => v.id !== variantId));
-      setConfirmVariantDeleteId(null);
     } catch (err: unknown) {
+      // Put the row back where it was if the server rejected the delete.
+      if (removed) {
+        setVariants((prev) => {
+          const next = [...prev];
+          next.splice(Math.max(0, removedIndex), 0, removed);
+          return next;
+        });
+      }
       setError(
         err instanceof Error ? err.message : 'Failed to delete variant',
       );
-      setConfirmVariantDeleteId(null);
     } finally {
       setDeletingVariant(false);
     }
