@@ -30,6 +30,10 @@ const CACHEABLE_PATHS = [
 const NEVER_CACHE = [
   /^\/api\/v1\/auth(?:\/|$)/,
   /^\/api\/v1\/admin(?:\/|$)/,
+  // Admin product reads live under /products/admin/:id, which matches the
+  // /products cacheable prefix below — exclude them explicitly so they're
+  // never served stale (e.g. a deleted variant lingering after a delete).
+  /^\/api\/v1\/products\/admin(?:\/|$)/,
   /^\/api\/v1\/users(?:\/|$)/,
   /^\/api\/v1\/orders(?:\/|$)/,
   /^\/api\/v1\/cart(?:\/|$)/,
@@ -56,6 +60,18 @@ export default {
       const tagged = new Response(r.body, r);
       tagged.headers.set('X-Cache-Worker', 'denimisia-api-cache');
       tagged.headers.set('X-Cache-Status', 'PASSTHROUGH-METHOD');
+      return tagged;
+    }
+
+    // Authenticated requests are private: never read from or write to the
+    // shared edge cache. The cache key is the URL only (it ignores the token),
+    // so caching an authed response would serve stale data after admin edits
+    // and could hand one caller's authed response to another.
+    if (request.headers.get('Authorization')) {
+      const r = await fetch(request);
+      const tagged = new Response(r.body, r);
+      tagged.headers.set('X-Cache-Worker', 'denimisia-api-cache');
+      tagged.headers.set('X-Cache-Status', 'PASSTHROUGH-AUTH');
       return tagged;
     }
 
