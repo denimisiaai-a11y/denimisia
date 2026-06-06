@@ -119,6 +119,7 @@ export default function EditProductPage() {
     stock: '',
     price: '',
     sku: '',
+    images: [] as string[],
   });
   const [addingVariant, setAddingVariant] = useState(false);
 
@@ -322,6 +323,7 @@ export default function EditProductPage() {
           stock,
           price,
           sku,
+          images: newVariant.images.length ? newVariant.images : undefined,
         };
         const v = await adminFetch<Variant>(
           `/products/${productId}/variants`,
@@ -338,6 +340,7 @@ export default function EditProductPage() {
         stock: '',
         price: '',
         sku: '',
+        images: [],
       });
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : 'Failed to add variant');
@@ -1013,6 +1016,24 @@ export default function EditProductPage() {
                 className="w-full border-0 border-b border-outline-variant/25 bg-transparent py-2 text-sm text-on-surface placeholder:text-secondary focus:border-primary focus:outline-none focus:ring-0 font-mono"
               />
             </label>
+          </div>
+          <div className="mt-6">
+            <span className="block text-[10px] font-bold uppercase tracking-[0.2em] text-secondary mb-2">
+              Variant Images (optional)
+            </span>
+            <ImageUploader
+              value={newVariant.images}
+              onChange={(urls) =>
+                setNewVariant((prev) => ({ ...prev, images: urls }))
+              }
+              token={token}
+              folder="products"
+              maxFiles={8}
+            />
+            <p className="mt-2 text-[10px] tracking-wide text-secondary">
+              Shown on the storefront for this colour. All variants of the same
+              colour must share the same images.
+            </p>
           </div>
           <button
             type="button"
