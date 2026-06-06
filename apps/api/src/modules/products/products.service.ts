@@ -776,7 +776,12 @@ export class ProductsService {
       where: { id },
       include: {
         category: true,
-        variants: true,
+        // Explicit deletedAt filter: the soft-delete middleware filters
+        // object-form relation includes reliably, but the boolean shorthand
+        // (`variants: true`) was leaking soft-deleted (tombstoned) variants
+        // into the admin edit view, so deleted variants reappeared on reload
+        // even though the storefront had dropped them.
+        variants: { where: { deletedAt: null } },
         collections: {
           include: {
             collection: { select: { id: true, name: true, slug: true } },
