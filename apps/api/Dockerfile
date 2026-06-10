@@ -4,7 +4,7 @@
 # signal forwarding so /ready probes can flip to degraded on SIGTERM.
 
 # ── 1. deps stage — install production deps against the monorepo ───────────────
-FROM node:20-alpine AS deps
+FROM node:26-alpine AS deps
 WORKDIR /repo
 
 RUN apk add --no-cache libc6-compat ffmpeg
@@ -25,7 +25,7 @@ RUN pnpm --filter database prisma generate && pnpm --filter api build
 RUN pnpm --filter api --prod deploy /app
 
 # ── 3. runtime stage ──────────────────────────────────────────────────────────
-FROM node:20-alpine AS runtime
+FROM node:26-alpine AS runtime
 WORKDIR /app
 
 # ffmpeg is required for video transcoding in the media module.
