@@ -1,0 +1,5 @@
+name,price,compareAtPrice,category,tags,sizes,colors,stock,images,isFeatured,description
+"Aria Wide Leg Jeans",2490,2990,Women - Wide Leg,"wide-leg,women,denim","26,28,30,32","Blue,Black",15,,true,"Relaxed wide leg fit in premium stretch denim"
+"Nova Cargo Pants",2690,,Women - Cargo,"cargo,women,denim","26,28,30","Olive,Black,Navy",10,,false,"Utility-inspired cargo with multiple pockets"
+"Raven Slim Fit",2290,,Men - Slim Fit,"slim-fit,men,denim","28,30,32,34","Indigo,Black",12,,true,"Classic slim fit in raw selvedge denim"
+"Atlas Relaxed Fit",2490,,Men - Relaxed Fit,"relaxed-fit,men,denim","30,32,34,36","Washed Blue,Grey",10,,false,"Comfortable relaxed fit for everyday wear"

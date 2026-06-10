@@ -1,0 +1,2350 @@
+[
+  {
+    "model": "21003",
+    "slug": "6-ganding-high-waist-baggy-wide-leg-denim-21003",
+    "title": "6 Ganding High Waist Baggy Wide-Leg Denim",
+    "fit": "baggy wide-leg",
+    "waist": "high",
+    "stretch": "non-stretch",
+    "fabric": "premium non-stretch denim",
+    "hero_category": "wide-leg",
+    "tags": [
+      "baggy",
+      "designed",
+      "high-waisted",
+      "wide-leg"
+    ],
+    "variants": [
+      {
+        "serial": 1,
+        "wash_code": "LTN",
+        "wash_name": "Light Tint Blue",
+        "wash_hex": "#A8B8C8",
+        "sku_prefix": "21003-LTN",
+        "price_bdt": 1590,
+        "special_price_bdt": 999,
+        "cost_price_bdt_estimated": 636,
+        "status": "enabled",
+        "source_image": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/21003/LTN-277x370.jpg",
+        "name_suffix": "High Waist Baggy Wide-Leg Denim",
+        "sizes": {
+          "28": 17,
+          "30": 0,
+          "32": 19,
+          "34": 27,
+          "36": 20,
+          "38": 44,
+          "40": 6
+        },
+        "total_stock": 133
+      },
+      {
+        "serial": 2,
+        "wash_code": "MBA",
+        "wash_name": "Mid Blue",
+        "wash_hex": "#4A6B8A",
+        "sku_prefix": "21003-MBA",
+        "price_bdt": 1590,
+        "special_price_bdt": 999,
+        "cost_price_bdt_estimated": 636,
+        "status": "enabled",
+        "source_image": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/21003/MBA-277x370.jpg",
+        "name_suffix": "High Waist Baggy Wide-Leg Denim",
+        "sizes": {
+          "26": 73,
+          "28": 5,
+          "30": 32,
+          "32": 18,
+          "34": 19,
+          "36": 72,
+          "38": 38,
+          "40": 18
+        },
+        "total_stock": 275
+      },
+      {
+        "serial": 3,
+        "wash_code": "ASH",
+        "wash_name": "Ash Black",
+        "wash_hex": "#3C3C3C",
+        "sku_prefix": "21003-ASH",
+        "price_bdt": 1590,
+        "special_price_bdt": 999,
+        "cost_price_bdt_estimated": 636,
+        "status": "disabled",
+        "source_image": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/ASH_BLK-4-277x370.jpg",
+        "name_suffix": "High Waist Baggy Wide-Leg Denim",
+        "sizes": {
+          "26": 0,
+          "28": 0,
+          "30": 0,
+          "32": 0,
+          "34": 1,
+          "36": 4,
+          "38": 4,
+          "40": 14
+        },
+        "total_stock": 23
+      },
+      {
+        "serial": 22,
+        "wash_code": "DTN",
+        "wash_name": "Dark Tint Blue",
+        "wash_hex": "#3A5068",
+        "sku_prefix": "21003-DTN",
+        "price_bdt": 1590,
+        "special_price_bdt": 999,
+        "cost_price_bdt_estimated": 636,
+        "status": "enabled",
+        "source_image": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/21003/DTN-1-277x370.jpg",
+        "name_suffix": "High Waist Baggy Wide-Leg Denim",
+        "sizes": {
+          "26": 1,
+          "28": 2,
+          "30": 0,
+          "32": 36,
+          "34": 28,
+          "36": 18,
+          "38": 39,
+          "40": 12
+        },
+        "total_stock": 136
+      },
+      {
+        "serial": 23,
+        "wash_code": "LBA",
+        "wash_name": "Light Blue",
+        "wash_hex": "#9AB0C5",
+        "sku_prefix": "21003-LBA",
+        "price_bdt": 1590,
+        "special_price_bdt": 999,
+        "cost_price_bdt_estimated": 636,
+        "status": "enabled",
+        "source_image": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/21003/LBA-277x370.jpg",
+        "name_suffix": "High Waist Baggy Wide-Leg Denim",
+        "sizes": {
+          "26": 1,
+          "28": 0,
+          "30": 0,
+          "34": 0,
+          "36": 3,
+          "38": 4,
+          "40": 0
+        },
+        "total_stock": 8
+      }
+    ]
+  },
+  {
+    "model": "21021",
+    "slug": "bow-embroidery-high-waist-baggy-wide-leg-jeans-21021",
+    "title": "Bow Embroidery High Waist Baggy Wide-Leg Jeans",
+    "fit": "baggy wide-leg",
+    "waist": "high",
+    "stretch": "non-stretch",
+    "fabric": "premium non-stretch denim with bow embroidery",
+    "hero_category": "designed",
+    "tags": [
+      "baggy",
+      "designed",
+      "wide-leg"
+    ],
+    "variants": [
+      {
+        "serial": 4,
+        "wash_code": "MTN",
+        "wash_name": "Mid Tint Blue",
+        "wash_hex": "#7890A8",
+        "sku_prefix": "21021-MTN",
+        "price_bdt": 1590,
+        "special_price_bdt": 1099,
+        "cost_price_bdt_estimated": 636,
+        "status": "enabled",
+        "source_image": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/21021/MTN-1-277x370.jpg",
+        "name_suffix": "Bow Embroidery High Waist Baggy Wide Leg Jeans",
+        "sizes": {
+          "26": 9,
+          "28": 16,
+          "30": 2,
+          "32": 7,
+          "34": 29,
+          "36": 42,
+          "38": 48,
+          "40": 21
+        },
+        "total_stock": 174
+      },
+      {
+        "serial": 26,
+        "wash_code": "MBA",
+        "wash_name": "Mid Blue",
+        "wash_hex": "#4A6B8A",
+        "sku_prefix": "21021-MBA",
+        "price_bdt": 1590,
+        "special_price_bdt": 1099,
+        "cost_price_bdt_estimated": 636,
+        "status": "enabled",
+        "source_image": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/21021/MBA-1-277x370.jpg",
+        "name_suffix": "Bow Embroidery High Waist Baggy Wide Leg Jeans",
+        "sizes": {
+          "26": 22,
+          "28": 23,
+          "30": 20,
+          "32": 3,
+          "34": 24,
+          "36": 44,
+          "38": 46,
+          "40": 20
+        },
+        "total_stock": 202
+      }
+    ]
+  },
+  {
+    "model": "41011",
+    "slug": "comfy-wide-leg-denim-41011",
+    "title": "Comfy Wide-Leg Denim",
+    "fit": "baggy wide-leg",
+    "waist": "high",
+    "stretch": "non-stretch",
+    "fabric": "premium non-stretch denim",
+    "hero_category": "wide-leg",
+    "tags": [
+      "designed",
+      "wide-leg"
+    ],
+    "variants": [
+      {
+        "serial": 5,
+        "wash_code": "DTN",
+        "wash_name": "Dark Tint Blue",
+        "wash_hex": "#3A5068",
+        "sku_prefix": "41011-DTN",
+        "price_bdt": 1490,
+        "special_price_bdt": 899,
+        "cost_price_bdt_estimated": 596,
+        "status": "disabled",
+        "source_image": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/41011/Re-shoot%208%20March/DTN-277x370.jpg",
+        "name_suffix": "Comfy Wide-Leg Denim Pant for Women",
+        "sizes": {
+          "26": 3,
+          "28": 12,
+          "30": 1,
+          "32": 11,
+          "34": 5,
+          "36": 0,
+          "38": 2,
+          "40": 0
+        },
+        "total_stock": 34
+      },
+      {
+        "serial": 6,
+        "wash_code": "LBA",
+        "wash_name": "Light Blue",
+        "wash_hex": "#9AB0C5",
+        "sku_prefix": "41011-LBA",
+        "price_bdt": 1490,
+        "special_price_bdt": 899,
+        "cost_price_bdt_estimated": 596,
+        "status": "enabled",
+        "source_image": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/41011/Re-shoot%208%20March/LBA-277x370.jpg",
+        "name_suffix": "Comfy Wide-Leg Denim Pant for Women",
+        "sizes": {
+          "26": 43,
+          "28": 68,
+          "30": 51,
+          "32": 43,
+          "34": 55,
+          "36": 39,
+          "38": 45,
+          "40": 31
+        },
+        "total_stock": 375
+      },
+      {
+        "serial": 7,
+        "wash_code": "LTN",
+        "wash_name": "Light Tint Blue",
+        "wash_hex": "#A8B8C8",
+        "sku_prefix": "41011-LTN",
+        "price_bdt": 1490,
+        "special_price_bdt": 899,
+        "cost_price_bdt_estimated": 596,
+        "status": "enabled",
+        "source_image": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/41011/Re-shoot%208%20March/LTN-277x370.jpg",
+        "name_suffix": "Comfy Wide-Leg Denim Pant for Women",
+        "sizes": {
+          "26": 20,
+          "28": 20,
+          "30": 42,
+          "32": 34,
+          "34": 38,
+          "36": 64,
+          "38": 49,
+          "40": 16
+        },
+        "total_stock": 283
+      },
+      {
+        "serial": 21,
+        "wash_code": "MTN",
+        "wash_name": "Mid Tint Blue",
+        "wash_hex": "#7890A8",
+        "sku_prefix": "41011-MTN",
+        "price_bdt": 1490,
+        "special_price_bdt": 899,
+        "cost_price_bdt_estimated": 596,
+        "status": "enabled",
+        "source_image": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/41011/Re-shoot%208%20March/MTN-2-277x370.jpg",
+        "name_suffix": "Comfy Wide-Leg Denim Pant for Women",
+        "sizes": {
+          "26": 0,
+          "28": 19,
+          "30": 44,
+          "32": 35,
+          "34": 60,
+          "36": 64,
+          "38": 76,
+          "40": 16
+        },
+        "total_stock": 314
+      },
+      {
+        "serial": 36,
+        "wash_code": "DBA",
+        "wash_name": "Dark Blue",
+        "wash_hex": "#2A4058",
+        "sku_prefix": "41011-DBA",
+        "price_bdt": 1490,
+        "special_price_bdt": 899,
+        "cost_price_bdt_estimated": 596,
+        "status": "enabled",
+        "source_image": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/41011/Re-shoot%208%20March/DBA_Front-277x370.jpg",
+        "name_suffix": "Comfy Wide-Leg Denim Pant for Women",
+        "sizes": {
+          "26": 27,
+          "28": 64,
+          "30": 45,
+          "32": 65,
+          "34": 46,
+          "36": 69,
+          "38": 59,
+          "40": 15
+        },
+        "total_stock": 390
+      },
+      {
+        "serial": 37,
+        "wash_code": "MBA",
+        "wash_name": "Mid Blue",
+        "wash_hex": "#4A6B8A",
+        "sku_prefix": "41011-MBA",
+        "price_bdt": 1490,
+        "special_price_bdt": 899,
+        "cost_price_bdt_estimated": 596,
+        "status": "disabled",
+        "source_image": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/41011/Re-shoot%208%20March/MBA-2-277x370.jpg",
+        "name_suffix": "Comfy Wide-Leg Denim Pant for Women",
+        "sizes": {
+          "26": 12,
+          "28": 32,
+          "30": 24,
+          "32": 26,
+          "34": 33,
+          "36": 32,
+          "38": 34,
+          "40": 13
+        },
+        "total_stock": 206
+      }
+    ]
+  },
+  {
+    "model": "21026",
+    "slug": "side-bow-embroidery-casual-jeans-21026",
+    "title": "Side Bow Embroidery Casual Jeans",
+    "fit": "baggy wide-leg",
+    "waist": "high",
+    "stretch": "non-stretch",
+    "fabric": "premium denim with side bow detail",
+    "hero_category": "designed",
+    "tags": [
+      "baggy"
+    ],
+    "variants": [
+      {
+        "serial": 8,
+        "wash_code": "MBA",
+        "wash_name": "Mid Blue",
+        "wash_hex": "#4A6B8A",
+        "sku_prefix": "21026-MBA",
+        "price_bdt": 1590,
+        "special_price_bdt": 1099,
+        "cost_price_bdt_estimated": 636,
+        "status": "enabled",
+        "source_image": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/21026/21026%20Re-shooot/MBA-2-277x370.jpg",
+        "name_suffix": "Side Bow Embroidery Women Casual Jeans",
+        "sizes": {
+          "26": 15,
+          "28": 0,
+          "30": 2,
+          "32": 2,
+          "34": 9,
+          "36": 12,
+          "38": 19,
+          "40": 4
+        },
+        "total_stock": 63
+      },
+      {
+        "serial": 9,
+        "wash_code": "MTN",
+        "wash_name": "Mid Tint Blue",
+        "wash_hex": "#7890A8",
+        "sku_prefix": "21026-MTN",
+        "price_bdt": 1590,
+        "special_price_bdt": 1099,
+        "cost_price_bdt_estimated": 636,
+        "status": "enabled",
+        "source_image": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/21026/21026%20Re-shooot/MTN-277x370.jpg",
+        "name_suffix": "Side Bow Embroidery Women Casual Jeans",
+        "sizes": {
+          "26": 13,
+          "28": 0,
+          "30": 0,
+          "32": 3,
+          "34": 10,
+          "36": 9,
+          "38": 18,
+          "40": 6
+        },
+        "total_stock": 59
+      },
+      {
+        "serial": 53,
+        "wash_code": "LBA",
+        "wash_name": "Light Blue",
+        "wash_hex": "#9AB0C5",
+        "sku_prefix": "21026-LBA",
+        "price_bdt": 1590,
+        "special_price_bdt": 1099,
+        "cost_price_bdt_estimated": 636,
+        "status": "enabled",
+        "source_image": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/21026/21026%20Re-shooot/LBA-1-277x370.jpg",
+        "name_suffix": "Side Bow Embroidery Women Casual Jeans",
+        "sizes": {
+          "26": 7,
+          "28": 0,
+          "30": 0,
+          "32": 14,
+          "34": 1,
+          "36": 8,
+          "38": 11,
+          "40": 3
+        },
+        "total_stock": 44
+      }
+    ]
+  },
+  {
+    "model": "2112",
+    "slug": "sky-fade-mid-rise-baggy-denim-2112",
+    "title": "Sky Fade Mid-Rise Baggy Denim",
+    "fit": "extra wide baggy",
+    "waist": "mid",
+    "stretch": "non-stretch",
+    "fabric": "structured non-stretch denim",
+    "hero_category": "baggy",
+    "tags": [
+      "baggy",
+      "designed"
+    ],
+    "variants": [
+      {
+        "serial": 10,
+        "wash_code": "MBA",
+        "wash_name": "Mid Blue",
+        "wash_hex": "#4A6B8A",
+        "sku_prefix": "2112-MBA",
+        "price_bdt": 1590,
+        "special_price_bdt": 1099,
+        "cost_price_bdt_estimated": 636,
+        "status": "enabled",
+        "source_image": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/2112/MBA_Half-1-277x370.jpg",
+        "name_suffix": "Sky Fade Mid-Rise Baggy Denim",
+        "sizes": {
+          "26": 0,
+          "28": 0,
+          "30": 4,
+          "32": 0,
+          "34": 0,
+          "36": 0
+        },
+        "total_stock": 4
+      }
+    ]
+  },
+  {
+    "model": "3034",
+    "slug": "urban-smoke-wide-leg-boyfriend-denim-3034",
+    "title": "Urban Smoke Wide-Leg Boyfriend Denim",
+    "fit": "boyfriend straight",
+    "waist": "high",
+    "stretch": "non-stretch",
+    "fabric": "premium non-stretch denim",
+    "hero_category": "boyfriend",
+    "tags": [
+      "90s-baggy",
+      "boyfriend",
+      "classic",
+      "fusion",
+      "high-waisted",
+      "plus-size",
+      "spring26",
+      "straight",
+      "stw-unisex"
+    ],
+    "variants": [
+      {
+        "serial": 11,
+        "wash_code": "ASH",
+        "wash_name": "Ash Black",
+        "wash_hex": "#3C3C3C",
+        "sku_prefix": "3034-ASH",
+        "price_bdt": 1590,
+        "special_price_bdt": 999,
+        "cost_price_bdt_estimated": 636,
+        "status": "enabled",
+        "source_image": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/3034/ASH-1-277x370.jpg",
+        "name_suffix": "Urban Smoke Wide Leg Jean's",
+        "sizes": {
+          "26": 77,
+          "28": 86,
+          "30": 34
+        },
+        "total_stock": 197
+      },
+      {
+        "serial": 12,
+        "wash_code": "BLKTN",
+        "wash_name": "Black Tint",
+        "wash_hex": "#2A2A2A",
+        "sku_prefix": "3034-BLKTN",
+        "price_bdt": 1590,
+        "special_price_bdt": 999,
+        "cost_price_bdt_estimated": 636,
+        "status": "enabled",
+        "source_image": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/3034/2-277x370.jpg",
+        "name_suffix": "Urban Smoke Wide Leg Jean's",
+        "sizes": {
+          "26": 109,
+          "28": 177,
+          "30": 151,
+          "32": 64,
+          "34": 17,
+          "38": 6,
+          "40": 7
+        },
+        "total_stock": 531
+      },
+      {
+        "serial": 13,
+        "wash_code": "LBA",
+        "wash_name": "Light Blue",
+        "wash_hex": "#9AB0C5",
+        "sku_prefix": "3034-LBA",
+        "price_bdt": 1590,
+        "special_price_bdt": 999,
+        "cost_price_bdt_estimated": 636,
+        "status": "enabled",
+        "source_image": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/3034/LBA-277x370.jpg",
+        "name_suffix": "Urban Smoke Wide Leg Jean's",
+        "sizes": {
+          "26": 37,
+          "28": 40,
+          "30": 43,
+          "32": 31,
+          "34": 16
+        },
+        "total_stock": 167
+      }
+    ]
+  },
+  {
+    "model": "21022",
+    "slug": "super-baggy-wide-leg-denim-jeans-21022",
+    "title": "Super Baggy Wide-Leg Denim Jeans",
+    "fit": "super baggy wide-leg",
+    "waist": "high",
+    "stretch": "non-stretch",
+    "fabric": "premium non-stretch denim",
+    "hero_category": "wide-leg",
+    "tags": [
+      "cargo",
+      "designed",
+      "wide-leg"
+    ],
+    "variants": [
+      {
+        "serial": 14,
+        "wash_code": "BLK",
+        "wash_name": "Black",
+        "wash_hex": "#1A1A1A",
+        "sku_prefix": "21022-BLK",
+        "price_bdt": 1680,
+        "special_price_bdt": 1099,
+        "cost_price_bdt_estimated": 672,
+        "status": "enabled",
+        "source_image": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/21022/21022_BLK-1-277x370.jpg",
+        "name_suffix": "Super Baggy Wide Leg Denim Jeans",
+        "sizes": {
+          "24": 0,
+          "26": 0,
+          "28": 0,
+          "30": 0,
+          "34": 0,
+          "36": 3,
+          "38": 0,
+          "40": 0
+        },
+        "total_stock": 3
+      },
+      {
+        "serial": 15,
+        "wash_code": "DTN",
+        "wash_name": "Dark Tint Blue",
+        "wash_hex": "#3A5068",
+        "sku_prefix": "21022-DTN",
+        "price_bdt": 1690,
+        "special_price_bdt": 1099,
+        "cost_price_bdt_estimated": 676,
+        "status": "enabled",
+        "source_image": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/21022/DTN-1-277x370.jpg",
+        "name_suffix": "Super Baggy Wide Leg Denim Jeans",
+        "sizes": {
+          "26": 12,
+          "28": 4,
+          "30": 4,
+          "32": 3,
+          "34": 9,
+          "36": 2,
+          "38": 3,
+          "40": 1
+        },
+        "total_stock": 38
+      },
+      {
+        "serial": 16,
+        "wash_code": "LBA",
+        "wash_name": "Light Blue",
+        "wash_hex": "#9AB0C5",
+        "sku_prefix": "21022-LBA",
+        "price_bdt": 1690,
+        "special_price_bdt": 1099,
+        "cost_price_bdt_estimated": 676,
+        "status": "enabled",
+        "source_image": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/21022/LBA-1-277x370.jpg",
+        "name_suffix": "Super Baggy Wide Leg Denim Jeans",
+        "sizes": {
+          "26": 11,
+          "28": 0,
+          "30": 5,
+          "32": 10,
+          "34": 13,
+          "36": 13,
+          "38": 13,
+          "40": 5
+        },
+        "total_stock": 70
+      },
+      {
+        "serial": 17,
+        "wash_code": "MBA",
+        "wash_name": "Mid Blue",
+        "wash_hex": "#4A6B8A",
+        "sku_prefix": "21022-MBA",
+        "price_bdt": 1680,
+        "special_price_bdt": 1099,
+        "cost_price_bdt_estimated": 672,
+        "status": "enabled",
+        "source_image": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/21022/21022_MBA-1-277x370.jpg",
+        "name_suffix": "Super Baggy Wide Leg Denim Jeans",
+        "sizes": {
+          "26": 6,
+          "28": 9,
+          "30": 0,
+          "32": 6,
+          "34": 17,
+          "36": 18,
+          "38": 0,
+          "40": 0
+        },
+        "total_stock": 56
+      },
+      {
+        "serial": 18,
+        "wash_code": "MTN",
+        "wash_name": "Mid Tint Blue",
+        "wash_hex": "#7890A8",
+        "sku_prefix": "21022-MTN",
+        "price_bdt": 1690,
+        "special_price_bdt": 1099,
+        "cost_price_bdt_estimated": 676,
+        "status": "enabled",
+        "source_image": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/21022/MTN-2-277x370.jpg",
+        "name_suffix": "Super Baggy Wide Leg Denim Jeans",
+        "sizes": {
+          "26": 1,
+          "28": 0,
+          "30": 0,
+          "32": 0,
+          "34": 9,
+          "36": 0,
+          "38": 10,
+          "40": 9
+        },
+        "total_stock": 29
+      },
+      {
+        "serial": 19,
+        "wash_code": "DBA",
+        "wash_name": "Dark Blue",
+        "wash_hex": "#2A4058",
+        "sku_prefix": "21022-DBA",
+        "price_bdt": 1680,
+        "special_price_bdt": 1099,
+        "cost_price_bdt_estimated": 672,
+        "status": "enabled",
+        "source_image": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/21022/DBA-277x370.jpg",
+        "name_suffix": "Super Baggy Wide Leg Denim Jeans",
+        "sizes": {
+          "26": 4,
+          "28": 2,
+          "30": 2,
+          "32": 2,
+          "34": 8,
+          "36": 5,
+          "38": 6,
+          "40": 1
+        },
+        "total_stock": 30
+      }
+    ]
+  },
+  {
+    "model": "2111",
+    "slug": "premium-grey-wide-leg-baggy-denim-2111",
+    "title": "Premium Grey Wide-Leg Baggy Denim",
+    "fit": "baggy wide-leg",
+    "waist": "high",
+    "stretch": "non-stretch",
+    "fabric": "premium non-stretch denim",
+    "hero_category": "baggy",
+    "tags": [
+      "baggy"
+    ],
+    "variants": [
+      {
+        "serial": 20,
+        "wash_code": "GRY",
+        "wash_name": "Grey",
+        "wash_hex": "#7A7A7A",
+        "sku_prefix": "2111-GRY",
+        "price_bdt": 1690,
+        "special_price_bdt": 899,
+        "cost_price_bdt_estimated": 676,
+        "status": "enabled",
+        "source_image": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/2111/2111_Gray-277x370.jpg",
+        "name_suffix": "Premium Grey High-Waist Wide-Leg Baggy Fit Non-Stretch Denim Jeans",
+        "sizes": {
+          "24": 5,
+          "26": 6,
+          "28": 18,
+          "30": 53,
+          "32": 59,
+          "34": 24,
+          "36": 0
+        },
+        "total_stock": 165
+      }
+    ]
+  },
+  {
+    "model": "3045",
+    "slug": "aerolite-high-waist-flare-denim-3045",
+    "title": "AeroLite High-Waist Flare Denim",
+    "fit": "flared bootcut",
+    "waist": "high",
+    "stretch": "stretchable",
+    "fabric": "stretchable denim with silicon wash",
+    "hero_category": "flared",
+    "tags": [
+      "bootcut",
+      "classic",
+      "cute",
+      "flared",
+      "high-waisted",
+      "spring26",
+      "wide-leg"
+    ],
+    "variants": [
+      {
+        "serial": 24,
+        "wash_code": "MBA",
+        "wash_name": "Mid Blue",
+        "wash_hex": "#4A6B8A",
+        "sku_prefix": "3045-MBA",
+        "price_bdt": 1390,
+        "special_price_bdt": 899,
+        "cost_price_bdt_estimated": 556,
+        "status": "enabled",
+        "source_image": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/3045/MBA-1-277x370.jpg",
+        "name_suffix": "AeroLite Highwaist Flare Jean's",
+        "sizes": {
+          "24": 21,
+          "26": 27,
+          "28": 19,
+          "30": 32,
+          "32": 12,
+          "34": 9,
+          "36": 0,
+          "38": 1,
+          "42": 1
+        },
+        "total_stock": 122
+      }
+    ]
+  },
+  {
+    "model": "3037",
+    "slug": "alyza-patch-pocket-wide-leg-denim-3037",
+    "title": "Alyza Patch Pocket Wide-Leg Denim",
+    "fit": "wide-leg baggy",
+    "waist": "high",
+    "stretch": "semi-stretch",
+    "fabric": "semi-stretch denim with patch pockets",
+    "hero_category": "wide-leg",
+    "tags": [
+      "90s-baggy",
+      "baggy",
+      "classic",
+      "cute",
+      "flared",
+      "high-waisted",
+      "spring26",
+      "wide-leg"
+    ],
+    "variants": [
+      {
+        "serial": 25,
+        "wash_code": "DNMBA",
+        "wash_name": "Denim Blue",
+        "wash_hex": "#486080",
+        "sku_prefix": "3037-DNMBA",
+        "price_bdt": 1390,
+        "special_price_bdt": 999,
+        "cost_price_bdt_estimated": 556,
+        "status": "enabled",
+        "source_image": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/3037%20E%20F/DNMBA-1-277x370.jpg",
+        "name_suffix": "Alyza Patch Pocket Wide Leg",
+        "sizes": {
+          "24": 6,
+          "26": 0,
+          "28": 19,
+          "30": 25,
+          "32": 30,
+          "34": 26,
+          "36": 1,
+          "38": 3
+        },
+        "total_stock": 110
+      }
+    ]
+  },
+  {
+    "model": "6007",
+    "slug": "cairo-denim-cargo-6007",
+    "title": "Cairo Denim Cargo",
+    "fit": "boyfriend cargo",
+    "waist": "high",
+    "stretch": "non-stretch",
+    "fabric": "structured cargo denim",
+    "hero_category": "cargo",
+    "tags": [
+      "boyfriend",
+      "cargo",
+      "classic",
+      "eid26",
+      "high-waisted",
+      "plus-size",
+      "spring26",
+      "straight",
+      "stw-unisex",
+      "y2k"
+    ],
+    "variants": [
+      {
+        "serial": 27,
+        "wash_code": "ARMY",
+        "wash_name": "Army Green",
+        "wash_hex": "#4A5030",
+        "sku_prefix": "6007-ARMY",
+        "price_bdt": 1390,
+        "special_price_bdt": 999,
+        "cost_price_bdt_estimated": 556,
+        "status": "enabled",
+        "source_image": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/6007/Re%20size/Army_Green-1-277x370.jpg",
+        "name_suffix": "Cairo Denim Cargo Jean's",
+        "sizes": {
+          "26": 28,
+          "28": 31,
+          "30": 62,
+          "32": 6,
+          "34": 5
+        },
+        "total_stock": 132
+      },
+      {
+        "serial": 28,
+        "wash_code": "CMO",
+        "wash_name": "Camo",
+        "wash_hex": "#4A5238",
+        "sku_prefix": "6007-CMO",
+        "price_bdt": 1390,
+        "special_price_bdt": 999,
+        "cost_price_bdt_estimated": 556,
+        "status": "enabled",
+        "source_image": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/6007/Re%20size/camouflage-1-277x370.jpg",
+        "name_suffix": "Cairo Denim Cargo Jean's",
+        "sizes": {
+          "26": 36,
+          "28": 0,
+          "30": 10,
+          "32": 50,
+          "34": 3,
+          "36": 21
+        },
+        "total_stock": 120
+      },
+      {
+        "serial": 29,
+        "wash_code": "DBA",
+        "wash_name": "Dark Blue",
+        "wash_hex": "#2A4058",
+        "sku_prefix": "6007-DBA",
+        "price_bdt": 1390,
+        "special_price_bdt": 999,
+        "cost_price_bdt_estimated": 556,
+        "status": "enabled",
+        "source_image": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/6007/Re%20size/DBA-277x370.jpg",
+        "name_suffix": "Cairo Denim Cargo Jean's",
+        "sizes": {
+          "26": 44,
+          "28": 35,
+          "30": 26,
+          "32": 19
+        },
+        "total_stock": 124
+      }
+    ]
+  },
+  {
+    "model": "6013",
+    "slug": "obsidian-utility-6-pocket-cargo-denim-6013",
+    "title": "Obsidian Utility 6-Pocket Cargo Denim",
+    "fit": "boyfriend straight cargo",
+    "waist": "high",
+    "stretch": "non-stretch",
+    "fabric": "premium 6-pocket non-stretch denim",
+    "hero_category": "cargo",
+    "tags": [
+      "boyfriend",
+      "cargo",
+      "classic",
+      "eid26",
+      "high-waisted",
+      "spring26",
+      "straight",
+      "stw-unisex",
+      "y2k"
+    ],
+    "variants": [
+      {
+        "serial": 30,
+        "wash_code": "ASH",
+        "wash_name": "Ash Black",
+        "wash_hex": "#3C3C3C",
+        "sku_prefix": "6013-ASH",
+        "price_bdt": 1490,
+        "special_price_bdt": 999,
+        "cost_price_bdt_estimated": 596,
+        "status": "enabled",
+        "source_image": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/6013/new/ASH_Black-2-277x370.jpg",
+        "name_suffix": "Cargo Straight Jean's",
+        "sizes": {
+          "26": 116,
+          "28": 116,
+          "30": 97,
+          "32": 80,
+          "34": 80,
+          "36": 20
+        },
+        "total_stock": 509
+      },
+      {
+        "serial": 31,
+        "wash_code": "DBA",
+        "wash_name": "Dark Blue",
+        "wash_hex": "#2A4058",
+        "sku_prefix": "6013-DBA",
+        "price_bdt": 1490,
+        "special_price_bdt": 999,
+        "cost_price_bdt_estimated": 596,
+        "status": "enabled",
+        "source_image": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/6013/new/DBA-2-277x370.jpg",
+        "name_suffix": "Cargo Straight Jean's",
+        "sizes": {
+          "26": 36,
+          "28": 13,
+          "30": 12,
+          "32": 4,
+          "34": 11,
+          "36": 49
+        },
+        "total_stock": 125
+      },
+      {
+        "serial": 32,
+        "wash_code": "LBA",
+        "wash_name": "Light Blue",
+        "wash_hex": "#9AB0C5",
+        "sku_prefix": "6013-LBA",
+        "price_bdt": 1490,
+        "special_price_bdt": 999,
+        "cost_price_bdt_estimated": 596,
+        "status": "enabled",
+        "source_image": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/6013/new/LBA-277x370.jpg",
+        "name_suffix": "Cargo Straight Jean's",
+        "sizes": {
+          "26": 48,
+          "28": 50,
+          "30": 50,
+          "32": 34,
+          "34": 40,
+          "36": 20
+        },
+        "total_stock": 242
+      },
+      {
+        "serial": 33,
+        "wash_code": "OWH",
+        "wash_name": "Off White",
+        "wash_hex": "#F5F0E8",
+        "sku_prefix": "6013-OWH",
+        "price_bdt": 1490,
+        "special_price_bdt": 999,
+        "cost_price_bdt_estimated": 596,
+        "status": "enabled",
+        "source_image": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/6013/new/OWH-277x370.jpg",
+        "name_suffix": "Cargo Straight Jean's",
+        "sizes": {
+          "26": 8,
+          "28": 8,
+          "30": 3,
+          "32": 2,
+          "34": 4,
+          "36": 3
+        },
+        "total_stock": 28
+      },
+      {
+        "serial": 34,
+        "wash_code": "OLV",
+        "wash_name": "Olive",
+        "wash_hex": "#5A6438",
+        "sku_prefix": "6013-OLV",
+        "price_bdt": 1490,
+        "special_price_bdt": 999,
+        "cost_price_bdt_estimated": 596,
+        "status": "enabled",
+        "source_image": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/6013/new/OLV-277x370.jpg",
+        "name_suffix": "Cargo Straight Jean's",
+        "sizes": {
+          "26": 65,
+          "28": 64,
+          "30": 64,
+          "32": 20,
+          "34": 19,
+          "36": 39
+        },
+        "total_stock": 271
+      }
+    ]
+  },
+  {
+    "model": "3039",
+    "slug": "comfort-flow-stretch-flare-denim-3039",
+    "title": "Comfort Flow Stretch Flare Denim",
+    "fit": "flared bootcut",
+    "waist": "high",
+    "stretch": "stretchable",
+    "fabric": "stretchable structured denim",
+    "hero_category": "flared",
+    "tags": [
+      "90s-baggy",
+      "baggy",
+      "cute",
+      "designed",
+      "flared",
+      "high-waisted",
+      "spring26",
+      "stw-unisex",
+      "wide-leg",
+      "y2k"
+    ],
+    "variants": [
+      {
+        "serial": 35,
+        "wash_code": "LBA",
+        "wash_name": "Light Blue",
+        "wash_hex": "#9AB0C5",
+        "sku_prefix": "3039-LBA",
+        "price_bdt": 1590,
+        "special_price_bdt": 899,
+        "cost_price_bdt_estimated": 636,
+        "status": "enabled",
+        "source_image": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/3039/MBA-277x370.jpg",
+        "name_suffix": "Comfort Flow Stretch Jean's",
+        "sizes": {
+          "28": 17,
+          "30": 37,
+          "32": 20,
+          "34": 8
+        },
+        "total_stock": 82
+      }
+    ]
+  },
+  {
+    "model": "2110",
+    "slug": "drape-baggy-denim-2110",
+    "title": "Drape Baggy Denim",
+    "fit": "wide-leg drape",
+    "waist": "mid",
+    "stretch": "non-stretch",
+    "fabric": "structured non-stretch denim",
+    "hero_category": "baggy",
+    "tags": [
+      "baggy"
+    ],
+    "variants": [
+      {
+        "serial": 38,
+        "wash_code": "BLK",
+        "wash_name": "Black",
+        "wash_hex": "#1A1A1A",
+        "sku_prefix": "2110-BLK",
+        "price_bdt": 1290,
+        "special_price_bdt": 899,
+        "cost_price_bdt_estimated": 516,
+        "status": "enabled",
+        "source_image": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/2110/Re%20Size/BLK-2-277x370.jpg",
+        "name_suffix": "Drape Baggy Jean's",
+        "sizes": {
+          "24": 0,
+          "26": 0,
+          "28": 0,
+          "30": 35,
+          "32": 0,
+          "34": 0,
+          "36": 0,
+          "38": 0,
+          "40": 0
+        },
+        "total_stock": 35
+      },
+      {
+        "serial": 39,
+        "wash_code": "CRM",
+        "wash_name": "Cream",
+        "wash_hex": "#F0E8D8",
+        "sku_prefix": "2110-CRM",
+        "price_bdt": 1290,
+        "special_price_bdt": 899,
+        "cost_price_bdt_estimated": 516,
+        "status": "enabled",
+        "source_image": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/2110/Re%20Size/cream-2-277x370.jpg",
+        "name_suffix": "Drape Baggy Jean's",
+        "sizes": {
+          "28": 54,
+          "30": 12,
+          "32": 30
+        },
+        "total_stock": 96
+      }
+    ]
+  },
+  {
+    "model": "3044",
+    "slug": "freha-flares-mid-waist-denim-3044",
+    "title": "Freha Flares Mid-Waist Denim",
+    "fit": "flared bootcut",
+    "waist": "mid",
+    "stretch": "stretchable",
+    "fabric": "stretchable denim",
+    "hero_category": "flared",
+    "tags": [
+      "bootcut",
+      "cute",
+      "designed",
+      "flared",
+      "spring26",
+      "wide-leg"
+    ],
+    "variants": [
+      {
+        "serial": 40,
+        "wash_code": "DBA",
+        "wash_name": "Dark Blue",
+        "wash_hex": "#2A4058",
+        "sku_prefix": "3044-DBA",
+        "price_bdt": 1590,
+        "special_price_bdt": 999,
+        "cost_price_bdt_estimated": 636,
+        "status": "enabled",
+        "source_image": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/3044/DBA-2-277x370.jpg",
+        "name_suffix": "Freha Flares Mid Waist Jean's",
+        "sizes": {
+          "26": 5,
+          "28": 12,
+          "30": 23,
+          "32": 53,
+          "34": 53,
+          "36": 31,
+          "38": 32,
+          "40": 7
+        },
+        "total_stock": 216
+      }
+    ]
+  },
+  {
+    "model": "6008",
+    "slug": "kiara-urban-denim-cargo-6008",
+    "title": "Kiara Urban Denim Cargo",
+    "fit": "baggy straight cargo",
+    "waist": "high",
+    "stretch": "non-stretch",
+    "fabric": "8-pocket cargo denim",
+    "hero_category": "cargo",
+    "tags": [
+      "90s-baggy",
+      "baggy",
+      "classic",
+      "eid26",
+      "high-waisted",
+      "spring26",
+      "straight",
+      "stw-unisex",
+      "vintage"
+    ],
+    "variants": [
+      {
+        "serial": 41,
+        "wash_code": "LTN",
+        "wash_name": "Light Tint Blue",
+        "wash_hex": "#A8B8C8",
+        "sku_prefix": "6008-LTN",
+        "price_bdt": 1590,
+        "special_price_bdt": 1199,
+        "cost_price_bdt_estimated": 636,
+        "status": "enabled",
+        "source_image": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/6008/TNT_BLUE-277x370.jpg",
+        "name_suffix": "Kiara Urban Denim Cargo",
+        "sizes": {
+          "26": 21,
+          "28": 60,
+          "30": 0,
+          "32": 4,
+          "34": 6,
+          "36": 1,
+          "38": 1,
+          "40": 0
+        },
+        "total_stock": 93
+      }
+    ]
+  },
+  {
+    "model": "3052",
+    "slug": "lara-wide-leg-boyfriend-denim-3052",
+    "title": "Lara Wide-Leg Boyfriend Denim",
+    "fit": "boyfriend straight",
+    "waist": "high",
+    "stretch": "non-stretch",
+    "fabric": "premium non-stretch denim",
+    "hero_category": "boyfriend",
+    "tags": [
+      "90s-baggy",
+      "boyfriend",
+      "classic",
+      "cute",
+      "high-waisted",
+      "spring26",
+      "straight",
+      "stw-unisex"
+    ],
+    "variants": [
+      {
+        "serial": 42,
+        "wash_code": "ASH",
+        "wash_name": "Ash Black",
+        "wash_hex": "#3C3C3C",
+        "sku_prefix": "3052-ASH",
+        "price_bdt": 1490,
+        "special_price_bdt": 999,
+        "cost_price_bdt_estimated": 596,
+        "status": "enabled",
+        "source_image": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/3052/ASH_BLACK-2-277x370.jpg",
+        "name_suffix": "Lara Wide Leg",
+        "sizes": {
+          "26": 53,
+          "28": 53,
+          "30": 45,
+          "32": 36,
+          "34": 19,
+          "36": 8,
+          "38": 6,
+          "40": 1
+        },
+        "total_stock": 221
+      },
+      {
+        "serial": 43,
+        "wash_code": "MBA",
+        "wash_name": "Mid Blue",
+        "wash_hex": "#4A6B8A",
+        "sku_prefix": "3052-MBA",
+        "price_bdt": 1590,
+        "special_price_bdt": 999,
+        "cost_price_bdt_estimated": 636,
+        "status": "enabled",
+        "source_image": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/MBA-31-277x370.jpg",
+        "name_suffix": "Lara Wide Leg",
+        "sizes": {
+          "26": 5,
+          "28": 27,
+          "30": 19,
+          "32": 18,
+          "34": 14,
+          "36": 6,
+          "38": 3,
+          "40": 1
+        },
+        "total_stock": 93
+      }
+    ]
+  },
+  {
+    "model": "2116",
+    "slug": "lily-pintuck-barrel-fit-denim-2116",
+    "title": "Lily Pintuck Barrel Fit Denim",
+    "fit": "barrel-leg",
+    "waist": "mid",
+    "stretch": "non-stretch",
+    "fabric": "rigid non-stretch denim",
+    "hero_category": "barrel",
+    "tags": [
+      "barrel"
+    ],
+    "variants": [
+      {
+        "serial": 44,
+        "wash_code": "MBA",
+        "wash_name": "Mid Blue",
+        "wash_hex": "#4A6B8A",
+        "sku_prefix": "2116-MBA",
+        "price_bdt": 1490,
+        "special_price_bdt": 899,
+        "cost_price_bdt_estimated": 596,
+        "status": "enabled",
+        "source_image": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/2116/Re%20Edit/Mid_Blue-2-277x370.jpg",
+        "name_suffix": "Lily Pintuck Barrel Fit Jean's",
+        "sizes": {
+          "26": 0,
+          "28": 0,
+          "30": 0,
+          "32": 0,
+          "34": 0,
+          "36": 0
+        },
+        "total_stock": 0
+      }
+    ]
+  },
+  {
+    "model": "3030",
+    "slug": "luxe-mid-rise-denim-3030",
+    "title": "Luxe Mid Rise Denim",
+    "fit": "wide-leg flared",
+    "waist": "high",
+    "stretch": "non-stretch",
+    "fabric": "premium non-stretch denim",
+    "hero_category": "wide-leg",
+    "tags": [
+      "classic",
+      "designed",
+      "flared",
+      "high-waisted",
+      "spring26",
+      "stw-unisex",
+      "vintage",
+      "wide-leg"
+    ],
+    "variants": [
+      {
+        "serial": 45,
+        "wash_code": "BLK",
+        "wash_name": "Black",
+        "wash_hex": "#1A1A1A",
+        "sku_prefix": "3030-BLK",
+        "price_bdt": 1490,
+        "special_price_bdt": 999,
+        "cost_price_bdt_estimated": 596,
+        "status": "enabled",
+        "source_image": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/BLK-11-277x370.jpg",
+        "name_suffix": "Luxe Mid Rise Denim",
+        "sizes": {
+          "24": 3,
+          "26": 3,
+          "28": 0,
+          "30": 0,
+          "32": 3,
+          "34": 2
+        },
+        "total_stock": 11
+      },
+      {
+        "serial": 46,
+        "wash_code": "CHC",
+        "wash_name": "Chocolate",
+        "wash_hex": "#4A3020",
+        "sku_prefix": "3030-CHC",
+        "price_bdt": 1490,
+        "special_price_bdt": 999,
+        "cost_price_bdt_estimated": 596,
+        "status": "enabled",
+        "source_image": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/CHC-2-277x370.jpg",
+        "name_suffix": "Luxe Mid Rise Denim",
+        "sizes": {
+          "24": 0,
+          "26": 18,
+          "28": 14,
+          "30": 21,
+          "32": 15,
+          "34": 8,
+          "36": 1
+        },
+        "total_stock": 77
+      },
+      {
+        "serial": 47,
+        "wash_code": "DBA",
+        "wash_name": "Dark Blue",
+        "wash_hex": "#2A4058",
+        "sku_prefix": "3030-DBA",
+        "price_bdt": 1490,
+        "special_price_bdt": 999,
+        "cost_price_bdt_estimated": 596,
+        "status": "enabled",
+        "source_image": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/3030/DBA-277x370.jpg",
+        "name_suffix": "Luxe Mid Rise Denim",
+        "sizes": {
+          "24": 0,
+          "26": 28,
+          "28": 36,
+          "30": 37,
+          "32": 34,
+          "34": 17,
+          "36": 3
+        },
+        "total_stock": 155
+      },
+      {
+        "serial": 48,
+        "wash_code": "LBA",
+        "wash_name": "Light Blue",
+        "wash_hex": "#9AB0C5",
+        "sku_prefix": "3030-LBA",
+        "price_bdt": 1490,
+        "special_price_bdt": 999,
+        "cost_price_bdt_estimated": 596,
+        "status": "enabled",
+        "source_image": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/LBA-23-277x370.jpg",
+        "name_suffix": "Luxe Mid Rise Denim",
+        "sizes": {
+          "24": 3,
+          "26": 14,
+          "28": 10,
+          "30": 9,
+          "32": 2,
+          "34": 1,
+          "36": 0,
+          "38": 1,
+          "46": 1,
+          "48": 4
+        },
+        "total_stock": 45
+      },
+      {
+        "serial": 49,
+        "wash_code": "MBA",
+        "wash_name": "Mid Blue",
+        "wash_hex": "#4A6B8A",
+        "sku_prefix": "3030-MBA",
+        "price_bdt": 1490,
+        "special_price_bdt": 999,
+        "cost_price_bdt_estimated": 596,
+        "status": "enabled",
+        "source_image": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/MBA-39-277x370.jpg",
+        "name_suffix": "Luxe Mid Rise Denim",
+        "sizes": {
+          "24": 1,
+          "26": 9,
+          "28": 10,
+          "30": 10,
+          "32": 5,
+          "34": 6,
+          "36": 2,
+          "38": 2,
+          "42": 1
+        },
+        "total_stock": 46
+      },
+      {
+        "serial": 50,
+        "wash_code": "WHT",
+        "wash_name": "White",
+        "wash_hex": "#FAFAFA",
+        "sku_prefix": "3030-WHT",
+        "price_bdt": 1490,
+        "special_price_bdt": 999,
+        "cost_price_bdt_estimated": 596,
+        "status": "enabled",
+        "source_image": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/3030/3030/WHT-2-277x370.jpg",
+        "name_suffix": "Luxe Mid Rise Denim",
+        "sizes": {
+          "26": 2,
+          "28": 15,
+          "30": 26,
+          "32": 17,
+          "34": 17,
+          "36": 2
+        },
+        "total_stock": 79
+      },
+      {
+        "serial": 51,
+        "wash_code": "YLTN",
+        "wash_name": "Yellow Tint",
+        "wash_hex": "#D8C890",
+        "sku_prefix": "3030-YLTN",
+        "price_bdt": 1490,
+        "special_price_bdt": 999,
+        "cost_price_bdt_estimated": 596,
+        "status": "enabled",
+        "source_image": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/YLTN-1-277x370.jpg",
+        "name_suffix": "Luxe Mid Rise Denim",
+        "sizes": {
+          "26": 5,
+          "28": 21,
+          "30": 28,
+          "32": 19,
+          "34": 8
+        },
+        "total_stock": 81
+      }
+    ]
+  },
+  {
+    "model": "3010",
+    "slug": "sasha-straight-fit-granding-denim-3010",
+    "title": "Sasha Straight Fit Granding Denim",
+    "fit": "straight-leg",
+    "waist": "high",
+    "stretch": "non-stretch",
+    "fabric": "premium non-stretch denim",
+    "hero_category": "straight",
+    "tags": [
+      "classic",
+      "fusion",
+      "high-waisted",
+      "plus-size",
+      "spring26",
+      "straight",
+      "wide-leg"
+    ],
+    "variants": [
+      {
+        "serial": 52,
+        "wash_code": "LBA",
+        "wash_name": "Light Blue",
+        "wash_hex": "#9AB0C5",
+        "sku_prefix": "3010-LBA",
+        "price_bdt": 1590,
+        "special_price_bdt": 899,
+        "cost_price_bdt_estimated": 636,
+        "status": "enabled",
+        "source_image": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/3010/Without_Stone_3010-277x370.jpg",
+        "name_suffix": "Sasha Straight Fit Granding Jean's",
+        "sizes": {
+          "24": 68,
+          "26": 71,
+          "28": 62,
+          "30": 31,
+          "32": 63,
+          "34": 20,
+          "36": 36,
+          "38": 2
+        },
+        "total_stock": 353
+      }
+    ]
+  },
+  {
+    "model": "6009",
+    "slug": "side-snap-wide-leg-cargo-denim-6009",
+    "title": "Side Snap Wide-Leg Cargo Denim",
+    "fit": "baggy wide-leg cargo",
+    "waist": "high",
+    "stretch": "non-stretch",
+    "fabric": "structured cargo denim with snap detail",
+    "hero_category": "cargo",
+    "tags": [
+      "90s-baggy",
+      "baggy",
+      "cargo",
+      "cute",
+      "eid26",
+      "high-waisted",
+      "spring26",
+      "straight",
+      "stw-unisex",
+      "y2k"
+    ],
+    "variants": [
+      {
+        "serial": 54,
+        "wash_code": "MBA",
+        "wash_name": "Mid Blue",
+        "wash_hex": "#4A6B8A",
+        "sku_prefix": "6009-MBA",
+        "price_bdt": 1690,
+        "special_price_bdt": 1199,
+        "cost_price_bdt_estimated": 676,
+        "status": "enabled",
+        "source_image": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/6009/2-277x370.jpg",
+        "name_suffix": "Side Snap Wide Leg Cargo",
+        "sizes": {
+          "28": 0,
+          "30": 22,
+          "32": 52,
+          "34": 61,
+          "36": 37,
+          "38": 22,
+          "40": 4,
+          "42": 10,
+          "44": 4,
+          "46": 2,
+          "48": 4
+        },
+        "total_stock": 218
+      }
+    ]
+  },
+  {
+    "model": "21001",
+    "slug": "signature-chic-wide-leg-baggy-denim-21001",
+    "title": "Signature Chic Wide-Leg Baggy Denim",
+    "fit": "relaxed wide-leg",
+    "waist": "high",
+    "stretch": "non-stretch",
+    "fabric": "silicon-washed non-stretch denim",
+    "hero_category": "wide-leg",
+    "tags": [
+      "90s-baggy",
+      "baggy",
+      "classic",
+      "cute",
+      "eid26",
+      "flared",
+      "high-waisted",
+      "spring26",
+      "vintage",
+      "wide-leg"
+    ],
+    "variants": [
+      {
+        "serial": 55,
+        "wash_code": "BLKTN",
+        "wash_name": "Black Tint",
+        "wash_hex": "#2A2A2A",
+        "sku_prefix": "21001-BLKTN",
+        "price_bdt": 1590,
+        "special_price_bdt": 999,
+        "cost_price_bdt_estimated": 636,
+        "status": "enabled",
+        "source_image": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/Tint_Black-2-277x370.jpg",
+        "name_suffix": "Signature Chic Denim Wide Leg Baggy Jean's",
+        "sizes": {
+          "26": 20,
+          "28": 39,
+          "30": 42,
+          "32": 41,
+          "34": 44,
+          "36": 44,
+          "38": 43,
+          "40": 19
+        },
+        "total_stock": 292
+      },
+      {
+        "serial": 56,
+        "wash_code": "DBA",
+        "wash_name": "Dark Blue",
+        "wash_hex": "#2A4058",
+        "sku_prefix": "21001-DBA",
+        "price_bdt": 1590,
+        "special_price_bdt": 999,
+        "cost_price_bdt_estimated": 636,
+        "status": "enabled",
+        "source_image": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/21001%20new/Re-shoot/DBA-1-277x370.jpg",
+        "name_suffix": "Signature Chic Denim Wide Leg Baggy Jean's",
+        "sizes": {
+          "26": 29,
+          "28": 39,
+          "30": 39,
+          "32": 10,
+          "34": 69,
+          "36": 100,
+          "38": 26,
+          "40": 0
+        },
+        "total_stock": 312
+      },
+      {
+        "serial": 57,
+        "wash_code": "DTN",
+        "wash_name": "Dark Tint Blue",
+        "wash_hex": "#3A5068",
+        "sku_prefix": "21001-DTN",
+        "price_bdt": 1590,
+        "special_price_bdt": 999,
+        "cost_price_bdt_estimated": 636,
+        "status": "enabled",
+        "source_image": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/21001%20new/Re-shoot/DTN-277x370.jpg",
+        "name_suffix": "Signature Chic Denim Wide Leg Baggy Jean's",
+        "sizes": {
+          "26": 2,
+          "28": 48,
+          "30": 47,
+          "32": 49,
+          "34": 88,
+          "36": 89,
+          "38": 28,
+          "40": 11
+        },
+        "total_stock": 362
+      },
+      {
+        "serial": 58,
+        "wash_code": "MBA",
+        "wash_name": "Mid Blue",
+        "wash_hex": "#4A6B8A",
+        "sku_prefix": "21001-MBA",
+        "price_bdt": 1590,
+        "special_price_bdt": 999,
+        "cost_price_bdt_estimated": 636,
+        "status": "enabled",
+        "source_image": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/21001%20new/Re-shoot/MBA-2-277x370.jpg",
+        "name_suffix": "Signature Chic Denim Wide Leg Baggy Jean's",
+        "sizes": {
+          "24": 0,
+          "26": 70,
+          "28": 110,
+          "30": 100,
+          "32": 100,
+          "34": 75,
+          "36": 71,
+          "38": 24,
+          "40": 0
+        },
+        "total_stock": 550
+      },
+      {
+        "serial": 59,
+        "wash_code": "LBA",
+        "wash_name": "Light Blue",
+        "wash_hex": "#9AB0C5",
+        "sku_prefix": "21001-LBA",
+        "price_bdt": 1590,
+        "special_price_bdt": 999,
+        "cost_price_bdt_estimated": 636,
+        "status": "enabled",
+        "source_image": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/21001%20new/Re-shoot/LBA-277x370.jpg",
+        "name_suffix": "Signature Chic Denim Wide Leg Baggy Jean's",
+        "sizes": {
+          "26": 0,
+          "28": 10,
+          "30": 6,
+          "32": 0,
+          "34": 9,
+          "36": 8,
+          "38": 0,
+          "40": 10,
+          "42": 8,
+          "44": 7,
+          "46": 9
+        },
+        "total_stock": 67
+      },
+      {
+        "serial": 60,
+        "wash_code": "MTN",
+        "wash_name": "Mid Tint Blue",
+        "wash_hex": "#7890A8",
+        "sku_prefix": "21001-MTN",
+        "price_bdt": 1590,
+        "special_price_bdt": 999,
+        "cost_price_bdt_estimated": 636,
+        "status": "enabled",
+        "source_image": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/21001%20new/Re-shoot/MTN-2-277x370.jpg",
+        "name_suffix": "Signature Chic Denim Wide Leg Baggy Jean's",
+        "sizes": {
+          "26": 41,
+          "28": 65,
+          "30": 56,
+          "32": 63,
+          "34": 51,
+          "36": 62,
+          "38": 43,
+          "40": 2,
+          "42": 0
+        },
+        "total_stock": 383
+      }
+    ]
+  },
+  {
+    "model": "3033",
+    "slug": "street-super-wide-leg-distressed-denim-3033",
+    "title": "Street Super Wide-Leg Distressed Denim",
+    "fit": "straight-leg",
+    "waist": "high",
+    "stretch": "non-stretch",
+    "fabric": "non-stretch denim with distressing",
+    "hero_category": "distressed",
+    "tags": [
+      "90s-baggy",
+      "classic",
+      "cute",
+      "distressed",
+      "high-waisted",
+      "plus-size",
+      "spring26",
+      "straight",
+      "stw-unisex"
+    ],
+    "variants": [
+      {
+        "serial": 61,
+        "wash_code": "LBA",
+        "wash_name": "Light Blue",
+        "wash_hex": "#9AB0C5",
+        "sku_prefix": "3033-LBA",
+        "price_bdt": 1390,
+        "special_price_bdt": 999,
+        "cost_price_bdt_estimated": 556,
+        "status": "enabled",
+        "source_image": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/3033/LBA-1-277x370.jpg",
+        "name_suffix": "Street Super Wide Leg",
+        "sizes": {
+          "26": 13,
+          "28": 25,
+          "30": 28,
+          "32": 32,
+          "34": 30,
+          "36": 2,
+          "38": 11,
+          "40": 10
+        },
+        "total_stock": 151
+      }
+    ]
+  },
+  {
+    "model": "21013",
+    "slug": "trendy-stretchable-wide-leg-jeans-21013",
+    "title": "Trendy Stretchable Wide-Leg Jeans",
+    "fit": "wide-leg flare",
+    "waist": "high",
+    "stretch": "2% spandex",
+    "fabric": "100% premium cotton denim with spandex",
+    "hero_category": "wide-leg",
+    "tags": [
+      "designed",
+      "wide-leg"
+    ],
+    "variants": [
+      {
+        "serial": 62,
+        "wash_code": "DBA",
+        "wash_name": "Dark Blue",
+        "wash_hex": "#2A4058",
+        "sku_prefix": "21013-DBA",
+        "price_bdt": 1690,
+        "special_price_bdt": 999,
+        "cost_price_bdt_estimated": 676,
+        "status": "enabled",
+        "source_image": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/21013/Re%20Shoot%2010%20March/DBA-2-277x370.jpg",
+        "name_suffix": "Trendy Stretchable Wide Leg Jean's",
+        "sizes": {
+          "28": 40,
+          "30": 91,
+          "32": 104,
+          "34": 93,
+          "36": 109,
+          "38": 50,
+          "40": 0
+        },
+        "total_stock": 487
+      },
+      {
+        "serial": 63,
+        "wash_code": "DTN",
+        "wash_name": "Dark Tint Blue",
+        "wash_hex": "#3A5068",
+        "sku_prefix": "21013-DTN",
+        "price_bdt": 1690,
+        "special_price_bdt": 999,
+        "cost_price_bdt_estimated": 676,
+        "status": "enabled",
+        "source_image": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/21013/Re%20Shoot%2010%20March/DTN-2-277x370.jpg",
+        "name_suffix": "Trendy Stretchable Wide Leg Jean's",
+        "sizes": {
+          "28": 42,
+          "30": 107,
+          "32": 100,
+          "34": 91,
+          "36": 94,
+          "38": 46
+        },
+        "total_stock": 480
+      },
+      {
+        "serial": 64,
+        "wash_code": "LBA",
+        "wash_name": "Light Blue",
+        "wash_hex": "#9AB0C5",
+        "sku_prefix": "21013-LBA",
+        "price_bdt": 1690,
+        "special_price_bdt": 999,
+        "cost_price_bdt_estimated": 676,
+        "status": "enabled",
+        "source_image": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/21013/Re%20Shoot%2010%20March/LBA-1-277x370.jpg",
+        "name_suffix": "Trendy Stretchable Wide Leg Jean's",
+        "sizes": {
+          "28": 49,
+          "30": 102,
+          "32": 101,
+          "34": 67,
+          "36": 48,
+          "38": 47
+        },
+        "total_stock": 414
+      },
+      {
+        "serial": 65,
+        "wash_code": "MBA",
+        "wash_name": "Mid Blue",
+        "wash_hex": "#4A6B8A",
+        "sku_prefix": "21013-MBA",
+        "price_bdt": 1690,
+        "special_price_bdt": 999,
+        "cost_price_bdt_estimated": 676,
+        "status": "enabled",
+        "source_image": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/21013/Re%20Shoot%2010%20March/MBA-2-277x370.jpg",
+        "name_suffix": "Trendy Stretchable Wide Leg Jean's",
+        "sizes": {
+          "28": 22,
+          "30": 75,
+          "32": 85,
+          "34": 89,
+          "36": 86,
+          "38": 37,
+          "40": 4
+        },
+        "total_stock": 398
+      },
+      {
+        "serial": 66,
+        "wash_code": "MTN",
+        "wash_name": "Mid Tint Blue",
+        "wash_hex": "#7890A8",
+        "sku_prefix": "21013-MTN",
+        "price_bdt": 1690,
+        "special_price_bdt": 999,
+        "cost_price_bdt_estimated": 676,
+        "status": "enabled",
+        "source_image": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/21013/Re%20Shoot%2010%20March/MTN-2-277x370.jpg",
+        "name_suffix": "Trendy Stretchable Wide Leg Jean's",
+        "sizes": {
+          "28": 37,
+          "30": 100,
+          "32": 105,
+          "34": 108,
+          "36": 83,
+          "38": 36,
+          "40": 0
+        },
+        "total_stock": 469
+      }
+    ]
+  },
+  {
+    "model": "2117",
+    "slug": "twin-lock-barrel-fit-denim-2117",
+    "title": "Twin Lock Barrel Fit Denim",
+    "fit": "barrel-leg",
+    "waist": "mid",
+    "stretch": "non-stretch",
+    "fabric": "rigid non-stretch denim",
+    "hero_category": "barrel",
+    "tags": [
+      "barrel",
+      "designed"
+    ],
+    "variants": [
+      {
+        "serial": 67,
+        "wash_code": "LBA",
+        "wash_name": "Light Blue",
+        "wash_hex": "#9AB0C5",
+        "sku_prefix": "2117-LBA",
+        "price_bdt": 1490,
+        "special_price_bdt": 899,
+        "cost_price_bdt_estimated": 596,
+        "status": "enabled",
+        "source_image": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/2116/Re%20Edit/Light_Blue-277x370.jpg",
+        "name_suffix": "Twin Lock Barrel Fit Jean's",
+        "sizes": {
+          "26": 15,
+          "28": 36,
+          "30": 45,
+          "32": 25,
+          "34": 14,
+          "36": 6,
+          "38": 6
+        },
+        "total_stock": 147
+      },
+      {
+        "serial": 68,
+        "wash_code": "MBA",
+        "wash_name": "Mid Blue",
+        "wash_hex": "#4A6B8A",
+        "sku_prefix": "2117-MBA",
+        "price_bdt": 1300,
+        "special_price_bdt": 899,
+        "cost_price_bdt_estimated": 520,
+        "status": "enabled",
+        "source_image": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/2117/Retro_Fade-1-277x370.jpg",
+        "name_suffix": "Twin Lock Barrel Fit Jean's",
+        "sizes": {
+          "26": 9,
+          "28": 9,
+          "30": 9,
+          "32": 6,
+          "34": 7,
+          "36": 9,
+          "38": 7,
+          "40": 10,
+          "42": 8
+        },
+        "total_stock": 74
+      },
+      {
+        "serial": 69,
+        "wash_code": "MTN",
+        "wash_name": "Mid Tint Blue",
+        "wash_hex": "#7890A8",
+        "sku_prefix": "2117-MTN",
+        "price_bdt": 1490,
+        "special_price_bdt": 899,
+        "cost_price_bdt_estimated": 596,
+        "status": "enabled",
+        "source_image": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/2116/Re%20Edit/Tint_Blue-277x370.jpg",
+        "name_suffix": "Twin Lock Barrel Fit Jean's",
+        "sizes": {
+          "26": 30,
+          "28": 54,
+          "30": 73,
+          "32": 80,
+          "34": 51,
+          "36": 26,
+          "38": 6
+        },
+        "total_stock": 320
+      }
+    ]
+  },
+  {
+    "model": "3035",
+    "slug": "urban-drift-mid-waist-wide-leg-denim-3035",
+    "title": "Urban Drift Mid-Waist Wide-Leg Denim",
+    "fit": "wide-leg soft-flare",
+    "waist": "high",
+    "stretch": "non-stretch",
+    "fabric": "silicon-washed non-stretch denim",
+    "hero_category": "wide-leg",
+    "tags": [
+      "classic",
+      "cute",
+      "designed",
+      "flared",
+      "fusion",
+      "high-waisted",
+      "spring26",
+      "wide-leg"
+    ],
+    "variants": [
+      {
+        "serial": 70,
+        "wash_code": "ASH",
+        "wash_name": "Ash Black",
+        "wash_hex": "#3C3C3C",
+        "sku_prefix": "3035-ASH",
+        "price_bdt": 1390,
+        "special_price_bdt": 899,
+        "cost_price_bdt_estimated": 556,
+        "status": "enabled",
+        "source_image": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/3035%20new/ASH-1-277x370.jpg",
+        "name_suffix": "Urban Drift Mid-Waist Wide Leg Non Stretch Denim",
+        "sizes": {
+          "26": 50,
+          "28": 45,
+          "30": 45,
+          "32": 44
+        },
+        "total_stock": 184
+      },
+      {
+        "serial": 71,
+        "wash_code": "DBA",
+        "wash_name": "Dark Blue",
+        "wash_hex": "#2A4058",
+        "sku_prefix": "3035-DBA",
+        "price_bdt": 1390,
+        "special_price_bdt": 899,
+        "cost_price_bdt_estimated": 556,
+        "status": "enabled",
+        "source_image": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/3035%20new/DBA-2-277x370.jpg",
+        "name_suffix": "Urban Drift Mid-Waist Wide-Leg Non-Stretch Denim",
+        "sizes": {
+          "26": 4,
+          "28": 16,
+          "30": 8,
+          "32": 9,
+          "34": 6,
+          "40": 0
+        },
+        "total_stock": 43
+      },
+      {
+        "serial": 72,
+        "wash_code": "LBA",
+        "wash_name": "Light Blue",
+        "wash_hex": "#9AB0C5",
+        "sku_prefix": "3035-LBA",
+        "price_bdt": 1390,
+        "special_price_bdt": 899,
+        "cost_price_bdt_estimated": 556,
+        "status": "enabled",
+        "source_image": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/3035%20new/Light_Blue-277x370.jpg",
+        "name_suffix": "Urban Drift Mid-Waist Wide-Leg Non-Stretch Denim",
+        "sizes": {
+          "26": 23,
+          "28": 39,
+          "30": 45,
+          "32": 46,
+          "34": 40,
+          "36": 16,
+          "38": 7,
+          "40": 0
+        },
+        "total_stock": 216
+      },
+      {
+        "serial": 73,
+        "wash_code": "MBA",
+        "wash_name": "Mid Blue",
+        "wash_hex": "#4A6B8A",
+        "sku_prefix": "3035-MBA",
+        "price_bdt": 1390,
+        "special_price_bdt": 899,
+        "cost_price_bdt_estimated": 556,
+        "status": "enabled",
+        "source_image": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/3035%20new/Mid_Blue-277x370.jpg",
+        "name_suffix": "Urban Drift Mid-Waist Wide-Leg Non-Stretch Denim",
+        "sizes": {
+          "26": 6,
+          "28": 41,
+          "30": 26,
+          "32": 12,
+          "34": 27,
+          "36": 5,
+          "38": 5,
+          "40": 0
+        },
+        "total_stock": 122
+      },
+      {
+        "serial": 74,
+        "wash_code": "MTN",
+        "wash_name": "Mid Tint Blue",
+        "wash_hex": "#7890A8",
+        "sku_prefix": "3035-MTN",
+        "price_bdt": 1390,
+        "special_price_bdt": 899,
+        "cost_price_bdt_estimated": 556,
+        "status": "enabled",
+        "source_image": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/3035%20new/Mid_Tint-1-277x370.jpg",
+        "name_suffix": "Urban Drift Mid-Waist Wide-Leg Non-Stretch Denim",
+        "sizes": {
+          "26": 9,
+          "28": 9,
+          "30": 39,
+          "32": 16,
+          "34": 9,
+          "36": 6,
+          "38": 0,
+          "40": 0
+        },
+        "total_stock": 88
+      }
+    ]
+  },
+  {
+    "model": "2120",
+    "slug": "zenith-wide-leg-baggy-denim-2120",
+    "title": "Zenith Wide-Leg Baggy Denim",
+    "fit": "wide-leg baggy",
+    "waist": "mid",
+    "stretch": "non-stretch",
+    "fabric": "premium non-stretch denim",
+    "hero_category": "wide-leg",
+    "tags": [
+      "designed",
+      "wide-leg"
+    ],
+    "variants": [
+      {
+        "serial": 75,
+        "wash_code": "MBA",
+        "wash_name": "Mid Blue",
+        "wash_hex": "#4A6B8A",
+        "sku_prefix": "2120-MBA",
+        "price_bdt": 1390,
+        "special_price_bdt": 899,
+        "cost_price_bdt_estimated": 556,
+        "status": "enabled",
+        "source_image": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/MBA-24-277x370.jpg",
+        "name_suffix": "Zenith Wide Leg Baggy Jean's",
+        "sizes": {
+          "26": 113,
+          "28": 10,
+          "30": 4,
+          "32": 14,
+          "34": 45,
+          "36": 49,
+          "38": 50,
+          "40": 45
+        },
+        "total_stock": 330
+      },
+      {
+        "serial": 76,
+        "wash_code": "MTN",
+        "wash_name": "Mid Tint Blue",
+        "wash_hex": "#7890A8",
+        "sku_prefix": "2120-MTN",
+        "price_bdt": 1390,
+        "special_price_bdt": 899,
+        "cost_price_bdt_estimated": 556,
+        "status": "enabled",
+        "source_image": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/2120/MTN-2-277x370.jpg",
+        "name_suffix": "Zenith Wide Leg Baggy Jean's",
+        "sizes": {
+          "26": 6,
+          "28": 7,
+          "30": 9,
+          "32": 0,
+          "34": 6,
+          "36": 0,
+          "38": 4
+        },
+        "total_stock": 32
+      },
+      {
+        "serial": 77,
+        "wash_code": "SPLA",
+        "wash_name": "Super Light Blue",
+        "wash_hex": "#B8C8D8",
+        "sku_prefix": "2120-SPLA",
+        "price_bdt": 1390,
+        "special_price_bdt": 899,
+        "cost_price_bdt_estimated": 556,
+        "status": "enabled",
+        "source_image": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/SPLA-4-277x370.jpg",
+        "name_suffix": "Zenith Wide Leg Baggy Jean's",
+        "sizes": {
+          "24": 29,
+          "26": 29,
+          "28": 57,
+          "30": 46,
+          "32": 43,
+          "34": 48,
+          "36": 21,
+          "38": 31,
+          "40": 33
+        },
+        "total_stock": 337
+      },
+      {
+        "serial": 78,
+        "wash_code": "LBA",
+        "wash_name": "Light Blue",
+        "wash_hex": "#9AB0C5",
+        "sku_prefix": "2120-LBA",
+        "price_bdt": 1390,
+        "special_price_bdt": 899,
+        "cost_price_bdt_estimated": 556,
+        "status": "enabled",
+        "source_image": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/LBA-9-277x370.jpg",
+        "name_suffix": "Zenith Wide Leg Baggy Jean's",
+        "sizes": {
+          "24": 22,
+          "26": 40,
+          "28": 39,
+          "30": 38,
+          "32": 27,
+          "34": 29,
+          "36": 23,
+          "38": 24
+        },
+        "total_stock": 242
+      }
+    ]
+  }
+]

@@ -1,0 +1,299 @@
+{
+  "taxonomy": {
+    "shop": {
+      "label": "Shop",
+      "children": {
+        "wide-leg": {
+          "label": "Wide-Leg",
+          "slug": "wide-leg"
+        },
+        "baggy": {
+          "label": "Baggy Fit",
+          "slug": "baggy-fit"
+        },
+        "designed": {
+          "label": "Designed",
+          "slug": "designed"
+        },
+        "boyfriend": {
+          "label": "Boyfriend",
+          "slug": "boyfriend"
+        },
+        "straight": {
+          "label": "Straight Leg",
+          "slug": "straight-leg"
+        },
+        "cargo": {
+          "label": "Cargo",
+          "slug": "cargo"
+        },
+        "flared": {
+          "label": "Flared",
+          "slug": "flared"
+        },
+        "bootcut": {
+          "label": "Bootcut",
+          "slug": "bootcut"
+        },
+        "high-waisted": {
+          "label": "High-Waisted",
+          "slug": "high-waisted"
+        },
+        "distressed": {
+          "label": "Distressed",
+          "slug": "distressed"
+        },
+        "barrel": {
+          "label": "Barrel Fit",
+          "slug": "barrel-fit"
+        }
+      }
+    },
+    "collections": {
+      "label": "Collections",
+      "children": {
+        "spring26": {
+          "label": "Spring '26",
+          "slug": "spring-26"
+        },
+        "eid26": {
+          "label": "Eid al-Adha '26",
+          "slug": "eid-26"
+        }
+      }
+    },
+    "series": {
+      "label": "Series",
+      "children": {
+        "90s-baggy": {
+          "label": "90's Baggy",
+          "slug": "90s-baggy"
+        },
+        "classic": {
+          "label": "Classic",
+          "slug": "classic"
+        },
+        "fusion": {
+          "label": "Fusion",
+          "slug": "fusion"
+        },
+        "plus-size": {
+          "label": "Plus Size",
+          "slug": "plus-size"
+        },
+        "stw-unisex": {
+          "label": "STW Unisex",
+          "slug": "stw-unisex"
+        },
+        "y2k": {
+          "label": "Y2K",
+          "slug": "y2k"
+        },
+        "cute": {
+          "label": "Cute",
+          "slug": "cute"
+        },
+        "vintage": {
+          "label": "Vintage",
+          "slug": "vintage"
+        }
+      }
+    }
+  },
+  "memberships": {
+    "shop/baggy": [
+      "21001",
+      "21003",
+      "21021",
+      "21026",
+      "2110",
+      "2111",
+      "2112",
+      "3037",
+      "3039",
+      "6008",
+      "6009"
+    ],
+    "shop/designed": [
+      "21003",
+      "21013",
+      "21021",
+      "21022",
+      "2112",
+      "2117",
+      "2120",
+      "3030",
+      "3035",
+      "3039",
+      "3044",
+      "41011"
+    ],
+    "shop/high-waisted": [
+      "21001",
+      "21003",
+      "3010",
+      "3030",
+      "3033",
+      "3034",
+      "3035",
+      "3037",
+      "3039",
+      "3045",
+      "3052",
+      "6007",
+      "6008",
+      "6009",
+      "6013"
+    ],
+    "shop/wide-leg": [
+      "21001",
+      "21003",
+      "21013",
+      "21021",
+      "21022",
+      "2120",
+      "3010",
+      "3030",
+      "3035",
+      "3037",
+      "3039",
+      "3044",
+      "3045",
+      "41011"
+    ],
+    "series/90s-baggy": [
+      "21001",
+      "3033",
+      "3034",
+      "3037",
+      "3039",
+      "3052",
+      "6008",
+      "6009"
+    ],
+    "shop/boyfriend": [
+      "3034",
+      "3052",
+      "6007",
+      "6013"
+    ],
+    "series/classic": [
+      "21001",
+      "3010",
+      "3030",
+      "3033",
+      "3034",
+      "3035",
+      "3037",
+      "3045",
+      "3052",
+      "6007",
+      "6008",
+      "6013"
+    ],
+    "series/fusion": [
+      "3010",
+      "3034",
+      "3035"
+    ],
+    "series/plus-size": [
+      "3010",
+      "3033",
+      "3034",
+      "6007"
+    ],
+    "collections/spring26": [
+      "21001",
+      "3010",
+      "3030",
+      "3033",
+      "3034",
+      "3035",
+      "3037",
+      "3039",
+      "3044",
+      "3045",
+      "3052",
+      "6007",
+      "6008",
+      "6009",
+      "6013"
+    ],
+    "shop/straight": [
+      "3010",
+      "3033",
+      "3034",
+      "3052",
+      "6007",
+      "6008",
+      "6009",
+      "6013"
+    ],
+    "series/stw-unisex": [
+      "3030",
+      "3033",
+      "3034",
+      "3039",
+      "3052",
+      "6007",
+      "6008",
+      "6009",
+      "6013"
+    ],
+    "shop/cargo": [
+      "21022",
+      "6007",
+      "6009",
+      "6013"
+    ],
+    "shop/bootcut": [
+      "3044",
+      "3045"
+    ],
+    "series/cute": [
+      "21001",
+      "3033",
+      "3035",
+      "3037",
+      "3039",
+      "3044",
+      "3045",
+      "3052",
+      "6009"
+    ],
+    "shop/flared": [
+      "21001",
+      "3030",
+      "3035",
+      "3037",
+      "3039",
+      "3044",
+      "3045"
+    ],
+    "collections/eid26": [
+      "21001",
+      "6007",
+      "6008",
+      "6009",
+      "6013"
+    ],
+    "series/y2k": [
+      "3039",
+      "6007",
+      "6009",
+      "6013"
+    ],
+    "series/vintage": [
+      "21001",
+      "3030",
+      "6008"
+    ],
+    "shop/barrel": [
+      "2116",
+      "2117"
+    ],
+    "shop/distressed": [
+      "3033"
+    ]
+  }
+}

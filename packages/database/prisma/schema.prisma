@@ -1,0 +1,1276 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  // Pooler in transaction mode (port 6543) for runtime queries — gives
+  // the API IPv4 + connection pooling.
+  url       = env("DATABASE_URL")
+  // Pooler in session mode (port 5432) for migrations — Prisma migrate
+  // needs session-level advisory locks which transaction mode rejects.
+  // See https://www.prisma.io/docs/orm/overview/databases/supabase
+  directUrl = env("DIRECT_URL")
+}
+
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
+enum Role {
+  CUSTOMER
+  MANAGER
+  SUPPORT_STAFF
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  REFUNDED
+  PAYMENT_FAILED
+  RETURNED
+}
+
+enum ProductType {
+  PANTS
+  SHIRTS
+  JACKETS
+}
+
+enum SilhouetteGender {
+  MALE
+  FEMALE
+}
+
+model Silhouette {
+  id        String           @id @default(cuid())
+  gender    SilhouetteGender @unique
+  svgPath   String           @db.Text
+  viewBox   String
+  landmarks Json
+  version   Int              @default(1)
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+}
+
+enum TagDimension {
+  silhouette
+  rise
+  length
+  wash
+  sleeve
+  neckline
+  closure
+  warmth
+  season
+  occasion
+  material
+  pattern
+}
+
+enum AddressType {
+  HOME
+  WORK
+  OTHER
+}
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED_AMOUNT
+  FREE_SHIPPING
+}
+
+enum InventoryType {
+  RESTOCK
+  SALE
+  ADJUSTMENT
+  RETURN
+}
+
+enum ReturnStatus {
+  REQUESTED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  IN_TRANSIT
+  RECEIVED
+  INSPECTING
+  INSPECTED_PASS
+  INSPECTED_FAIL
+  RETURNED_TO_CUSTOMER
+  REFUNDED
+  CLOSED
+  CANCELLED
+}
+
+enum ReturnReason {
+  DEFECTIVE
+  DAMAGED_IN_TRANSIT
+  NOT_AS_DESCRIBED
+  WRONG_ITEM_SENT
+  WRONG_SIZE
+  CHANGED_MIND
+}
+
+enum ReturnFault {
+  US
+  CUSTOMER
+}
+
+enum RefundMethod {
+  CASH
+  BANK_TRANSFER
+}
+
+enum InspectionResult {
+  PASS
+  FAIL
+}
+
+// ─── User ─────────────────────────────────────────────────────────────────────
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String?
+  firstName    String
+  lastName     String
+  role         Role      @default(CUSTOMER)
+  isVerified   Boolean   @default(false)
+  // Durable switch for deactivating a user without soft-deleting them.
+  // JWT strategies reject tokens for accounts with isActive=false.
+  isActive     Boolean   @default(true)
+  // Authoritative JWT revocation counter. Incremented on password reset,
+  // deactivate, or explicit forced-logout. Redis mirrors this for fast reads.
+  tokenVersion Int       @default(0)
+  // Phone numbers, newest first. phones[0] is the "current" phone. Capped
+  // at 20 entries in service code (prependPhoneToArray helper).
+  phones       String[]  @default([])
+  // null = shadow account (admin-imported or auto-created from guest
+  // checkout, no password set). set = real registered user.
+  claimedAt    DateTime?
+  // admin user.id who imported this record (null for shadows auto-created
+  // from guest checkouts, and for self-registered users).
+  createdBy    String?
+  // Page-permission allowlist for staff accounts (ADMIN / MANAGER /
+  // SUPPORT_STAFF). Empty array = all pages (used by SUPER_ADMIN and
+  // legacy ADMINs created before this column existed). Non-empty array
+  // = only those page slugs are visible in the admin sidebar. CUSTOMER
+  // rows ignore this column entirely.
+  permissions  String[]  @default([])
+  fitProfile   Json?
+  addresses    Address[]
+  orders       Order[]
+  reviews      Review[]
+  wishlist     Wishlist?
+  cart           Cart?
+  campaignUsages CampaignUsage[]
+  auditLogs      AuditLog[]
+  mediaAssets    MediaAsset[] @relation("MediaUploader")
+  returns         Return[]
+  reviewedReturns Return[]            @relation("ReturnReviewer")
+  issuedRefunds   RefundTransaction[] @relation("RefundIssuer")
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+
+  @@index([deletedAt])
+  @@index([role])
+  @@index([createdAt])
+  @@index([phones])
+}
+
+// ─── Address ──────────────────────────────────────────────────────────────────
+
+model Address {
+  id         String      @id @default(cuid())
+  userId     String
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  label      AddressType @default(HOME)
+  firstName  String
+  lastName   String
+  line1      String
+  line2      String?
+  city       String
+  state      String
+  postalCode String
+  country    String
+  phone      String?
+  isDefault  Boolean     @default(false)
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  deletedAt  DateTime?
+
+  @@index([userId])
+  @@index([deletedAt])
+}
+
+// ─── Category ─────────────────────────────────────────────────────────────────
+
+model Category {
+  id          String     @id @default(cuid())
+  name        String
+  slug        String     @unique
+  description String?
+  image       String?
+  parentId    String?
+  parent      Category?  @relation("SubCategories", fields: [parentId], references: [id], onDelete: Restrict)
+  children    Category[] @relation("SubCategories")
+  products    Product[]
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  deletedAt   DateTime?
+
+  @@index([parentId])
+  @@index([deletedAt])
+}
+
+// ─── Collection ───────────────────────────────────────────────────────────────
+
+enum CollectionType {
+  DROP
+  EDIT
+  AUTO
+  PROMO
+}
+
+enum HeroLayout {
+  FULL_BLEED
+  SPLIT
+  VIDEO
+  MINIMAL
+}
+
+enum CollectionSort {
+  MANUAL
+  NEWEST
+  PRICE_ASC
+  PRICE_DESC
+  BESTSELLING
+}
+
+model Collection {
+  id                 String              @id @default(cuid())
+  // BASICS
+  name               String
+  slug               String              @unique
+  subtitle           String?
+  description        String?
+  internalNote       String?
+  type               CollectionType      @default(EDIT)
+
+  // VISUALS
+  image              String?
+  heroImageDesktop   String?
+  heroImageMobile    String?
+  heroVideo          String?
+  heroTextColor      String              @default("light")
+  heroOverlay        Int                 @default(30)
+  heroAlign          String              @default("left")
+  backgroundColor    String?
+
+  // LAYOUT
+  heroLayout         HeroLayout          @default(FULL_BLEED)
+  gridColumnsDesktop Int                 @default(3)
+  gridColumnsMobile  Int                 @default(2)
+  defaultSort        CollectionSort      @default(MANUAL)
+  showFilters        Boolean             @default(true)
+  filterConfig       Json?
+  showCountdown      Boolean             @default(false)
+  showSocialProof    Boolean             @default(false)
+  showRelated        Boolean             @default(true)
+
+  // SCHEDULE & VISIBILITY
+  isActive           Boolean             @default(true)
+  startDate          DateTime?
+  endDate            DateTime?
+  timezone           String              @default("Asia/Dhaka")
+  prelaunchTeaser    Boolean             @default(false)
+  postEndBehavior    String              @default("hide")
+  postEndRedirect    String?
+  visibility         String              @default("public")
+  passwordHash       String?
+
+  // PRODUCTS
+  products           CollectionProduct[]
+  autoRules          Json?
+
+  // MARKETING / SEO
+  seoTitle           String?
+  seoDescription     String?
+  ogImage            String?
+  showInNav          Boolean             @default(false)
+  navOrder           Int                 @default(0)
+  isFeaturedHome     Boolean             @default(false)
+  homepageSlot       Int?
+  showAsRail         Boolean             @default(false)
+  railTitle          String?
+  promoCode          String?
+  utmSource          String?
+
+  // RELATIONS
+  sectionCurations   SectionCuration[]
+  lookbook           CollectionLookbook[]
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  deletedAt          DateTime?
+
+  @@index([deletedAt])
+  @@index([isActive])
+  @@index([type])
+  @@index([showInNav])
+  @@index([isFeaturedHome])
+}
+
+model CollectionLookbook {
+  id           String     @id @default(cuid())
+  collectionId String
+  collection   Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  imageUrl     String
+  caption      String?
+  altText      String?
+  position     Int        @default(0)
+  hotspots     Json?
+  createdAt    DateTime   @default(now())
+
+  @@index([collectionId])
+}
+
+model CollectionProduct {
+  collectionId String
+  productId    String
+  collection   Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  product      Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+  position     Int        @default(0)
+  createdAt    DateTime   @default(now())
+
+  @@id([collectionId, productId])
+  @@index([productId])
+}
+
+// ─── Product ──────────────────────────────────────────────────────────────────
+
+model Product {
+  id             String             @id @default(cuid())
+  name           String
+  slug           String             @unique
+  description    String
+  price          Decimal
+  compareAtPrice Decimal?
+  images         String[]
+  tags           String[]
+  type           ProductType?
+  fitLandmarks   Json?
+  returnable     Boolean            @default(true)
+  isActive       Boolean            @default(true)
+  isFeatured     Boolean            @default(false)
+  isTrending     Boolean            @default(false)
+  isNewArrival   Boolean            @default(false)
+  showStarBadge  Boolean            @default(false)
+  categoryId     String
+  category       Category           @relation(fields: [categoryId], references: [id])
+  collections    CollectionProduct[]
+  variants       ProductVariant[]
+  reviews        Review[]
+  orderItems        OrderItem[]
+  wishlistItems     WishlistItem[]
+  campaignProducts  CampaignProduct[]
+  bundleItems       BundleItem[]
+  sectionProducts   SectionProduct[]
+  productTags       ProductTag[]
+  sizeCharts        ProductSizeChart[]
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  deletedAt      DateTime?
+
+  @@index([deletedAt])
+  @@index([categoryId, isActive])
+  @@index([isFeatured, isActive])
+  @@index([isActive, isTrending])
+  @@index([isActive, isNewArrival])
+  @@index([createdAt])
+  @@index([type, isActive])
+}
+
+model ProductVariant {
+  id            String         @id @default(cuid())
+  productId     String
+  product       Product        @relation(fields: [productId], references: [id], onDelete: Cascade)
+  sku           String         @unique
+  size          String
+  color         String
+  // Optional hex (e.g. "#94a2b2") shown as a solid swatch on the
+  // storefront PDP color selector when present. Falls back to the
+  // variant's first image when null so legacy variants stay rendered
+  // the way they always were.
+  colorHex      String?
+  material      String?
+  stock         Int            @default(0)
+  price         Decimal?
+  images        String[]
+  cartItems     CartItem[]
+  orderItems    OrderItem[]
+  inventoryLogs InventoryLog[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  deletedAt     DateTime?
+
+  @@index([productId])
+  @@index([deletedAt])
+}
+
+model ProductTag {
+  id        String       @id @default(cuid())
+  productId String
+  dimension TagDimension
+  value     String
+  product   Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, dimension, value])
+  @@index([dimension, value])
+}
+
+model ProductSizeChart {
+  id              String  @id @default(cuid())
+  productId       String
+  sizeKey         String   // matches Variant.size, e.g. "30", "M"
+  dimension       String   // free-form: "waist" | "hip" | "inseam" | "thigh" | "chest" | "shoulder" | "length" | "sleeve"
+  bodyValueIn     Float
+  garmentValueIn  Float
+  product         Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, sizeKey, dimension])
+  @@index([productId])
+}
+
+// ─── Cart ─────────────────────────────────────────────────────────────────────
+
+model Cart {
+  id        String     @id @default(cuid())
+  userId    String?    @unique
+  user      User?      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessionId String?
+  items     CartItem[]
+  expiresAt DateTime?
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  @@index([sessionId])
+}
+
+model CartItem {
+  id         String          @id @default(cuid())
+  cartId     String
+  cart       Cart            @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  productId  String?
+  variantId  String?
+  variant    ProductVariant? @relation(fields: [variantId], references: [id], onDelete: Restrict)
+  bundleId   String?
+  bundle     ProductBundle?  @relation(fields: [bundleId], references: [id], onDelete: Cascade)
+  bundleSize String?
+  quantity   Int
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+
+  @@index([cartId])
+  @@index([bundleId])
+  @@unique([cartId, variantId])
+}
+
+// ─── Wishlist ─────────────────────────────────────────────────────────────────
+
+model Wishlist {
+  id         String         @id @default(cuid())
+  userId     String         @unique
+  user       User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  shareToken String?        @unique
+  items      WishlistItem[]
+}
+
+model WishlistItem {
+  id            String   @id @default(cuid())
+  wishlistId    String
+  wishlist      Wishlist @relation(fields: [wishlistId], references: [id], onDelete: Cascade)
+  productId     String
+  product       Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  savedAtPrice  Decimal?
+  savedAtStock  Int?
+  createdAt     DateTime @default(now())
+
+  @@unique([wishlistId, productId])
+}
+
+// ─── Order ────────────────────────────────────────────────────────────────────
+
+model Order {
+  id              String      @id @default(cuid())
+  // Customer-facing identifier: `DEN-NNNNNN`, a flat 6-digit zero-padded
+  // sequence across all orders. Distinct from `id` (CUID) so we can show
+  // a stable, memorable reference in emails, account pages, and the
+  // returns lookup form without leaking the internal primary key.
+  // Generated by OrderNumberService with a P2002 retry pattern; the
+  // unique index here is the collision check.
+  orderNumber     String      @unique
+  // userId is nullable so customers can complete an order as a guest. The
+  // DB-level CHECK constraint Order_owner_check enforces "either userId
+  // OR the full guest tuple (email + name + phone)". See migration
+  // 20260517150000_guest_checkout_support.
+  userId          String?
+  user            User?       @relation(fields: [userId], references: [id], onDelete: Restrict)
+  // Guest checkout contact tuple. NULL on logged-in orders. Populated
+  // together on guest orders. After a verified-email signup, the C2
+  // attach flow copies userId in and clears these three.
+  guestEmail      String?
+  guestName       String?
+  guestPhone      String?
+  status          OrderStatus @default(PENDING)
+  items           OrderItem[]
+  shippingAddress Json
+  billingAddress  Json?
+  subtotal        Decimal
+  discount        Decimal     @default(0)
+  shippingCost    Decimal     @default(0)
+  total           Decimal
+  notes           String?
+  trackingNumber  String?
+  discountId      String?
+  discountRel     Discount?   @relation(fields: [discountId], references: [id], onDelete: SetNull)
+  statusHistory   OrderStatusHistory[]
+  returns         Return[]
+  campaignUsages  CampaignUsage[]
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  deletedAt       DateTime?
+
+  @@index([deletedAt])
+  @@index([userId])
+  @@index([userId, status])
+  @@index([status, createdAt])
+  @@index([trackingNumber])
+  @@index([guestEmail])
+}
+
+model OrderItem {
+  id         String          @id @default(cuid())
+  orderId    String
+  order      Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId  String?
+  product    Product?        @relation(fields: [productId], references: [id], onDelete: Restrict)
+  variantId  String?
+  variant    ProductVariant? @relation(fields: [variantId], references: [id], onDelete: Restrict)
+  bundleId   String?
+  bundle     ProductBundle?  @relation(fields: [bundleId], references: [id], onDelete: Restrict)
+  bundleSize String?
+  quantity   Int
+  unitPrice  Decimal
+  total      Decimal
+  snapshot   Json
+  returnItems ReturnItem[]
+  createdAt  DateTime        @default(now())
+
+  @@index([orderId])
+  @@index([productId])
+  @@index([bundleId])
+}
+
+// ─── Review ───────────────────────────────────────────────────────────────────
+
+model Review {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId    String
+  product      Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  rating       Int
+  title        String?
+  body         String
+  images       String[]
+  isVerified   Boolean  @default(false)
+  isApproved   Boolean  @default(false)
+  helpfulCount Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  deletedAt    DateTime?
+
+  @@unique([userId, productId])
+  @@index([productId, isApproved])
+  @@index([productId, createdAt])
+  @@index([deletedAt])
+}
+
+// ─── Discount ─────────────────────────────────────────────────────────────────
+
+model Discount {
+  id                    String       @id @default(cuid())
+  code                  String       @unique
+  type                  DiscountType
+  value                 Decimal
+  minOrderAmount        Decimal?
+  maxUses               Int?
+  usedCount             Int          @default(0)
+  isActive              Boolean      @default(true)
+  startDate             DateTime?
+  endDate               DateTime?
+  applicableProductIds  String[]
+  applicableCategoryIds String[]
+  orders                Order[]
+  createdAt             DateTime     @default(now())
+  updatedAt             DateTime     @updatedAt
+  deletedAt             DateTime?
+
+  @@index([isActive, startDate, endDate])
+  @@index([deletedAt])
+}
+
+// ─── Inventory Log ────────────────────────────────────────────────────────────
+
+model InventoryLog {
+  id        String         @id @default(cuid())
+  variantId String
+  variant   ProductVariant @relation(fields: [variantId], references: [id], onDelete: Restrict)
+  type      InventoryType
+  quantity  Int
+  note      String?
+  createdAt DateTime       @default(now())
+
+  @@index([variantId, createdAt])
+}
+
+// ─── Shipping ─────────────────────────────────────────────────────────────────
+
+model ShippingZone {
+  id        String         @id @default(cuid())
+  name      String
+  countries String[]
+  rates     ShippingRate[]
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+}
+
+model ShippingRate {
+  id             String       @id @default(cuid())
+  zoneId         String
+  zone           ShippingZone @relation(fields: [zoneId], references: [id], onDelete: Cascade)
+  name           String
+  price          Decimal
+  minWeight      Decimal?
+  maxWeight      Decimal?
+  minOrderAmount Decimal?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([zoneId])
+}
+
+// ─── Order Status History ────────────────────────────────────────────────────
+
+model OrderStatusHistory {
+  id         String      @id @default(cuid())
+  orderId    String
+  fromStatus OrderStatus
+  toStatus   OrderStatus
+  changedBy  String
+  note       String?
+  createdAt  DateTime    @default(now())
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId, createdAt])
+}
+
+// ─── Campaign ─────────────────────────────────────────────────────────────────
+
+enum CampaignType {
+  FLASH_SALE
+  SEASONAL
+  PROMO
+}
+
+model Campaign {
+  id        String       @id @default(cuid())
+  name      String
+  slug      String       @unique
+  type      CampaignType
+  startDate DateTime
+  endDate   DateTime
+  isActive  Boolean      @default(true)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  products CampaignProduct[]
+  usages   CampaignUsage[]
+
+  @@index([isActive, startDate, endDate])
+}
+
+model CampaignProduct {
+  id            String   @id @default(cuid())
+  campaignId    String
+  campaign      Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  productId     String
+  product       Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  discountType  DiscountType
+  discountValue Float
+  createdAt     DateTime @default(now())
+
+  @@unique([campaignId, productId])
+  @@index([productId])
+}
+
+model CampaignUsage {
+  id         String   @id @default(cuid())
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  orderId    String
+  order      Order    @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  @@index([campaignId, createdAt])
+  @@index([userId, createdAt])
+  @@index([orderId])
+}
+
+// ─── Product Bundle ───────────────────────────────────────────────────────────
+
+model ProductBundle {
+  id             String   @id @default(cuid())
+  name           String
+  slug           String   @unique
+  description    String?
+  badgeText      String
+  image          String?
+  bundlePrice    Int      @default(0)
+  availableSizes String[] @default([])
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  items      BundleItem[]
+  cartItems  CartItem[]
+  orderItems OrderItem[]
+}
+
+model BundleItem {
+  id        String        @id @default(cuid())
+  bundleId  String
+  bundle    ProductBundle @relation(fields: [bundleId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
+  color     String        @default("")
+  createdAt DateTime      @default(now())
+
+  @@unique([bundleId, productId, color])
+  @@index([productId])
+}
+
+// ─── Audit Log ────────────────────────────────────────────────────────────────
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  // userId is nullable for events emitted by guest-checkout flows where
+  // there is no authenticated actor. See migration
+  // 20260517150000_guest_checkout_support for the rationale + admin
+  // audit-log UI implications.
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: Restrict)
+  action    String
+  entity    String
+  entityId  String?
+  details   Json?
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([entity, entityId])
+  @@index([createdAt])
+}
+
+// ─── CMS: Homepage Sections ───────────────────────────────────────────────────
+
+enum HomepageSectionType {
+  HERO
+  CATEGORY_CARDS
+  NEW_ARRIVALS
+  EDITORIAL_BANNER
+  BUNDLE_DEALS
+  TRENDING
+  BESTSELLERS
+  BRAND_STORY
+}
+
+// Each row = one instance of a section type on the storefront home page.
+// Position controls render order. Config is type-specific (see SectionConfig
+// discriminated union in @repo/types). Multiple instances of the same type
+// are allowed (e.g., two EditorialBanner instances pointing at different
+// slot groups).
+model HomepageSectionInstance {
+  id        String              @id @default(cuid())
+  type      HomepageSectionType
+  position  Int
+  isActive  Boolean             @default(true)
+  config    Json                @default("{}")
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+
+  @@index([position])
+  @@index([isActive, position])
+}
+
+// Singleton row holding storefront-wide style toggles. Read by the root
+// layout to set CSS custom properties; written by the admin CMS composer.
+// Convention: one row with id='singleton'.
+model GlobalStorefrontStyles {
+  id              String   @id @default("singleton")
+  negativeSpace   Int      @default(1) // 0=tight, 1=default, 2=airy
+  typographyFlow  Int      @default(1) // 0=tight, 1=default, 2=loose
+  updatedAt       DateTime @updatedAt
+}
+
+// ─── CMS: Banners ─────────────────────────────────────────────────────────────
+
+model Banner {
+  id        String    @id @default(cuid())
+  title     String
+  subtitle  String?
+  image     String
+  link      String?
+  position  String    @default("top")
+  isActive  Boolean   @default(true)
+  startDate DateTime?
+  endDate   DateTime?
+  // Popup-only presentation settings. Ignored for top/middle/bottom banners.
+  // Values: 'compact' | 'medium' | 'large' | 'fullscreen'  (deprecated: kept
+  // for backwards compatibility but the storefront now reads the numeric
+  // fields below).
+  popupSize       String  @default("large")
+  popupSizeMobile String  @default("medium")
+  // When true the headline + CTA overlay the image (gradient backdrop).
+  // When false they sit in a white side panel next to the image.
+  textOverlay     Boolean @default(false)
+  // Fine-grained per-banner sizing. Percentages of the viewport.
+  // 0 means "auto" — let content drive the dimension.
+  popupWidthPct        Int    @default(95)
+  popupHeightPct       Int    @default(0)
+  popupWidthPctMobile  Int    @default(95)
+  popupHeightPctMobile Int    @default(0)
+  // How the image fills its container. 'cover' may crop; 'contain' shows
+  // the full subject with letterbox.
+  imageFit             String @default("cover")
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+// ─── CMS: Section Curation (homepage product merchandising) ──────────────────
+
+enum CurationSource {
+  COLLECTION
+  MANUAL
+  MIXED
+}
+
+// One row per dynamic homepage section (e.g. home/new_arrivals,
+// home/bestsellers, home/trending, home/bundles). Controls what gets
+// rendered as clickable product cards — each card is a real Product link.
+model SectionCuration {
+  id            String              @id @default(cuid())
+  pageKey       String
+  sectionKey    String
+  label         String
+  sourceMode    CurationSource      @default(COLLECTION)
+  collectionId  String?
+  collection    Collection?         @relation(fields: [collectionId], references: [id])
+  heading       String?
+  subheading    String?
+  ctaLabel      String?
+  ctaHref       String?
+  maxItems      Int                 @default(12)
+  isActive      Boolean             @default(true)
+  products      SectionProduct[]
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+
+  @@unique([pageKey, sectionKey])
+  @@index([pageKey])
+}
+
+// Per-product curation entry. Holds ordering, pinned state (for MIXED mode
+// where a manual pick overrides the collection), and an optional custom
+// thumbnail that displays instead of the product's primary image — just
+// for this section card. The product's own gallery is never mutated.
+model SectionProduct {
+  id                  String            @id @default(cuid())
+  curationId          String
+  curation            SectionCuration   @relation(fields: [curationId], references: [id], onDelete: Cascade)
+  productId           String
+  product             Product           @relation(fields: [productId], references: [id])
+  position            Int               @default(0)
+  isPinned            Boolean           @default(false)
+  customImageAssetId  String?
+  customImage         MediaAsset?       @relation("SectionProductImage", fields: [customImageAssetId], references: [id])
+  createdAt           DateTime          @default(now())
+
+  @@unique([curationId, productId])
+  @@index([curationId, position])
+}
+
+// ─── CMS: WYSIWYG Page Slots & Media Library ─────────────────────────────────
+
+enum MediaKind {
+  IMAGE
+  VIDEO
+}
+
+// Every uploaded file. Dedupes via contentHash, tracks storage use per bucket.
+model MediaAsset {
+  id            String      @id @default(cuid())
+  kind          MediaKind
+  mime          String
+  bytes         Int
+  width         Int?
+  height        Int?
+  durationMs    Int?
+  originalUrl   String
+  publicUrl     String
+  posterUrl     String?
+  storageBucket String
+  storagePath   String
+  contentHash   String      @unique
+  uploadedById  String?
+  uploadedBy    User?       @relation("MediaUploader", fields: [uploadedById], references: [id])
+  slots         PageSlot[]  @relation("SlotActiveMedia")
+  history       PageSlotHistory[]
+  sectionProducts SectionProduct[] @relation("SectionProductImage")
+  createdAt     DateTime    @default(now())
+
+  @@index([kind])
+  @@index([createdAt])
+}
+
+// Every editable surface on the storefront. Keyed by (pageKey, slotKey).
+model PageSlot {
+  id            String      @id @default(cuid())
+  pageKey       String
+  slotKey       String
+  label         String
+  mediaKind     MediaKind
+  acceptsVideo  Boolean     @default(false)
+  assetId       String?
+  asset         MediaAsset? @relation("SlotActiveMedia", fields: [assetId], references: [id])
+  heading       String?
+  subheading    String?
+  body          String?
+  ctaLabel      String?
+  ctaHref       String?
+  altText       String?
+  position      Int         @default(0)
+  groupKey      String?
+  isActive      Boolean     @default(true)
+  specWidth     Int
+  specHeight    Int
+  specAspect    String
+  maxBytes      Int
+  history       PageSlotHistory[]
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@unique([pageKey, slotKey, position])
+  @@index([pageKey])
+  @@index([groupKey])
+}
+
+// Rolling version history (keep last N per slot) for rollback.
+model PageSlotHistory {
+  id          String      @id @default(cuid())
+  slotId      String
+  slot        PageSlot    @relation(fields: [slotId], references: [id], onDelete: Cascade)
+  assetId     String?
+  asset       MediaAsset? @relation(fields: [assetId], references: [id])
+  heading     String?
+  subheading  String?
+  body        String?
+  ctaLabel    String?
+  ctaHref     String?
+  altText     String?
+  replacedAt  DateTime    @default(now())
+  replacedById String?
+
+  @@index([slotId])
+  @@index([replacedAt])
+}
+
+// ─── Bulk Operation Outbox ────────────────────────────────────────────────────
+//
+// Records every bulk admin write that has reversible side effects. Powers:
+//   - 30-second undo window for soft-delete + status-archive flows
+//   - Forward-replay of long-running ops after partial failure
+//   - Audit trail for who-did-what-when (paired with AuditLog rows)
+//
+// `state` lifecycle: PENDING → APPLIED → (UNDONE | EXPIRED).
+// `expiresAt` is set to createdAt + 30s for reversible ops; non-reversible ops
+// keep expiresAt = createdAt and are immediately ineligible for undo.
+model BulkOperationOutbox {
+  id          String                    @id @default(cuid())
+  adminUserId String
+  endpoint    String
+  action      String
+  payload     Json
+  undoToken   String                    @unique
+  state       BulkOperationOutboxState  @default(PENDING)
+  expiresAt   DateTime
+  createdAt   DateTime                  @default(now())
+
+  @@index([state, expiresAt])
+  @@index([adminUserId, createdAt])
+}
+
+enum BulkOperationOutboxState {
+  PENDING
+  APPLIED
+  UNDONE
+  EXPIRED
+}
+
+// ─── Returns & Refunds ────────────────────────────────────────────────────────
+
+/// A return request initiated by a customer or created manually by an admin.
+/// Owner integrity: at least one of (orderId, userId, (guestEmail+guestPhone))
+/// must be non-null — enforced by Return_owner_check (see returns_owner_check
+/// migration). Service layer also validates ownership during create.
+model Return {
+  id              String       @id @default(cuid())
+  rtnNumber       String       @unique
+  orderId         String?
+  order           Order?       @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  userId          String?
+  user            User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  guestEmail      String?
+  guestName       String?
+  guestPhone      String?
+  status          ReturnStatus @default(REQUESTED)
+  reason          ReturnReason
+  fault           ReturnFault
+  description     String?
+  photos          String[]     @default([])
+  isManual        Boolean      @default(false)
+  /// Derived from fault by the service layer: CUSTOMER -> true, US -> false.
+  /// No DB default — service must always set this on insert.
+  customerShipsBack Boolean
+  /// Only populated when customerShipsBack=false (we arrange pickup).
+  pickupAddress   Json?
+  carrier         String?
+  trackingNumber  String?
+  refundAmount    Decimal?     @db.Decimal(10, 2)
+  refundMethod    RefundMethod?
+  refundReference String?
+  reviewerId      String?
+  reviewer        User?        @relation("ReturnReviewer", fields: [reviewerId], references: [id], onDelete: SetNull)
+  reviewerNotes   String?
+  inspectionNotes String?
+  rejectionReason String?
+  slaDeadline     DateTime
+  requestedAt     DateTime     @default(now())
+  reviewedAt      DateTime?
+  approvedAt      DateTime?
+  receivedAt      DateTime?
+  inspectedAt     DateTime?
+  refundedAt      DateTime?
+  closedAt        DateTime?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  items           ReturnItem[]
+  refundTxn       RefundTransaction?
+
+  @@index([orderId])
+  @@index([userId])
+  @@index([status])
+  @@index([status, slaDeadline])
+  @@index([guestEmail])
+  @@index([requestedAt])
+}
+
+model ReturnItem {
+  id                String           @id @default(cuid())
+  returnId          String
+  return            Return           @relation(fields: [returnId], references: [id], onDelete: Cascade)
+  orderItemId       String?
+  orderItem         OrderItem?       @relation(fields: [orderItemId], references: [id], onDelete: SetNull)
+  manualProductName String?
+  manualSku         String?
+  manualSize        String?
+  manualColor       String?
+  manualUnitPrice   Decimal?         @db.Decimal(10, 2)
+  quantity          Int
+  inspectionResult  InspectionResult?
+  restock           Boolean          @default(false)
+  itemRefundAmount  Decimal          @default(0) @db.Decimal(10, 2)
+  /// When the source OrderItem is a bundle line (`OrderItem.bundleId IS NOT NULL`),
+  /// these four columns identify and snapshot ONE constituent of that bundle
+  /// being returned. The bundle's constituents are denormalized into
+  /// `OrderItem.snapshot.items[]` at order time; we cannot FK to BundleItem
+  /// because that is the catalog template, not the per-order constituent.
+  ///
+  /// Invariants (enforced in the service layer — no DB CHECK):
+  ///   - If `orderItem.bundleId IS NULL`, all four bundleComponent* fields MUST be NULL.
+  ///   - If `orderItem.bundleId IS NOT NULL`, `bundleComponentVariantId` MUST be set
+  ///     and MUST match one of `orderItem.snapshot.items[].variantId`.
+  ///
+  /// Already-returned tracking groups by (orderItemId, bundleComponentVariantId ?? '')
+  /// so component A and component B of the same bundle are tracked independently.
+  bundleComponentVariantId String?
+  bundleComponentName      String?
+  bundleComponentSize      String?
+  bundleComponentColor     String?
+  createdAt         DateTime         @default(now())
+
+  @@index([returnId])
+  @@index([orderItemId])
+}
+
+model RefundTransaction {
+  id          String       @id @default(cuid())
+  returnId    String       @unique
+  return      Return       @relation(fields: [returnId], references: [id], onDelete: Restrict)
+  amount      Decimal      @db.Decimal(10, 2)
+  method      RefundMethod
+  /// For BANK_TRANSFER: bank txn id / wire reference.
+  /// For CASH: admin-entered receipt or voucher number (e.g., "Cash voucher #2026-001").
+  /// Required for all refund methods — admin must record an audit trail.
+  reference   String
+  issuedById  String?
+  issuedBy    User?        @relation("RefundIssuer", fields: [issuedById], references: [id], onDelete: SetNull)
+  issuedAt    DateTime     @default(now())
+  notes       String?
+
+  @@index([issuedAt])
+}
+
+model BotSynonym {
+  id        String   @id @default(cuid())
+  dimension String
+  canonical String
+  aliases   String[]
+  updatedAt DateTime @updatedAt
+
+  @@unique([dimension, canonical])
+  @@index([dimension])
+}
+
+model BotUnrecognizedQuery {
+  id        String   @id @default(cuid())
+  text      String
+  sessionId String
+  gender    String?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+model BotLlmQuota {
+  date         DateTime @id @db.Date
+  neuronsUsed  Int      @default(0)
+  callCount    Int      @default(0)
+  updatedAt    DateTime @updatedAt
+}
+
+model BotLlmCache {
+  queryHash         String   @id
+  reply             String   @db.Text
+  retrievedSources  Json
+  createdAt         DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+model BotLlmAudit {
+  id                String   @id @default(cuid())
+  sessionId         String
+  userId            String?
+  promptHash        String
+  replyHash         String
+  retrievedSources  Json
+  success           Boolean
+  errorCode         String?
+  outputFiltered    Boolean  @default(false)
+  injectionFlagged  Boolean  @default(false)
+  queryPreview      String?  @db.VarChar(200)
+  createdAt         DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([userId])
+}
+
+enum ThreadStatus {
+  OPEN
+  CLOSED
+}
+
+enum ThreadCloseReason {
+  ADMIN_RESOLVED
+  CUSTOMER_RESOLVED
+  INACTIVE_14D
+}
+
+enum MessageSender {
+  CUSTOMER
+  ADMIN
+  BOT
+}
+
+model InboxThread {
+  id              String              @id @default(cuid())
+  status          ThreadStatus        @default(OPEN)
+  closeReason     ThreadCloseReason?
+  closedAt        DateTime?
+
+  userId          String?
+  guestName       String
+  guestEmail      String
+  guestPhone      String
+
+  openedAt        DateTime            @default(now())
+  lastMessageAt   DateTime            @default(now())
+
+  lastAdminEmailAt           DateTime?
+  consecutiveAdminMessages   Int       @default(0)
+  customerLastSeenAt         DateTime?
+  botPausedUntil             DateTime?
+
+  messages        InboxMessage[]
+  magicLinks      InboxMagicLink[]
+
+  @@index([status, lastMessageAt])
+  @@index([guestEmail])
+  @@index([userId])
+}
+
+model InboxMessage {
+  id          String         @id @default(cuid())
+  threadId    String
+  thread      InboxThread    @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  sender      MessageSender
+  body        String         @db.Text
+  images      Json?
+  createdAt   DateTime       @default(now())
+
+  inReplyToId String?
+  inReplyTo   InboxMessage?  @relation("ReplyTo", fields: [inReplyToId], references: [id])
+  replies     InboxMessage[] @relation("ReplyTo")
+
+  @@index([threadId, createdAt])
+}
+
+model InboxMagicLink {
+  token       String         @id
+  threadId    String
+  thread      InboxThread    @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  createdAt   DateTime       @default(now())
+  expiresAt   DateTime
+
+  @@index([threadId])
+  @@index([expiresAt])
+}

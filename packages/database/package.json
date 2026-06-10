@@ -1,0 +1,45 @@
+{
+  "name": "database",
+  "version": "1.0.0",
+  "description": "",
+  "main": "./index.ts",
+  "exports": {
+    ".": "./index.ts",
+    "./generated/prisma/client": "./generated/prisma/client.ts"
+  },
+  "scripts": {
+    "postinstall": "prisma generate",
+    "prisma": "prisma",
+    "migrate": "prisma migrate dev",
+    "generate": "prisma generate",
+    "studio": "prisma studio",
+    "db:push": "prisma db push",
+    "seed": "tsx prisma/seed.ts",
+    "seed:catalog": "tsx prisma/catalog-seed.ts",
+    "seed:media": "tsx prisma/media-seed.ts",
+    "seed:curation": "tsx prisma/curation-seed.ts",
+    "seed:bot": "tsx prisma/bot-synonym-seed.ts",
+    "prod:cleanup": "tsx prisma/prod-cleanup.ts",
+    "audit:fit": "tsx prisma/audit-fit-data.ts"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@prisma/adapter-pg": "^7.6.0",
+    "@prisma/client": "^5.22.0",
+    "bcrypt": "^6.0.0",
+    "dotenv": "^17.4.1",
+    "pg": "^8.20.0",
+    "prisma": "^5.22.0"
+  },
+  "devDependencies": {
+    "@types/bcrypt": "^6.0.0",
+    "@types/pg": "^8.20.0",
+    "ts-node": "^10.9.2",
+    "tsx": "^4.21.0"
+  }
+}

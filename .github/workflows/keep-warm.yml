@@ -1,0 +1,73 @@
+# Keep-warm cron: pings the three production surfaces every 5 minutes so
+# that Vercel serverless functions (storefront + admin) and the Render API
+# never go fully cold. Without this, the first visitor of a quiet period
+# can wait 20s+ for a homepage render — and if the SSR fetch from the
+# storefront to a cold Render API takes >30s total, Cloudflare returns a
+# 522 origin-timeout error to the customer.
+#
+# Cost: free (GitHub-hosted minutes are free for public repos; private
+# repos get 2000 free minutes/month — each run is ~10s, ~12 runs/hour,
+# ~50 min/month total).
+#
+# Triggers manually via "workflow_dispatch" for ad-hoc warm-ups.
+name: keep-warm
+
+on:
+  schedule:
+    # Stacked schedules: GitHub Actions enforces a 5-min minimum interval
+    # per cron entry, but two offset schedules combined produce a ~2-3 min
+    # effective ping rate. This is critical because GHA cron drifts 1-10 min
+    # under load, and Render free plan sleeps after exactly 15 min of idle —
+    # a single drifted 5-min cron can fall into a cold-start window.
+    # Backed up by a Cloudflare Worker cron firing every 2 min (more reliable
+    # than GHA, runs from CF edge).
+    - cron: '*/5 * * * *'
+    - cron: '2-59/5 * * * *'
+  workflow_dispatch: {}
+
+# Make sure overlapping runs don't pile up if a previous run hangs.
+concurrency:
+  group: keep-warm
+  cancel-in-progress: true
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Storefront homepage (Vercel + Render SSR)
+        run: |
+          curl --max-time 60 -sS -o /dev/null \
+            -w "storefront: HTTP %{http_code} | %{time_total}s\n" \
+            https://denimisiabd.com
+        # Continue even if this single hit fails; failures are noted in
+        # the run log but the workflow itself stays green so we don't
+        # spam "workflow failed" emails for transient cold-start blips.
+        continue-on-error: true
+
+      - name: API health (Render)
+        run: |
+          curl --max-time 30 -sS -o /dev/null \
+            -w "api: HTTP %{http_code} | %{time_total}s\n" \
+            https://denimisia-api.onrender.com/health
+        continue-on-error: true
+
+      - name: Admin login page (Vercel)
+        run: |
+          curl --max-time 30 -sS -o /dev/null \
+            -w "admin: HTTP %{http_code} | %{time_total}s\n" \
+            https://admin.denimisiabd.com/login
+        continue-on-error: true
+
+      - name: Admin NextAuth session + CSRF (Vercel functions)
+        # /login is a static page render; the actual login submit hits the
+        # NextAuth serverless function under /api/auth/*. Keeping those warm
+        # cuts another ~500ms off the user-facing login latency.
+        run: |
+          curl --max-time 30 -sS -o /dev/null \
+            -w "auth-session: HTTP %{http_code} | %{time_total}s\n" \
+            https://admin.denimisiabd.com/api/auth/session
+          curl --max-time 30 -sS -o /dev/null \
+            -w "auth-csrf: HTTP %{http_code} | %{time_total}s\n" \
+            https://admin.denimisiabd.com/api/auth/csrf
+        continue-on-error: true

@@ -1,0 +1,48 @@
+{
+  "name": "web",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --port 3000",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint --max-warnings 20",
+    "check-types": "next typegen && tsc --noEmit"
+  },
+  "dependencies": {
+    "@radix-ui/react-slot": "^1.2.4",
+    "@repo/fit-engine": "workspace:*",
+    "@repo/types": "workspace:*",
+    "@repo/ui": "workspace:*",
+    "@tanstack/react-query": "^5.96.2",
+    "clsx": "^2.1.1",
+    "dompurify": "^3.4.0",
+    "embla-carousel-react": "^8.6.0",
+    "framer-motion": "^12.38.0",
+    "geist": "^1.7.0",
+    "lucide-react": "^1.8.0",
+    "next": "16.2.0",
+    "next-auth": "5.0.0-beta.30",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "tailwind-merge": "^3.5.0",
+    "vaul": "^1.1.2",
+    "zustand": "^5.0.12"
+  },
+  "devDependencies": {
+    "@auth/core": "0.41.0",
+    "@repo/eslint-config": "workspace:*",
+    "@repo/typescript-config": "workspace:*",
+    "@tailwindcss/postcss": "^4.2.2",
+    "@types/dompurify": "^3.2.0",
+    "@types/node": "^22.15.3",
+    "@types/react": "19.2.2",
+    "@types/react-dom": "19.2.2",
+    "autoprefixer": "^10.4.27",
+    "eslint": "^9.39.1",
+    "postcss": "^8.5.8",
+    "tailwindcss": "^4.2.2",
+    "typescript": "5.9.2"
+  }
+}

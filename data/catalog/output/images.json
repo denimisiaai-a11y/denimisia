@@ -1,0 +1,1484 @@
+[
+  {
+    "model": "21003",
+    "wash": "LTN",
+    "source_url": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/21003/LTN-277x370.jpg",
+    "r2_primary": "products/21003/LTN/primary.webp",
+    "r2_slots": {
+      "front": "products/21003/LTN/01-front.webp",
+      "back": "products/21003/LTN/02-back.webp",
+      "detail": "products/21003/LTN/03-detail.webp",
+      "model": "products/21003/LTN/04-model.webp"
+    },
+    "source_size": "277x370",
+    "target_sizes": {
+      "thumb": "400x560",
+      "card": "600x840",
+      "pdp": "1200x1680"
+    },
+    "migration_status": "pending"
+  },
+  {
+    "model": "21003",
+    "wash": "MBA",
+    "source_url": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/21003/MBA-277x370.jpg",
+    "r2_primary": "products/21003/MBA/primary.webp",
+    "r2_slots": {
+      "front": "products/21003/MBA/01-front.webp",
+      "back": "products/21003/MBA/02-back.webp",
+      "detail": "products/21003/MBA/03-detail.webp",
+      "model": "products/21003/MBA/04-model.webp"
+    },
+    "source_size": "277x370",
+    "target_sizes": {
+      "thumb": "400x560",
+      "card": "600x840",
+      "pdp": "1200x1680"
+    },
+    "migration_status": "pending"
+  },
+  {
+    "model": "21003",
+    "wash": "ASH",
+    "source_url": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/ASH_BLK-4-277x370.jpg",
+    "r2_primary": "products/21003/ASH/primary.webp",
+    "r2_slots": {
+      "front": "products/21003/ASH/01-front.webp",
+      "back": "products/21003/ASH/02-back.webp",
+      "detail": "products/21003/ASH/03-detail.webp",
+      "model": "products/21003/ASH/04-model.webp"
+    },
+    "source_size": "277x370",
+    "target_sizes": {
+      "thumb": "400x560",
+      "card": "600x840",
+      "pdp": "1200x1680"
+    },
+    "migration_status": "pending"
+  },
+  {
+    "model": "21003",
+    "wash": "DTN",
+    "source_url": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/21003/DTN-1-277x370.jpg",
+    "r2_primary": "products/21003/DTN/primary.webp",
+    "r2_slots": {
+      "front": "products/21003/DTN/01-front.webp",
+      "back": "products/21003/DTN/02-back.webp",
+      "detail": "products/21003/DTN/03-detail.webp",
+      "model": "products/21003/DTN/04-model.webp"
+    },
+    "source_size": "277x370",
+    "target_sizes": {
+      "thumb": "400x560",
+      "card": "600x840",
+      "pdp": "1200x1680"
+    },
+    "migration_status": "pending"
+  },
+  {
+    "model": "21003",
+    "wash": "LBA",
+    "source_url": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/21003/LBA-277x370.jpg",
+    "r2_primary": "products/21003/LBA/primary.webp",
+    "r2_slots": {
+      "front": "products/21003/LBA/01-front.webp",
+      "back": "products/21003/LBA/02-back.webp",
+      "detail": "products/21003/LBA/03-detail.webp",
+      "model": "products/21003/LBA/04-model.webp"
+    },
+    "source_size": "277x370",
+    "target_sizes": {
+      "thumb": "400x560",
+      "card": "600x840",
+      "pdp": "1200x1680"
+    },
+    "migration_status": "pending"
+  },
+  {
+    "model": "21021",
+    "wash": "MTN",
+    "source_url": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/21021/MTN-1-277x370.jpg",
+    "r2_primary": "products/21021/MTN/primary.webp",
+    "r2_slots": {
+      "front": "products/21021/MTN/01-front.webp",
+      "back": "products/21021/MTN/02-back.webp",
+      "detail": "products/21021/MTN/03-detail.webp",
+      "model": "products/21021/MTN/04-model.webp"
+    },
+    "source_size": "277x370",
+    "target_sizes": {
+      "thumb": "400x560",
+      "card": "600x840",
+      "pdp": "1200x1680"
+    },
+    "migration_status": "pending"
+  },
+  {
+    "model": "21021",
+    "wash": "MBA",
+    "source_url": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/21021/MBA-1-277x370.jpg",
+    "r2_primary": "products/21021/MBA/primary.webp",
+    "r2_slots": {
+      "front": "products/21021/MBA/01-front.webp",
+      "back": "products/21021/MBA/02-back.webp",
+      "detail": "products/21021/MBA/03-detail.webp",
+      "model": "products/21021/MBA/04-model.webp"
+    },
+    "source_size": "277x370",
+    "target_sizes": {
+      "thumb": "400x560",
+      "card": "600x840",
+      "pdp": "1200x1680"
+    },
+    "migration_status": "pending"
+  },
+  {
+    "model": "41011",
+    "wash": "DTN",
+    "source_url": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/41011/Re-shoot%208%20March/DTN-277x370.jpg",
+    "r2_primary": "products/41011/DTN/primary.webp",
+    "r2_slots": {
+      "front": "products/41011/DTN/01-front.webp",
+      "back": "products/41011/DTN/02-back.webp",
+      "detail": "products/41011/DTN/03-detail.webp",
+      "model": "products/41011/DTN/04-model.webp"
+    },
+    "source_size": "277x370",
+    "target_sizes": {
+      "thumb": "400x560",
+      "card": "600x840",
+      "pdp": "1200x1680"
+    },
+    "migration_status": "pending"
+  },
+  {
+    "model": "41011",
+    "wash": "LBA",
+    "source_url": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/41011/Re-shoot%208%20March/LBA-277x370.jpg",
+    "r2_primary": "products/41011/LBA/primary.webp",
+    "r2_slots": {
+      "front": "products/41011/LBA/01-front.webp",
+      "back": "products/41011/LBA/02-back.webp",
+      "detail": "products/41011/LBA/03-detail.webp",
+      "model": "products/41011/LBA/04-model.webp"
+    },
+    "source_size": "277x370",
+    "target_sizes": {
+      "thumb": "400x560",
+      "card": "600x840",
+      "pdp": "1200x1680"
+    },
+    "migration_status": "pending"
+  },
+  {
+    "model": "41011",
+    "wash": "LTN",
+    "source_url": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/41011/Re-shoot%208%20March/LTN-277x370.jpg",
+    "r2_primary": "products/41011/LTN/primary.webp",
+    "r2_slots": {
+      "front": "products/41011/LTN/01-front.webp",
+      "back": "products/41011/LTN/02-back.webp",
+      "detail": "products/41011/LTN/03-detail.webp",
+      "model": "products/41011/LTN/04-model.webp"
+    },
+    "source_size": "277x370",
+    "target_sizes": {
+      "thumb": "400x560",
+      "card": "600x840",
+      "pdp": "1200x1680"
+    },
+    "migration_status": "pending"
+  },
+  {
+    "model": "41011",
+    "wash": "MTN",
+    "source_url": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/41011/Re-shoot%208%20March/MTN-2-277x370.jpg",
+    "r2_primary": "products/41011/MTN/primary.webp",
+    "r2_slots": {
+      "front": "products/41011/MTN/01-front.webp",
+      "back": "products/41011/MTN/02-back.webp",
+      "detail": "products/41011/MTN/03-detail.webp",
+      "model": "products/41011/MTN/04-model.webp"
+    },
+    "source_size": "277x370",
+    "target_sizes": {
+      "thumb": "400x560",
+      "card": "600x840",
+      "pdp": "1200x1680"
+    },
+    "migration_status": "pending"
+  },
+  {
+    "model": "41011",
+    "wash": "DBA",
+    "source_url": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/41011/Re-shoot%208%20March/DBA_Front-277x370.jpg",
+    "r2_primary": "products/41011/DBA/primary.webp",
+    "r2_slots": {
+      "front": "products/41011/DBA/01-front.webp",
+      "back": "products/41011/DBA/02-back.webp",
+      "detail": "products/41011/DBA/03-detail.webp",
+      "model": "products/41011/DBA/04-model.webp"
+    },
+    "source_size": "277x370",
+    "target_sizes": {
+      "thumb": "400x560",
+      "card": "600x840",
+      "pdp": "1200x1680"
+    },
+    "migration_status": "pending"
+  },
+  {
+    "model": "41011",
+    "wash": "MBA",
+    "source_url": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/41011/Re-shoot%208%20March/MBA-2-277x370.jpg",
+    "r2_primary": "products/41011/MBA/primary.webp",
+    "r2_slots": {
+      "front": "products/41011/MBA/01-front.webp",
+      "back": "products/41011/MBA/02-back.webp",
+      "detail": "products/41011/MBA/03-detail.webp",
+      "model": "products/41011/MBA/04-model.webp"
+    },
+    "source_size": "277x370",
+    "target_sizes": {
+      "thumb": "400x560",
+      "card": "600x840",
+      "pdp": "1200x1680"
+    },
+    "migration_status": "pending"
+  },
+  {
+    "model": "21026",
+    "wash": "MBA",
+    "source_url": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/21026/21026%20Re-shooot/MBA-2-277x370.jpg",
+    "r2_primary": "products/21026/MBA/primary.webp",
+    "r2_slots": {
+      "front": "products/21026/MBA/01-front.webp",
+      "back": "products/21026/MBA/02-back.webp",
+      "detail": "products/21026/MBA/03-detail.webp",
+      "model": "products/21026/MBA/04-model.webp"
+    },
+    "source_size": "277x370",
+    "target_sizes": {
+      "thumb": "400x560",
+      "card": "600x840",
+      "pdp": "1200x1680"
+    },
+    "migration_status": "pending"
+  },
+  {
+    "model": "21026",
+    "wash": "MTN",
+    "source_url": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/21026/21026%20Re-shooot/MTN-277x370.jpg",
+    "r2_primary": "products/21026/MTN/primary.webp",
+    "r2_slots": {
+      "front": "products/21026/MTN/01-front.webp",
+      "back": "products/21026/MTN/02-back.webp",
+      "detail": "products/21026/MTN/03-detail.webp",
+      "model": "products/21026/MTN/04-model.webp"
+    },
+    "source_size": "277x370",
+    "target_sizes": {
+      "thumb": "400x560",
+      "card": "600x840",
+      "pdp": "1200x1680"
+    },
+    "migration_status": "pending"
+  },
+  {
+    "model": "21026",
+    "wash": "LBA",
+    "source_url": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/21026/21026%20Re-shooot/LBA-1-277x370.jpg",
+    "r2_primary": "products/21026/LBA/primary.webp",
+    "r2_slots": {
+      "front": "products/21026/LBA/01-front.webp",
+      "back": "products/21026/LBA/02-back.webp",
+      "detail": "products/21026/LBA/03-detail.webp",
+      "model": "products/21026/LBA/04-model.webp"
+    },
+    "source_size": "277x370",
+    "target_sizes": {
+      "thumb": "400x560",
+      "card": "600x840",
+      "pdp": "1200x1680"
+    },
+    "migration_status": "pending"
+  },
+  {
+    "model": "2112",
+    "wash": "MBA",
+    "source_url": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/2112/MBA_Half-1-277x370.jpg",
+    "r2_primary": "products/2112/MBA/primary.webp",
+    "r2_slots": {
+      "front": "products/2112/MBA/01-front.webp",
+      "back": "products/2112/MBA/02-back.webp",
+      "detail": "products/2112/MBA/03-detail.webp",
+      "model": "products/2112/MBA/04-model.webp"
+    },
+    "source_size": "277x370",
+    "target_sizes": {
+      "thumb": "400x560",
+      "card": "600x840",
+      "pdp": "1200x1680"
+    },
+    "migration_status": "pending"
+  },
+  {
+    "model": "3034",
+    "wash": "ASH",
+    "source_url": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/3034/ASH-1-277x370.jpg",
+    "r2_primary": "products/3034/ASH/primary.webp",
+    "r2_slots": {
+      "front": "products/3034/ASH/01-front.webp",
+      "back": "products/3034/ASH/02-back.webp",
+      "detail": "products/3034/ASH/03-detail.webp",
+      "model": "products/3034/ASH/04-model.webp"
+    },
+    "source_size": "277x370",
+    "target_sizes": {
+      "thumb": "400x560",
+      "card": "600x840",
+      "pdp": "1200x1680"
+    },
+    "migration_status": "pending"
+  },
+  {
+    "model": "3034",
+    "wash": "BLKTN",
+    "source_url": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/3034/2-277x370.jpg",
+    "r2_primary": "products/3034/BLKTN/primary.webp",
+    "r2_slots": {
+      "front": "products/3034/BLKTN/01-front.webp",
+      "back": "products/3034/BLKTN/02-back.webp",
+      "detail": "products/3034/BLKTN/03-detail.webp",
+      "model": "products/3034/BLKTN/04-model.webp"
+    },
+    "source_size": "277x370",
+    "target_sizes": {
+      "thumb": "400x560",
+      "card": "600x840",
+      "pdp": "1200x1680"
+    },
+    "migration_status": "pending"
+  },
+  {
+    "model": "3034",
+    "wash": "LBA",
+    "source_url": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/3034/LBA-277x370.jpg",
+    "r2_primary": "products/3034/LBA/primary.webp",
+    "r2_slots": {
+      "front": "products/3034/LBA/01-front.webp",
+      "back": "products/3034/LBA/02-back.webp",
+      "detail": "products/3034/LBA/03-detail.webp",
+      "model": "products/3034/LBA/04-model.webp"
+    },
+    "source_size": "277x370",
+    "target_sizes": {
+      "thumb": "400x560",
+      "card": "600x840",
+      "pdp": "1200x1680"
+    },
+    "migration_status": "pending"
+  },
+  {
+    "model": "21022",
+    "wash": "BLK",
+    "source_url": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/21022/21022_BLK-1-277x370.jpg",
+    "r2_primary": "products/21022/BLK/primary.webp",
+    "r2_slots": {
+      "front": "products/21022/BLK/01-front.webp",
+      "back": "products/21022/BLK/02-back.webp",
+      "detail": "products/21022/BLK/03-detail.webp",
+      "model": "products/21022/BLK/04-model.webp"
+    },
+    "source_size": "277x370",
+    "target_sizes": {
+      "thumb": "400x560",
+      "card": "600x840",
+      "pdp": "1200x1680"
+    },
+    "migration_status": "pending"
+  },
+  {
+    "model": "21022",
+    "wash": "DTN",
+    "source_url": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/21022/DTN-1-277x370.jpg",
+    "r2_primary": "products/21022/DTN/primary.webp",
+    "r2_slots": {
+      "front": "products/21022/DTN/01-front.webp",
+      "back": "products/21022/DTN/02-back.webp",
+      "detail": "products/21022/DTN/03-detail.webp",
+      "model": "products/21022/DTN/04-model.webp"
+    },
+    "source_size": "277x370",
+    "target_sizes": {
+      "thumb": "400x560",
+      "card": "600x840",
+      "pdp": "1200x1680"
+    },
+    "migration_status": "pending"
+  },
+  {
+    "model": "21022",
+    "wash": "LBA",
+    "source_url": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/21022/LBA-1-277x370.jpg",
+    "r2_primary": "products/21022/LBA/primary.webp",
+    "r2_slots": {
+      "front": "products/21022/LBA/01-front.webp",
+      "back": "products/21022/LBA/02-back.webp",
+      "detail": "products/21022/LBA/03-detail.webp",
+      "model": "products/21022/LBA/04-model.webp"
+    },
+    "source_size": "277x370",
+    "target_sizes": {
+      "thumb": "400x560",
+      "card": "600x840",
+      "pdp": "1200x1680"
+    },
+    "migration_status": "pending"
+  },
+  {
+    "model": "21022",
+    "wash": "MBA",
+    "source_url": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/21022/21022_MBA-1-277x370.jpg",
+    "r2_primary": "products/21022/MBA/primary.webp",
+    "r2_slots": {
+      "front": "products/21022/MBA/01-front.webp",
+      "back": "products/21022/MBA/02-back.webp",
+      "detail": "products/21022/MBA/03-detail.webp",
+      "model": "products/21022/MBA/04-model.webp"
+    },
+    "source_size": "277x370",
+    "target_sizes": {
+      "thumb": "400x560",
+      "card": "600x840",
+      "pdp": "1200x1680"
+    },
+    "migration_status": "pending"
+  },
+  {
+    "model": "21022",
+    "wash": "MTN",
+    "source_url": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/21022/MTN-2-277x370.jpg",
+    "r2_primary": "products/21022/MTN/primary.webp",
+    "r2_slots": {
+      "front": "products/21022/MTN/01-front.webp",
+      "back": "products/21022/MTN/02-back.webp",
+      "detail": "products/21022/MTN/03-detail.webp",
+      "model": "products/21022/MTN/04-model.webp"
+    },
+    "source_size": "277x370",
+    "target_sizes": {
+      "thumb": "400x560",
+      "card": "600x840",
+      "pdp": "1200x1680"
+    },
+    "migration_status": "pending"
+  },
+  {
+    "model": "21022",
+    "wash": "DBA",
+    "source_url": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/21022/DBA-277x370.jpg",
+    "r2_primary": "products/21022/DBA/primary.webp",
+    "r2_slots": {
+      "front": "products/21022/DBA/01-front.webp",
+      "back": "products/21022/DBA/02-back.webp",
+      "detail": "products/21022/DBA/03-detail.webp",
+      "model": "products/21022/DBA/04-model.webp"
+    },
+    "source_size": "277x370",
+    "target_sizes": {
+      "thumb": "400x560",
+      "card": "600x840",
+      "pdp": "1200x1680"
+    },
+    "migration_status": "pending"
+  },
+  {
+    "model": "2111",
+    "wash": "GRY",
+    "source_url": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/2111/2111_Gray-277x370.jpg",
+    "r2_primary": "products/2111/GRY/primary.webp",
+    "r2_slots": {
+      "front": "products/2111/GRY/01-front.webp",
+      "back": "products/2111/GRY/02-back.webp",
+      "detail": "products/2111/GRY/03-detail.webp",
+      "model": "products/2111/GRY/04-model.webp"
+    },
+    "source_size": "277x370",
+    "target_sizes": {
+      "thumb": "400x560",
+      "card": "600x840",
+      "pdp": "1200x1680"
+    },
+    "migration_status": "pending"
+  },
+  {
+    "model": "3045",
+    "wash": "MBA",
+    "source_url": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/3045/MBA-1-277x370.jpg",
+    "r2_primary": "products/3045/MBA/primary.webp",
+    "r2_slots": {
+      "front": "products/3045/MBA/01-front.webp",
+      "back": "products/3045/MBA/02-back.webp",
+      "detail": "products/3045/MBA/03-detail.webp",
+      "model": "products/3045/MBA/04-model.webp"
+    },
+    "source_size": "277x370",
+    "target_sizes": {
+      "thumb": "400x560",
+      "card": "600x840",
+      "pdp": "1200x1680"
+    },
+    "migration_status": "pending"
+  },
+  {
+    "model": "3037",
+    "wash": "DNMBA",
+    "source_url": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/3037%20E%20F/DNMBA-1-277x370.jpg",
+    "r2_primary": "products/3037/DNMBA/primary.webp",
+    "r2_slots": {
+      "front": "products/3037/DNMBA/01-front.webp",
+      "back": "products/3037/DNMBA/02-back.webp",
+      "detail": "products/3037/DNMBA/03-detail.webp",
+      "model": "products/3037/DNMBA/04-model.webp"
+    },
+    "source_size": "277x370",
+    "target_sizes": {
+      "thumb": "400x560",
+      "card": "600x840",
+      "pdp": "1200x1680"
+    },
+    "migration_status": "pending"
+  },
+  {
+    "model": "6007",
+    "wash": "ARMY",
+    "source_url": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/6007/Re%20size/Army_Green-1-277x370.jpg",
+    "r2_primary": "products/6007/ARMY/primary.webp",
+    "r2_slots": {
+      "front": "products/6007/ARMY/01-front.webp",
+      "back": "products/6007/ARMY/02-back.webp",
+      "detail": "products/6007/ARMY/03-detail.webp",
+      "model": "products/6007/ARMY/04-model.webp"
+    },
+    "source_size": "277x370",
+    "target_sizes": {
+      "thumb": "400x560",
+      "card": "600x840",
+      "pdp": "1200x1680"
+    },
+    "migration_status": "pending"
+  },
+  {
+    "model": "6007",
+    "wash": "CMO",
+    "source_url": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/6007/Re%20size/camouflage-1-277x370.jpg",
+    "r2_primary": "products/6007/CMO/primary.webp",
+    "r2_slots": {
+      "front": "products/6007/CMO/01-front.webp",
+      "back": "products/6007/CMO/02-back.webp",
+      "detail": "products/6007/CMO/03-detail.webp",
+      "model": "products/6007/CMO/04-model.webp"
+    },
+    "source_size": "277x370",
+    "target_sizes": {
+      "thumb": "400x560",
+      "card": "600x840",
+      "pdp": "1200x1680"
+    },
+    "migration_status": "pending"
+  },
+  {
+    "model": "6007",
+    "wash": "DBA",
+    "source_url": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/6007/Re%20size/DBA-277x370.jpg",
+    "r2_primary": "products/6007/DBA/primary.webp",
+    "r2_slots": {
+      "front": "products/6007/DBA/01-front.webp",
+      "back": "products/6007/DBA/02-back.webp",
+      "detail": "products/6007/DBA/03-detail.webp",
+      "model": "products/6007/DBA/04-model.webp"
+    },
+    "source_size": "277x370",
+    "target_sizes": {
+      "thumb": "400x560",
+      "card": "600x840",
+      "pdp": "1200x1680"
+    },
+    "migration_status": "pending"
+  },
+  {
+    "model": "6013",
+    "wash": "ASH",
+    "source_url": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/6013/new/ASH_Black-2-277x370.jpg",
+    "r2_primary": "products/6013/ASH/primary.webp",
+    "r2_slots": {
+      "front": "products/6013/ASH/01-front.webp",
+      "back": "products/6013/ASH/02-back.webp",
+      "detail": "products/6013/ASH/03-detail.webp",
+      "model": "products/6013/ASH/04-model.webp"
+    },
+    "source_size": "277x370",
+    "target_sizes": {
+      "thumb": "400x560",
+      "card": "600x840",
+      "pdp": "1200x1680"
+    },
+    "migration_status": "pending"
+  },
+  {
+    "model": "6013",
+    "wash": "DBA",
+    "source_url": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/6013/new/DBA-2-277x370.jpg",
+    "r2_primary": "products/6013/DBA/primary.webp",
+    "r2_slots": {
+      "front": "products/6013/DBA/01-front.webp",
+      "back": "products/6013/DBA/02-back.webp",
+      "detail": "products/6013/DBA/03-detail.webp",
+      "model": "products/6013/DBA/04-model.webp"
+    },
+    "source_size": "277x370",
+    "target_sizes": {
+      "thumb": "400x560",
+      "card": "600x840",
+      "pdp": "1200x1680"
+    },
+    "migration_status": "pending"
+  },
+  {
+    "model": "6013",
+    "wash": "LBA",
+    "source_url": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/6013/new/LBA-277x370.jpg",
+    "r2_primary": "products/6013/LBA/primary.webp",
+    "r2_slots": {
+      "front": "products/6013/LBA/01-front.webp",
+      "back": "products/6013/LBA/02-back.webp",
+      "detail": "products/6013/LBA/03-detail.webp",
+      "model": "products/6013/LBA/04-model.webp"
+    },
+    "source_size": "277x370",
+    "target_sizes": {
+      "thumb": "400x560",
+      "card": "600x840",
+      "pdp": "1200x1680"
+    },
+    "migration_status": "pending"
+  },
+  {
+    "model": "6013",
+    "wash": "OWH",
+    "source_url": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/6013/new/OWH-277x370.jpg",
+    "r2_primary": "products/6013/OWH/primary.webp",
+    "r2_slots": {
+      "front": "products/6013/OWH/01-front.webp",
+      "back": "products/6013/OWH/02-back.webp",
+      "detail": "products/6013/OWH/03-detail.webp",
+      "model": "products/6013/OWH/04-model.webp"
+    },
+    "source_size": "277x370",
+    "target_sizes": {
+      "thumb": "400x560",
+      "card": "600x840",
+      "pdp": "1200x1680"
+    },
+    "migration_status": "pending"
+  },
+  {
+    "model": "6013",
+    "wash": "OLV",
+    "source_url": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/6013/new/OLV-277x370.jpg",
+    "r2_primary": "products/6013/OLV/primary.webp",
+    "r2_slots": {
+      "front": "products/6013/OLV/01-front.webp",
+      "back": "products/6013/OLV/02-back.webp",
+      "detail": "products/6013/OLV/03-detail.webp",
+      "model": "products/6013/OLV/04-model.webp"
+    },
+    "source_size": "277x370",
+    "target_sizes": {
+      "thumb": "400x560",
+      "card": "600x840",
+      "pdp": "1200x1680"
+    },
+    "migration_status": "pending"
+  },
+  {
+    "model": "3039",
+    "wash": "LBA",
+    "source_url": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/3039/MBA-277x370.jpg",
+    "r2_primary": "products/3039/LBA/primary.webp",
+    "r2_slots": {
+      "front": "products/3039/LBA/01-front.webp",
+      "back": "products/3039/LBA/02-back.webp",
+      "detail": "products/3039/LBA/03-detail.webp",
+      "model": "products/3039/LBA/04-model.webp"
+    },
+    "source_size": "277x370",
+    "target_sizes": {
+      "thumb": "400x560",
+      "card": "600x840",
+      "pdp": "1200x1680"
+    },
+    "migration_status": "pending"
+  },
+  {
+    "model": "2110",
+    "wash": "BLK",
+    "source_url": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/2110/Re%20Size/BLK-2-277x370.jpg",
+    "r2_primary": "products/2110/BLK/primary.webp",
+    "r2_slots": {
+      "front": "products/2110/BLK/01-front.webp",
+      "back": "products/2110/BLK/02-back.webp",
+      "detail": "products/2110/BLK/03-detail.webp",
+      "model": "products/2110/BLK/04-model.webp"
+    },
+    "source_size": "277x370",
+    "target_sizes": {
+      "thumb": "400x560",
+      "card": "600x840",
+      "pdp": "1200x1680"
+    },
+    "migration_status": "pending"
+  },
+  {
+    "model": "2110",
+    "wash": "CRM",
+    "source_url": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/2110/Re%20Size/cream-2-277x370.jpg",
+    "r2_primary": "products/2110/CRM/primary.webp",
+    "r2_slots": {
+      "front": "products/2110/CRM/01-front.webp",
+      "back": "products/2110/CRM/02-back.webp",
+      "detail": "products/2110/CRM/03-detail.webp",
+      "model": "products/2110/CRM/04-model.webp"
+    },
+    "source_size": "277x370",
+    "target_sizes": {
+      "thumb": "400x560",
+      "card": "600x840",
+      "pdp": "1200x1680"
+    },
+    "migration_status": "pending"
+  },
+  {
+    "model": "3044",
+    "wash": "DBA",
+    "source_url": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/3044/DBA-2-277x370.jpg",
+    "r2_primary": "products/3044/DBA/primary.webp",
+    "r2_slots": {
+      "front": "products/3044/DBA/01-front.webp",
+      "back": "products/3044/DBA/02-back.webp",
+      "detail": "products/3044/DBA/03-detail.webp",
+      "model": "products/3044/DBA/04-model.webp"
+    },
+    "source_size": "277x370",
+    "target_sizes": {
+      "thumb": "400x560",
+      "card": "600x840",
+      "pdp": "1200x1680"
+    },
+    "migration_status": "pending"
+  },
+  {
+    "model": "6008",
+    "wash": "LTN",
+    "source_url": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/6008/TNT_BLUE-277x370.jpg",
+    "r2_primary": "products/6008/LTN/primary.webp",
+    "r2_slots": {
+      "front": "products/6008/LTN/01-front.webp",
+      "back": "products/6008/LTN/02-back.webp",
+      "detail": "products/6008/LTN/03-detail.webp",
+      "model": "products/6008/LTN/04-model.webp"
+    },
+    "source_size": "277x370",
+    "target_sizes": {
+      "thumb": "400x560",
+      "card": "600x840",
+      "pdp": "1200x1680"
+    },
+    "migration_status": "pending"
+  },
+  {
+    "model": "3052",
+    "wash": "ASH",
+    "source_url": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/3052/ASH_BLACK-2-277x370.jpg",
+    "r2_primary": "products/3052/ASH/primary.webp",
+    "r2_slots": {
+      "front": "products/3052/ASH/01-front.webp",
+      "back": "products/3052/ASH/02-back.webp",
+      "detail": "products/3052/ASH/03-detail.webp",
+      "model": "products/3052/ASH/04-model.webp"
+    },
+    "source_size": "277x370",
+    "target_sizes": {
+      "thumb": "400x560",
+      "card": "600x840",
+      "pdp": "1200x1680"
+    },
+    "migration_status": "pending"
+  },
+  {
+    "model": "3052",
+    "wash": "MBA",
+    "source_url": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/MBA-31-277x370.jpg",
+    "r2_primary": "products/3052/MBA/primary.webp",
+    "r2_slots": {
+      "front": "products/3052/MBA/01-front.webp",
+      "back": "products/3052/MBA/02-back.webp",
+      "detail": "products/3052/MBA/03-detail.webp",
+      "model": "products/3052/MBA/04-model.webp"
+    },
+    "source_size": "277x370",
+    "target_sizes": {
+      "thumb": "400x560",
+      "card": "600x840",
+      "pdp": "1200x1680"
+    },
+    "migration_status": "pending"
+  },
+  {
+    "model": "2116",
+    "wash": "MBA",
+    "source_url": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/2116/Re%20Edit/Mid_Blue-2-277x370.jpg",
+    "r2_primary": "products/2116/MBA/primary.webp",
+    "r2_slots": {
+      "front": "products/2116/MBA/01-front.webp",
+      "back": "products/2116/MBA/02-back.webp",
+      "detail": "products/2116/MBA/03-detail.webp",
+      "model": "products/2116/MBA/04-model.webp"
+    },
+    "source_size": "277x370",
+    "target_sizes": {
+      "thumb": "400x560",
+      "card": "600x840",
+      "pdp": "1200x1680"
+    },
+    "migration_status": "pending"
+  },
+  {
+    "model": "3030",
+    "wash": "BLK",
+    "source_url": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/BLK-11-277x370.jpg",
+    "r2_primary": "products/3030/BLK/primary.webp",
+    "r2_slots": {
+      "front": "products/3030/BLK/01-front.webp",
+      "back": "products/3030/BLK/02-back.webp",
+      "detail": "products/3030/BLK/03-detail.webp",
+      "model": "products/3030/BLK/04-model.webp"
+    },
+    "source_size": "277x370",
+    "target_sizes": {
+      "thumb": "400x560",
+      "card": "600x840",
+      "pdp": "1200x1680"
+    },
+    "migration_status": "pending"
+  },
+  {
+    "model": "3030",
+    "wash": "CHC",
+    "source_url": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/CHC-2-277x370.jpg",
+    "r2_primary": "products/3030/CHC/primary.webp",
+    "r2_slots": {
+      "front": "products/3030/CHC/01-front.webp",
+      "back": "products/3030/CHC/02-back.webp",
+      "detail": "products/3030/CHC/03-detail.webp",
+      "model": "products/3030/CHC/04-model.webp"
+    },
+    "source_size": "277x370",
+    "target_sizes": {
+      "thumb": "400x560",
+      "card": "600x840",
+      "pdp": "1200x1680"
+    },
+    "migration_status": "pending"
+  },
+  {
+    "model": "3030",
+    "wash": "DBA",
+    "source_url": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/3030/DBA-277x370.jpg",
+    "r2_primary": "products/3030/DBA/primary.webp",
+    "r2_slots": {
+      "front": "products/3030/DBA/01-front.webp",
+      "back": "products/3030/DBA/02-back.webp",
+      "detail": "products/3030/DBA/03-detail.webp",
+      "model": "products/3030/DBA/04-model.webp"
+    },
+    "source_size": "277x370",
+    "target_sizes": {
+      "thumb": "400x560",
+      "card": "600x840",
+      "pdp": "1200x1680"
+    },
+    "migration_status": "pending"
+  },
+  {
+    "model": "3030",
+    "wash": "LBA",
+    "source_url": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/LBA-23-277x370.jpg",
+    "r2_primary": "products/3030/LBA/primary.webp",
+    "r2_slots": {
+      "front": "products/3030/LBA/01-front.webp",
+      "back": "products/3030/LBA/02-back.webp",
+      "detail": "products/3030/LBA/03-detail.webp",
+      "model": "products/3030/LBA/04-model.webp"
+    },
+    "source_size": "277x370",
+    "target_sizes": {
+      "thumb": "400x560",
+      "card": "600x840",
+      "pdp": "1200x1680"
+    },
+    "migration_status": "pending"
+  },
+  {
+    "model": "3030",
+    "wash": "MBA",
+    "source_url": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/MBA-39-277x370.jpg",
+    "r2_primary": "products/3030/MBA/primary.webp",
+    "r2_slots": {
+      "front": "products/3030/MBA/01-front.webp",
+      "back": "products/3030/MBA/02-back.webp",
+      "detail": "products/3030/MBA/03-detail.webp",
+      "model": "products/3030/MBA/04-model.webp"
+    },
+    "source_size": "277x370",
+    "target_sizes": {
+      "thumb": "400x560",
+      "card": "600x840",
+      "pdp": "1200x1680"
+    },
+    "migration_status": "pending"
+  },
+  {
+    "model": "3030",
+    "wash": "WHT",
+    "source_url": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/3030/3030/WHT-2-277x370.jpg",
+    "r2_primary": "products/3030/WHT/primary.webp",
+    "r2_slots": {
+      "front": "products/3030/WHT/01-front.webp",
+      "back": "products/3030/WHT/02-back.webp",
+      "detail": "products/3030/WHT/03-detail.webp",
+      "model": "products/3030/WHT/04-model.webp"
+    },
+    "source_size": "277x370",
+    "target_sizes": {
+      "thumb": "400x560",
+      "card": "600x840",
+      "pdp": "1200x1680"
+    },
+    "migration_status": "pending"
+  },
+  {
+    "model": "3030",
+    "wash": "YLTN",
+    "source_url": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/YLTN-1-277x370.jpg",
+    "r2_primary": "products/3030/YLTN/primary.webp",
+    "r2_slots": {
+      "front": "products/3030/YLTN/01-front.webp",
+      "back": "products/3030/YLTN/02-back.webp",
+      "detail": "products/3030/YLTN/03-detail.webp",
+      "model": "products/3030/YLTN/04-model.webp"
+    },
+    "source_size": "277x370",
+    "target_sizes": {
+      "thumb": "400x560",
+      "card": "600x840",
+      "pdp": "1200x1680"
+    },
+    "migration_status": "pending"
+  },
+  {
+    "model": "3010",
+    "wash": "LBA",
+    "source_url": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/3010/Without_Stone_3010-277x370.jpg",
+    "r2_primary": "products/3010/LBA/primary.webp",
+    "r2_slots": {
+      "front": "products/3010/LBA/01-front.webp",
+      "back": "products/3010/LBA/02-back.webp",
+      "detail": "products/3010/LBA/03-detail.webp",
+      "model": "products/3010/LBA/04-model.webp"
+    },
+    "source_size": "277x370",
+    "target_sizes": {
+      "thumb": "400x560",
+      "card": "600x840",
+      "pdp": "1200x1680"
+    },
+    "migration_status": "pending"
+  },
+  {
+    "model": "6009",
+    "wash": "MBA",
+    "source_url": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/6009/2-277x370.jpg",
+    "r2_primary": "products/6009/MBA/primary.webp",
+    "r2_slots": {
+      "front": "products/6009/MBA/01-front.webp",
+      "back": "products/6009/MBA/02-back.webp",
+      "detail": "products/6009/MBA/03-detail.webp",
+      "model": "products/6009/MBA/04-model.webp"
+    },
+    "source_size": "277x370",
+    "target_sizes": {
+      "thumb": "400x560",
+      "card": "600x840",
+      "pdp": "1200x1680"
+    },
+    "migration_status": "pending"
+  },
+  {
+    "model": "21001",
+    "wash": "BLKTN",
+    "source_url": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/Tint_Black-2-277x370.jpg",
+    "r2_primary": "products/21001/BLKTN/primary.webp",
+    "r2_slots": {
+      "front": "products/21001/BLKTN/01-front.webp",
+      "back": "products/21001/BLKTN/02-back.webp",
+      "detail": "products/21001/BLKTN/03-detail.webp",
+      "model": "products/21001/BLKTN/04-model.webp"
+    },
+    "source_size": "277x370",
+    "target_sizes": {
+      "thumb": "400x560",
+      "card": "600x840",
+      "pdp": "1200x1680"
+    },
+    "migration_status": "pending"
+  },
+  {
+    "model": "21001",
+    "wash": "DBA",
+    "source_url": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/21001%20new/Re-shoot/DBA-1-277x370.jpg",
+    "r2_primary": "products/21001/DBA/primary.webp",
+    "r2_slots": {
+      "front": "products/21001/DBA/01-front.webp",
+      "back": "products/21001/DBA/02-back.webp",
+      "detail": "products/21001/DBA/03-detail.webp",
+      "model": "products/21001/DBA/04-model.webp"
+    },
+    "source_size": "277x370",
+    "target_sizes": {
+      "thumb": "400x560",
+      "card": "600x840",
+      "pdp": "1200x1680"
+    },
+    "migration_status": "pending"
+  },
+  {
+    "model": "21001",
+    "wash": "DTN",
+    "source_url": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/21001%20new/Re-shoot/DTN-277x370.jpg",
+    "r2_primary": "products/21001/DTN/primary.webp",
+    "r2_slots": {
+      "front": "products/21001/DTN/01-front.webp",
+      "back": "products/21001/DTN/02-back.webp",
+      "detail": "products/21001/DTN/03-detail.webp",
+      "model": "products/21001/DTN/04-model.webp"
+    },
+    "source_size": "277x370",
+    "target_sizes": {
+      "thumb": "400x560",
+      "card": "600x840",
+      "pdp": "1200x1680"
+    },
+    "migration_status": "pending"
+  },
+  {
+    "model": "21001",
+    "wash": "MBA",
+    "source_url": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/21001%20new/Re-shoot/MBA-2-277x370.jpg",
+    "r2_primary": "products/21001/MBA/primary.webp",
+    "r2_slots": {
+      "front": "products/21001/MBA/01-front.webp",
+      "back": "products/21001/MBA/02-back.webp",
+      "detail": "products/21001/MBA/03-detail.webp",
+      "model": "products/21001/MBA/04-model.webp"
+    },
+    "source_size": "277x370",
+    "target_sizes": {
+      "thumb": "400x560",
+      "card": "600x840",
+      "pdp": "1200x1680"
+    },
+    "migration_status": "pending"
+  },
+  {
+    "model": "21001",
+    "wash": "LBA",
+    "source_url": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/21001%20new/Re-shoot/LBA-277x370.jpg",
+    "r2_primary": "products/21001/LBA/primary.webp",
+    "r2_slots": {
+      "front": "products/21001/LBA/01-front.webp",
+      "back": "products/21001/LBA/02-back.webp",
+      "detail": "products/21001/LBA/03-detail.webp",
+      "model": "products/21001/LBA/04-model.webp"
+    },
+    "source_size": "277x370",
+    "target_sizes": {
+      "thumb": "400x560",
+      "card": "600x840",
+      "pdp": "1200x1680"
+    },
+    "migration_status": "pending"
+  },
+  {
+    "model": "21001",
+    "wash": "MTN",
+    "source_url": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/21001%20new/Re-shoot/MTN-2-277x370.jpg",
+    "r2_primary": "products/21001/MTN/primary.webp",
+    "r2_slots": {
+      "front": "products/21001/MTN/01-front.webp",
+      "back": "products/21001/MTN/02-back.webp",
+      "detail": "products/21001/MTN/03-detail.webp",
+      "model": "products/21001/MTN/04-model.webp"
+    },
+    "source_size": "277x370",
+    "target_sizes": {
+      "thumb": "400x560",
+      "card": "600x840",
+      "pdp": "1200x1680"
+    },
+    "migration_status": "pending"
+  },
+  {
+    "model": "3033",
+    "wash": "LBA",
+    "source_url": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/3033/LBA-1-277x370.jpg",
+    "r2_primary": "products/3033/LBA/primary.webp",
+    "r2_slots": {
+      "front": "products/3033/LBA/01-front.webp",
+      "back": "products/3033/LBA/02-back.webp",
+      "detail": "products/3033/LBA/03-detail.webp",
+      "model": "products/3033/LBA/04-model.webp"
+    },
+    "source_size": "277x370",
+    "target_sizes": {
+      "thumb": "400x560",
+      "card": "600x840",
+      "pdp": "1200x1680"
+    },
+    "migration_status": "pending"
+  },
+  {
+    "model": "21013",
+    "wash": "DBA",
+    "source_url": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/21013/Re%20Shoot%2010%20March/DBA-2-277x370.jpg",
+    "r2_primary": "products/21013/DBA/primary.webp",
+    "r2_slots": {
+      "front": "products/21013/DBA/01-front.webp",
+      "back": "products/21013/DBA/02-back.webp",
+      "detail": "products/21013/DBA/03-detail.webp",
+      "model": "products/21013/DBA/04-model.webp"
+    },
+    "source_size": "277x370",
+    "target_sizes": {
+      "thumb": "400x560",
+      "card": "600x840",
+      "pdp": "1200x1680"
+    },
+    "migration_status": "pending"
+  },
+  {
+    "model": "21013",
+    "wash": "DTN",
+    "source_url": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/21013/Re%20Shoot%2010%20March/DTN-2-277x370.jpg",
+    "r2_primary": "products/21013/DTN/primary.webp",
+    "r2_slots": {
+      "front": "products/21013/DTN/01-front.webp",
+      "back": "products/21013/DTN/02-back.webp",
+      "detail": "products/21013/DTN/03-detail.webp",
+      "model": "products/21013/DTN/04-model.webp"
+    },
+    "source_size": "277x370",
+    "target_sizes": {
+      "thumb": "400x560",
+      "card": "600x840",
+      "pdp": "1200x1680"
+    },
+    "migration_status": "pending"
+  },
+  {
+    "model": "21013",
+    "wash": "LBA",
+    "source_url": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/21013/Re%20Shoot%2010%20March/LBA-1-277x370.jpg",
+    "r2_primary": "products/21013/LBA/primary.webp",
+    "r2_slots": {
+      "front": "products/21013/LBA/01-front.webp",
+      "back": "products/21013/LBA/02-back.webp",
+      "detail": "products/21013/LBA/03-detail.webp",
+      "model": "products/21013/LBA/04-model.webp"
+    },
+    "source_size": "277x370",
+    "target_sizes": {
+      "thumb": "400x560",
+      "card": "600x840",
+      "pdp": "1200x1680"
+    },
+    "migration_status": "pending"
+  },
+  {
+    "model": "21013",
+    "wash": "MBA",
+    "source_url": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/21013/Re%20Shoot%2010%20March/MBA-2-277x370.jpg",
+    "r2_primary": "products/21013/MBA/primary.webp",
+    "r2_slots": {
+      "front": "products/21013/MBA/01-front.webp",
+      "back": "products/21013/MBA/02-back.webp",
+      "detail": "products/21013/MBA/03-detail.webp",
+      "model": "products/21013/MBA/04-model.webp"
+    },
+    "source_size": "277x370",
+    "target_sizes": {
+      "thumb": "400x560",
+      "card": "600x840",
+      "pdp": "1200x1680"
+    },
+    "migration_status": "pending"
+  },
+  {
+    "model": "21013",
+    "wash": "MTN",
+    "source_url": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/21013/Re%20Shoot%2010%20March/MTN-2-277x370.jpg",
+    "r2_primary": "products/21013/MTN/primary.webp",
+    "r2_slots": {
+      "front": "products/21013/MTN/01-front.webp",
+      "back": "products/21013/MTN/02-back.webp",
+      "detail": "products/21013/MTN/03-detail.webp",
+      "model": "products/21013/MTN/04-model.webp"
+    },
+    "source_size": "277x370",
+    "target_sizes": {
+      "thumb": "400x560",
+      "card": "600x840",
+      "pdp": "1200x1680"
+    },
+    "migration_status": "pending"
+  },
+  {
+    "model": "2117",
+    "wash": "LBA",
+    "source_url": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/2116/Re%20Edit/Light_Blue-277x370.jpg",
+    "r2_primary": "products/2117/LBA/primary.webp",
+    "r2_slots": {
+      "front": "products/2117/LBA/01-front.webp",
+      "back": "products/2117/LBA/02-back.webp",
+      "detail": "products/2117/LBA/03-detail.webp",
+      "model": "products/2117/LBA/04-model.webp"
+    },
+    "source_size": "277x370",
+    "target_sizes": {
+      "thumb": "400x560",
+      "card": "600x840",
+      "pdp": "1200x1680"
+    },
+    "migration_status": "pending"
+  },
+  {
+    "model": "2117",
+    "wash": "MBA",
+    "source_url": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/2117/Retro_Fade-1-277x370.jpg",
+    "r2_primary": "products/2117/MBA/primary.webp",
+    "r2_slots": {
+      "front": "products/2117/MBA/01-front.webp",
+      "back": "products/2117/MBA/02-back.webp",
+      "detail": "products/2117/MBA/03-detail.webp",
+      "model": "products/2117/MBA/04-model.webp"
+    },
+    "source_size": "277x370",
+    "target_sizes": {
+      "thumb": "400x560",
+      "card": "600x840",
+      "pdp": "1200x1680"
+    },
+    "migration_status": "pending"
+  },
+  {
+    "model": "2117",
+    "wash": "MTN",
+    "source_url": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/2116/Re%20Edit/Tint_Blue-277x370.jpg",
+    "r2_primary": "products/2117/MTN/primary.webp",
+    "r2_slots": {
+      "front": "products/2117/MTN/01-front.webp",
+      "back": "products/2117/MTN/02-back.webp",
+      "detail": "products/2117/MTN/03-detail.webp",
+      "model": "products/2117/MTN/04-model.webp"
+    },
+    "source_size": "277x370",
+    "target_sizes": {
+      "thumb": "400x560",
+      "card": "600x840",
+      "pdp": "1200x1680"
+    },
+    "migration_status": "pending"
+  },
+  {
+    "model": "3035",
+    "wash": "ASH",
+    "source_url": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/3035%20new/ASH-1-277x370.jpg",
+    "r2_primary": "products/3035/ASH/primary.webp",
+    "r2_slots": {
+      "front": "products/3035/ASH/01-front.webp",
+      "back": "products/3035/ASH/02-back.webp",
+      "detail": "products/3035/ASH/03-detail.webp",
+      "model": "products/3035/ASH/04-model.webp"
+    },
+    "source_size": "277x370",
+    "target_sizes": {
+      "thumb": "400x560",
+      "card": "600x840",
+      "pdp": "1200x1680"
+    },
+    "migration_status": "pending"
+  },
+  {
+    "model": "3035",
+    "wash": "DBA",
+    "source_url": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/3035%20new/DBA-2-277x370.jpg",
+    "r2_primary": "products/3035/DBA/primary.webp",
+    "r2_slots": {
+      "front": "products/3035/DBA/01-front.webp",
+      "back": "products/3035/DBA/02-back.webp",
+      "detail": "products/3035/DBA/03-detail.webp",
+      "model": "products/3035/DBA/04-model.webp"
+    },
+    "source_size": "277x370",
+    "target_sizes": {
+      "thumb": "400x560",
+      "card": "600x840",
+      "pdp": "1200x1680"
+    },
+    "migration_status": "pending"
+  },
+  {
+    "model": "3035",
+    "wash": "LBA",
+    "source_url": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/3035%20new/Light_Blue-277x370.jpg",
+    "r2_primary": "products/3035/LBA/primary.webp",
+    "r2_slots": {
+      "front": "products/3035/LBA/01-front.webp",
+      "back": "products/3035/LBA/02-back.webp",
+      "detail": "products/3035/LBA/03-detail.webp",
+      "model": "products/3035/LBA/04-model.webp"
+    },
+    "source_size": "277x370",
+    "target_sizes": {
+      "thumb": "400x560",
+      "card": "600x840",
+      "pdp": "1200x1680"
+    },
+    "migration_status": "pending"
+  },
+  {
+    "model": "3035",
+    "wash": "MBA",
+    "source_url": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/3035%20new/Mid_Blue-277x370.jpg",
+    "r2_primary": "products/3035/MBA/primary.webp",
+    "r2_slots": {
+      "front": "products/3035/MBA/01-front.webp",
+      "back": "products/3035/MBA/02-back.webp",
+      "detail": "products/3035/MBA/03-detail.webp",
+      "model": "products/3035/MBA/04-model.webp"
+    },
+    "source_size": "277x370",
+    "target_sizes": {
+      "thumb": "400x560",
+      "card": "600x840",
+      "pdp": "1200x1680"
+    },
+    "migration_status": "pending"
+  },
+  {
+    "model": "3035",
+    "wash": "MTN",
+    "source_url": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/3035%20new/Mid_Tint-1-277x370.jpg",
+    "r2_primary": "products/3035/MTN/primary.webp",
+    "r2_slots": {
+      "front": "products/3035/MTN/01-front.webp",
+      "back": "products/3035/MTN/02-back.webp",
+      "detail": "products/3035/MTN/03-detail.webp",
+      "model": "products/3035/MTN/04-model.webp"
+    },
+    "source_size": "277x370",
+    "target_sizes": {
+      "thumb": "400x560",
+      "card": "600x840",
+      "pdp": "1200x1680"
+    },
+    "migration_status": "pending"
+  },
+  {
+    "model": "2120",
+    "wash": "MBA",
+    "source_url": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/MBA-24-277x370.jpg",
+    "r2_primary": "products/2120/MBA/primary.webp",
+    "r2_slots": {
+      "front": "products/2120/MBA/01-front.webp",
+      "back": "products/2120/MBA/02-back.webp",
+      "detail": "products/2120/MBA/03-detail.webp",
+      "model": "products/2120/MBA/04-model.webp"
+    },
+    "source_size": "277x370",
+    "target_sizes": {
+      "thumb": "400x560",
+      "card": "600x840",
+      "pdp": "1200x1680"
+    },
+    "migration_status": "pending"
+  },
+  {
+    "model": "2120",
+    "wash": "MTN",
+    "source_url": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/2120/MTN-2-277x370.jpg",
+    "r2_primary": "products/2120/MTN/primary.webp",
+    "r2_slots": {
+      "front": "products/2120/MTN/01-front.webp",
+      "back": "products/2120/MTN/02-back.webp",
+      "detail": "products/2120/MTN/03-detail.webp",
+      "model": "products/2120/MTN/04-model.webp"
+    },
+    "source_size": "277x370",
+    "target_sizes": {
+      "thumb": "400x560",
+      "card": "600x840",
+      "pdp": "1200x1680"
+    },
+    "migration_status": "pending"
+  },
+  {
+    "model": "2120",
+    "wash": "SPLA",
+    "source_url": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/SPLA-4-277x370.jpg",
+    "r2_primary": "products/2120/SPLA/primary.webp",
+    "r2_slots": {
+      "front": "products/2120/SPLA/01-front.webp",
+      "back": "products/2120/SPLA/02-back.webp",
+      "detail": "products/2120/SPLA/03-detail.webp",
+      "model": "products/2120/SPLA/04-model.webp"
+    },
+    "source_size": "277x370",
+    "target_sizes": {
+      "thumb": "400x560",
+      "card": "600x840",
+      "pdp": "1200x1680"
+    },
+    "migration_status": "pending"
+  },
+  {
+    "model": "2120",
+    "wash": "LBA",
+    "source_url": "https://storola-client-space.sgp1.cdn.digitaloceanspaces.com/resources/clients/storola-clients/denimisia.com/cache/catalog/LBA-9-277x370.jpg",
+    "r2_primary": "products/2120/LBA/primary.webp",
+    "r2_slots": {
+      "front": "products/2120/LBA/01-front.webp",
+      "back": "products/2120/LBA/02-back.webp",
+      "detail": "products/2120/LBA/03-detail.webp",
+      "model": "products/2120/LBA/04-model.webp"
+    },
+    "source_size": "277x370",
+    "target_sizes": {
+      "thumb": "400x560",
+      "card": "600x840",
+      "pdp": "1200x1680"
+    },
+    "migration_status": "pending"
+  }
+]

@@ -1,0 +1,15 @@
+node_modules
+dist
+*.log
+.env
+.env.local
+.env.*.local
+.git
+.vscode
+.turbo
+coverage
+test
+*.spec.ts
+*.test.ts
+Dockerfile
+.dockerignore
