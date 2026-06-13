@@ -7,7 +7,7 @@ export async function HeroSection() {
   const slots = await fetchPageSlots('home');
   const slot = pickSlot(slots, 'hero_main');
   const { src, kind, poster } = resolveSlotUrl(slot, PLACEHOLDER_HERO);
-  const heading  = resolveSlotText(slot, 'Raw Collection', 'heading');
+  const heading  = resolveSlotText(slot, 'Raw ', 'heading');
   const sub      = resolveSlotText(slot, 'A study in form, texture, and understated luxury.', 'subheading');
   const ctaLabel = resolveSlotText(slot, 'Explore the Collection', 'ctaLabel');
   const ctaHref  = resolveSlotText(slot, '/collections/spring26', 'ctaHref');
