@@ -127,7 +127,7 @@ export default async function AboutPage() {
             </h3>
             <div className="mt-6 space-y-5 text-base leading-relaxed text-muted">
               <p>
-                Denimisia was born from a simple belief: premium denim should not
+                Denimisia was created from a simple belief: premium denim should not
                 cost a fortune. Bangladesh produces some of the finest denim in
                 the world, yet that craftsmanship rarely reaches consumers at a
                 fair price.
