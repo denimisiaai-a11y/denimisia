@@ -11,7 +11,7 @@ export const revalidate = 60;
 export const metadata: Metadata = buildMetadata({
   title: 'About Us',
   description:
-    'Denimisia — premium denim crafted in Bangladesh. Honest pricing, sustainable practices, and quality that lasts.',
+    'Denimisia — premium denim crafted in Bangladesh. Best pricing, sustainable practices, and quality that lasts.',
   pathname: '/about',
 });
 
