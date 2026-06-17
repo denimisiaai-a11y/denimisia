@@ -56,7 +56,7 @@ export default async function AboutPage() {
   const hero  = resolveSlotUrl(heroSlot, ABOUT_MESSAGE);
   const story = resolveSlotUrl(storySlot, ABOUT_HERO);
   const heroHeading = resolveSlotText(heroSlot, 'Our Story', 'heading');
-  const heroSub     = resolveSlotText(heroSlot, 'Premium denim, honestly priced — crafted with pride in Bangladesh.', 'subheading');
+  const heroSub     = resolveSlotText(heroSlot, 'Premium denim, best priced — crafted with pride in Bangladesh.', 'subheading');
 
   return (
     <main>
