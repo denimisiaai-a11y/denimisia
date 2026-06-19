@@ -206,7 +206,7 @@ export default async function AboutPage() {
           </h2>
           <p className="mx-auto mt-4 max-w-lg text-base leading-relaxed text-paper/70">
             Experience Denimisia in person. Find your perfect fit at one of our
-            outlets, or reach out — we would love to hear from you.
+            outlets, or reach out — we would love to hear from you and your thoughts.
           </p>
           <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
             <Link href="/outlets" className="btn-pill-white">
