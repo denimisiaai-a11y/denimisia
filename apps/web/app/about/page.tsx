@@ -20,7 +20,7 @@ const values = [
     icon: '\u2726',
     title: 'Quality First',
     description:
-      'Every pair is built to fashion. We select premium fabrics and finishes so our denim ages beautifully, not disposably.',
+      'Every pair is built to Style. We select premium fabrics and finishes so our denim ages beautifully, not disposably.',
   },
   {
     icon: '\u25CB',
