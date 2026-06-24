@@ -18,7 +18,7 @@ jobs:
       contents: read
       packages: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # TODO(sec): pin docker/* actions to commit SHAs — fetch current SHAs with:
       #   gh api repos/docker/setup-buildx-action/git/refs/tags/v3 --jq .object.sha
